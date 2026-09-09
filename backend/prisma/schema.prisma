@@ -1,0 +1,551 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── ENUMS ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  AC_MASTER
+  NON_AC_MASTER
+}
+
+enum TableType {
+  AC
+  NON_AC
+}
+
+enum MenuType {
+  AC
+  NON_AC
+  SWIGGY
+  ZOMATO
+}
+
+enum OrderSource {
+  DINE_IN_AC
+  DINE_IN_NON_AC
+  SELF_PICKUP
+  SWIGGY
+  ZOMATO
+}
+
+enum Permission {
+  DASHBOARD_VIEW
+  TABLE_VIEW
+  TABLE_CREATE
+  TABLE_EDIT
+  TABLE_DELETE
+  MENU_AC_VIEW
+  MENU_AC_CREATE
+  MENU_AC_EDIT
+  MENU_AC_DELETE
+  MENU_NON_AC_VIEW
+  MENU_NON_AC_CREATE
+  MENU_NON_AC_EDIT
+  MENU_NON_AC_DELETE
+  MENU_SWIGGY_VIEW
+  MENU_SWIGGY_CREATE
+  MENU_SWIGGY_EDIT
+  MENU_SWIGGY_DELETE
+  MENU_ZOMATO_VIEW
+  MENU_ZOMATO_CREATE
+  MENU_ZOMATO_EDIT
+  MENU_ZOMATO_DELETE
+  MENU_BULK_ADD
+  ORDER_CREATE
+  ORDER_EDIT
+  ORDER_CANCEL
+  KOT_CREATE
+  KOT_VIEW
+  KOT_EDIT
+  KOT_PRINT
+  BILL_VIEW_DRAFT
+  BILL_EDIT
+  BILL_PRINT
+  BILL_FINALIZE
+  BILL_CANCEL
+  BILL_AMEND
+  PURCHASE_VIEW
+  PURCHASE_CREATE
+  PURCHASE_EDIT
+  PURCHASE_DELETE
+  INVENTORY_VIEW
+  INVENTORY_CREATE
+  INVENTORY_EDIT
+  INVENTORY_ADJUST
+  REPORT_VIEW
+  REPORT_PDF
+  REPORT_CSV
+  USER_VIEW
+  USER_CREATE
+  USER_EDIT
+  USER_DELETE
+  SETTINGS_VIEW
+  SETTINGS_EDIT
+  ONLINE_ORDER_VIEW
+  ONLINE_ORDER_CREATE
+  ONLINE_ORDER_EDIT
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  BILLING
+}
+
+enum SessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum OrderStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderItemStatus {
+  PENDING
+  SENT
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum KotStatus {
+  NEW
+  PREPARING
+  READY
+  COMPLETED
+}
+
+enum BillStatus {
+  DRAFT
+  FINALIZED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
+enum OnlinePlatform {
+  SWIGGY
+  ZOMATO
+}
+
+enum OnlineOrderStatus {
+  NEW
+  ACCEPTED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum OnlinePaymentStatus {
+  PAID
+  PENDING
+  SETTLED
+  REFUNDED
+}
+
+enum InventoryTransactionType {
+  PURCHASE
+  PURCHASE_REVERSAL
+  MANUAL_ADJUSTMENT
+}
+
+enum ChangeType {
+  EDITED
+  CANCELLED
+}
+
+// ─── MODELS ─────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  name      String
+  role      Role
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+  sessions      TableSession[]
+  orders        Order[]
+  permissions   UserPermission[]
+}
+
+model UserPermission {
+  id         String     @id @default(uuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission
+  createdAt  DateTime   @default(now())
+
+  @@unique([userId, permission])
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Table {
+  id        String      @id @default(uuid())
+  number    Int         @unique
+  capacity  Int         @default(4)
+  type      TableType
+  status    TableStatus @default(AVAILABLE)
+  active    Boolean     @default(true)
+  createdAt DateTime    @default(now())
+
+  sessions TableSession[]
+  orders   Order[]
+
+  @@index([type])
+  @@index([status])
+}
+
+model Category {
+  id           String     @id @default(uuid())
+  name         String     @unique
+  displayOrder Int        @default(0)
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  menuItems MenuItem[]
+}
+
+model MenuItem {
+  id          String    @id @default(uuid())
+  name        String
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id])
+  menuType    MenuType
+  price       Decimal
+  description String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  orderItems OrderItem[]
+
+  @@unique([name, categoryId, menuType])
+  @@index([menuType])
+  @@index([categoryId])
+  @@index([active])
+}
+
+model TableSession {
+  id         String        @id @default(uuid())
+  tableId    String
+  table      Table         @relation(fields: [tableId], references: [id])
+  captainId  String
+  captain    User          @relation(fields: [captainId], references: [id])
+  guestCount Int?
+  status     SessionStatus @default(OPEN)
+  openedAt   DateTime      @default(now())
+  closedAt   DateTime?
+
+  orders Order[]
+  kots   KOT[]
+  bills  Bill[]
+
+  @@index([tableId])
+  @@index([captainId])
+  @@index([status])
+}
+
+model Order {
+  id          String        @id @default(uuid())
+  orderSource OrderSource   @default(DINE_IN_NON_AC)
+  sessionId   String?
+  session     TableSession? @relation(fields: [sessionId], references: [id])
+  tableId     String?
+  table       Table?        @relation(fields: [tableId], references: [id])
+  captainId   String
+  captain     User          @relation(fields: [captainId], references: [id])
+  status      OrderStatus   @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  items OrderItem[]
+  kots  KOT[]
+  bill  Bill?
+
+  @@index([orderSource])
+  @@index([status])
+  @@index([createdAt])
+  @@index([sessionId])
+  @@index([tableId])
+  @@index([captainId])
+}
+
+model OrderItem {
+  id               String          @id @default(uuid())
+  orderId          String
+  order            Order           @relation(fields: [orderId], references: [id])
+  menuItemId       String
+  menuItem         MenuItem        @relation(fields: [menuItemId], references: [id])
+  itemNameSnapshot String
+  priceSnapshot    Decimal
+  quantity         Int
+  originalQuantity Int?
+  notes            String?
+  kotId            String?
+  kot              KOT?            @relation(fields: [kotId], references: [id])
+  status           OrderItemStatus @default(PENDING)
+  createdAt        DateTime        @default(now())
+
+  history OrderItemHistory[]
+
+  @@index([orderId])
+  @@index([menuItemId])
+  @@index([kotId])
+  @@index([status])
+}
+
+model OrderItemHistory {
+  id          String     @id @default(uuid())
+  orderItemId String
+  orderItem   OrderItem  @relation(fields: [orderItemId], references: [id])
+  changeType  ChangeType
+  oldQuantity Int
+  newQuantity Int
+  reason      String?
+  changedBy   String
+  createdAt   DateTime   @default(now())
+
+  @@index([orderItemId])
+}
+
+model KOT {
+  id        String        @id @default(uuid())
+  kotNumber Int
+  orderId   String
+  order     Order         @relation(fields: [orderId], references: [id])
+  sessionId String?
+  session   TableSession? @relation(fields: [sessionId], references: [id])
+  captainId String
+  status    KotStatus     @default(NEW)
+  createdAt DateTime      @default(now())
+
+  items OrderItem[]
+
+  @@index([orderId])
+  @@index([sessionId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Bill {
+  id            String        @id @default(uuid())
+  billNumber    Int           @unique @default(autoincrement())
+  orderId       String        @unique
+  order         Order         @relation(fields: [orderId], references: [id])
+  sessionId     String?
+  session       TableSession? @relation(fields: [sessionId], references: [id])
+  tableId       String?
+  customerName  String?
+  customerPhone String?
+  subtotal      Decimal
+  sgstPercent   Decimal       @default(2.5)
+  cgstPercent   Decimal       @default(2.5)
+  sgstAmount    Decimal       @default(0)
+  cgstAmount    Decimal       @default(0)
+  discount      Decimal       @default(0)
+  total         Decimal
+  roundOff      Decimal       @default(0)
+  version       Int           @default(1)
+  status        BillStatus    @default(DRAFT)
+  createdAt     DateTime      @default(now())
+  finalizedAt   DateTime?
+
+  payment    Payment?
+  amendments BillAmendment[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([sessionId])
+  @@index([tableId])
+}
+
+model BillAmendment {
+  id            String   @id @default(uuid())
+  billId        String
+  bill          Bill     @relation(fields: [billId], references: [id])
+  version       Int
+  changes       Json
+  reason        String
+  modifiedBy    String
+  originalTotal Decimal
+  newSubtotal   Decimal
+  newSgstAmount Decimal
+  newCgstAmount Decimal
+  newDiscount   Decimal  @default(0)
+  newTotal      Decimal
+  difference    Decimal
+  paymentStatus String   @default("PENDING")
+  createdAt     DateTime @default(now())
+
+  @@index([billId])
+}
+
+model Payment {
+  id     String        @id @default(uuid())
+  billId String        @unique
+  bill   Bill          @relation(fields: [billId], references: [id])
+  method PaymentMethod
+  amount Decimal
+  status PaymentStatus @default(PAID)
+  paidAt DateTime      @default(now())
+
+  @@index([paidAt])
+  @@index([method])
+}
+
+model OnlineOrder {
+  id              String              @id @default(uuid())
+  platform        OnlinePlatform
+  externalOrderId String
+  customerName    String?
+  items           Json
+  subtotal        Decimal
+  discount        Decimal @default(0)
+  charges         Decimal @default(0)
+  total           Decimal
+  paymentStatus   OnlinePaymentStatus @default(PAID)
+  status          OnlineOrderStatus   @default(NEW)
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([platform])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Supplier {
+  id        String          @id @default(uuid())
+  name      String
+  phone     String?
+  address   String?
+  active    Boolean         @default(true)
+  createdAt DateTime        @default(now())
+
+  purchases PurchaseEntry[]
+}
+
+model PurchaseEntry {
+  id             String         @id @default(uuid())
+  supplierId     String
+  supplier       Supplier       @relation(fields: [supplierId], references: [id])
+  purchaseNumber String?
+  totalAmount    Decimal
+  purchaseDate   DateTime
+  addToInventory Boolean        @default(false)
+  status         String         @default("ACTIVE")
+  createdAt      DateTime       @default(now())
+
+  items PurchaseItem[]
+
+  @@index([supplierId])
+  @@index([purchaseDate])
+  @@index([status])
+}
+
+model PurchaseItem {
+  id         String        @id @default(uuid())
+  purchaseId String
+  purchase   PurchaseEntry @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  name       String
+  quantity   Decimal
+  unit       String
+  rate       Decimal
+  amount     Decimal
+
+  @@index([purchaseId])
+}
+
+model InventoryItem {
+  id                String                 @id @default(uuid())
+  name              String                 @unique
+  currentStock      Decimal
+  unit              String
+  lowStockThreshold Decimal @default(0)
+  updatedAt         DateTime               @updatedAt
+
+  transactions InventoryTransaction[]
+}
+
+model InventoryTransaction {
+  id              String                   @id @default(uuid())
+  inventoryItemId String
+  inventoryItem   InventoryItem            @relation(fields: [inventoryItemId], references: [id])
+  type            InventoryTransactionType
+  quantity        Decimal
+  referenceId     String?
+  notes           String?
+  createdAt       DateTime                 @default(now())
+
+  @@index([inventoryItemId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Settings {
+  id                        String   @id @default(uuid())
+  restaurantName            String   @default("Maharaj Veg Villa")
+  address                   String?
+  phone                     String?
+  gstin                     String?
+  sgstPercent               Decimal  @default(2.5)
+  cgstPercent               Decimal  @default(2.5)
+  includePurchasesInReports Boolean  @default(false)
+  updatedAt                 DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String
+  before    Json?
+  after     Json?
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}

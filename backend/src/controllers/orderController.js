@@ -1,0 +1,72 @@
+import * as orderService from '../services/orderService.js';
+
+export const create = async (req, res, next) => {
+  try {
+    const { sessionId } = req.body;
+    const captainId = req.user.id;
+    const result = await orderService.create(sessionId, captainId);
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createTakeAway = async (req, res, next) => {
+  try {
+    const { orderSource, items, generateKot, customerNotes } = req.body;
+    const captainId = req.user.id;
+    const result = await orderService.createTakeAwayOrder({
+      orderSource,
+      items,
+      generateKot: !!generateKot,
+      customerNotes,
+      captainId,
+    });
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAll = async (req, res, next) => {
+  try {
+    const filters = {
+      sessionId: req.query.sessionId,
+      tableId: req.query.tableId,
+      status: req.query.status,
+      orderSource: req.query.orderSource,
+    };
+    const result = await orderService.getAll(filters);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getById = async (req, res, next) => {
+  try {
+    const result = await orderService.getById(req.params.id);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const addItems = async (req, res, next) => {
+  try {
+    const { items } = req.body;
+    const result = await orderService.addItems(req.params.id, items);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const cancel = async (req, res, next) => {
+  try {
+    const result = await orderService.cancel(req.params.id);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
