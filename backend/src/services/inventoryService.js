@@ -57,7 +57,15 @@ export const adjust = async (data, userId) => {
   const adjustQty = Number(quantity);
 
   return prisma.$transaction(async (tx) => {
-    const item = await tx.inventoryItem.findUnique({ where: { id: inventoryItemId } });
+    // Acquire exclusive PostgreSQL row-level lock via SELECT ... FOR UPDATE
+    // This serializes concurrent adjustments on the same item and eliminates race conditions
+    const rows = await tx.$queryRaw`
+      SELECT id, name, unit, "currentStock", "lowStockThreshold"
+      FROM "InventoryItem"
+      WHERE id = ${inventoryItemId}
+      FOR UPDATE
+    `;
+    const item = rows[0];
     if (!item) throw { status: 404, message: 'Inventory item not found' };
 
     const currentStock = Number(item.currentStock);
