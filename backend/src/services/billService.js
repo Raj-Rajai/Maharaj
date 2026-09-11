@@ -1,6 +1,6 @@
 import prisma from '../utils/prisma.js';
 import * as auditService from './auditService.js';
-import { settingsCache } from '../utils/cache.js';
+import { settingsCache, tableCache } from '../utils/cache.js';
 
 const getSettings = async () => {
   const cached = settingsCache.get();
@@ -164,7 +164,7 @@ export const finalize = async (billId, paymentMethod, customerName = null, custo
   if (!bill) throw { status: 404, message: 'Bill not found' };
   if (bill.status !== 'DRAFT') throw { status: 400, message: 'Only DRAFT bills can be finalized' };
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const updateData = { status: 'FINALIZED', finalizedAt: new Date() };
     if (customerName !== undefined && customerName !== null && String(customerName).trim()) {
       updateData.customerName = String(customerName).trim();
@@ -173,33 +173,50 @@ export const finalize = async (billId, paymentMethod, customerName = null, custo
       updateData.customerPhone = String(customerPhone).trim();
     }
 
-    const finalizedBill = await tx.bill.update({
-      where: { id: billId },
-      data: updateData,
-    });
-    const payment = await tx.payment.create({
-      data: { billId, method, amount: bill.total, status: 'PAID', paidAt: new Date() },
-    });
-    await tx.order.update({ where: { id: bill.orderId }, data: { status: 'COMPLETED' } });
-    await tx.kOT.updateMany({
-      where: { orderId: bill.orderId },
-      data: { status: 'COMPLETED' }
-    });
-    await tx.orderItem.updateMany({
-      where: { orderId: bill.orderId, status: { notIn: ['CANCELLED', 'SERVED'] } },
-      data: { status: 'SERVED' }
-    });
+    // Parallelize bill update and payment creation
+    const [finalizedBill, payment] = await Promise.all([
+      tx.bill.update({
+        where: { id: billId },
+        data: updateData,
+      }),
+      tx.payment.create({
+        data: { billId, method, amount: bill.total, status: 'PAID', paidAt: new Date() },
+      }),
+    ]);
+
+    // Parallelize all cascading updates
+    const cascadeOps = [
+      tx.order.update({ where: { id: bill.orderId }, data: { status: 'COMPLETED' } }),
+      tx.kOT.updateMany({
+        where: { orderId: bill.orderId },
+        data: { status: 'COMPLETED' },
+      }),
+      tx.orderItem.updateMany({
+        where: { orderId: bill.orderId, status: { notIn: ['CANCELLED', 'SERVED'] } },
+        data: { status: 'SERVED' },
+      }),
+    ];
+
     if (bill.tableId) {
-      await tx.table.update({ where: { id: bill.tableId }, data: { status: 'AVAILABLE' } });
+      cascadeOps.push(tx.table.update({ where: { id: bill.tableId }, data: { status: 'AVAILABLE' } }));
     }
     if (bill.sessionId) {
-      await tx.tableSession.update({
+      cascadeOps.push(tx.tableSession.update({
         where: { id: bill.sessionId },
         data: { status: 'CLOSED', closedAt: new Date() },
-      });
+      }));
     }
+
+    await Promise.all(cascadeOps);
+
     return { ...finalizedBill, payment };
   });
+
+  if (bill.tableId) {
+    tableCache.invalidate();
+  }
+
+  return result;
 };
 
 export const cancel = async (billId) => {
@@ -366,21 +383,25 @@ export const editDraft = async (billId, changes, discount, userId, customerName 
 
     const settings = await getSettings();
 
+    const itemUpdates = [];
     for (const change of changes) {
       const item = bill.order.items.find(i => i.itemNameSnapshot === change.itemName && i.status !== 'CANCELLED');
       if (item && item.quantity !== change.newQty) {
         if (change.newQty === 0) {
-          await tx.orderItem.update({
+          itemUpdates.push(tx.orderItem.update({
             where: { id: item.id },
             data: { status: 'CANCELLED', originalQuantity: item.originalQuantity || item.quantity }
-          });
+          }));
         } else {
-          await tx.orderItem.update({
+          itemUpdates.push(tx.orderItem.update({
             where: { id: item.id },
             data: { quantity: change.newQty, originalQuantity: item.originalQuantity || item.quantity }
-          });
+          }));
         }
       }
+    }
+    if (itemUpdates.length > 0) {
+      await Promise.all(itemUpdates);
     }
 
     // Re-fetch items within the transaction to get updated quantities

@@ -1,32 +1,41 @@
 import prisma from '../utils/prisma.js';
+import { tableCache } from '../utils/cache.js';
 
 export const create = async (data, captainId) => {
-  return prisma.$transaction(async (tx) => {
-    const table = await tx.table.findUnique({ where: { id: data.tableId } });
+  const session = await prisma.$transaction(async (tx) => {
+    // Parallelize table lookup and open session check
+    const [table, existingOpenSession] = await Promise.all([
+      tx.table.findUnique({ where: { id: data.tableId } }),
+      tx.tableSession.findFirst({
+        where: { tableId: data.tableId, status: 'OPEN' },
+      }),
+    ]);
+
     if (!table) throw { status: 404, message: 'Table not found' };
     if (table.status !== 'AVAILABLE') throw { status: 400, message: 'Table is not available' };
-
-    const existingOpenSession = await tx.tableSession.findFirst({
-      where: { tableId: data.tableId, status: 'OPEN' }
-    });
     if (existingOpenSession) throw { status: 400, message: 'Table already has an open session' };
 
-    const session = await tx.tableSession.create({
-      data: {
-        tableId: data.tableId,
-        captainId,
-        guestCount: data.guestCount,
-        status: 'OPEN'
-      }
-    });
+    // Parallelize session creation and table status update
+    const [newSession] = await Promise.all([
+      tx.tableSession.create({
+        data: {
+          tableId: data.tableId,
+          captainId,
+          guestCount: data.guestCount,
+          status: 'OPEN',
+        },
+      }),
+      tx.table.update({
+        where: { id: data.tableId },
+        data: { status: 'OCCUPIED' },
+      }),
+    ]);
 
-    await tx.table.update({
-      where: { id: data.tableId },
-      data: { status: 'OCCUPIED' }
-    });
-
-    return session;
+    return newSession;
   });
+
+  tableCache.invalidate();
+  return session;
 };
 
 export const getActive = async () => {
@@ -54,7 +63,7 @@ export const getById = async (id) => {
 };
 
 export const close = async (id) => {
-  return prisma.$transaction(async (tx) => {
+  const updatedSession = await prisma.$transaction(async (tx) => {
     const session = await tx.tableSession.findUnique({
       where: { id },
       include: { orders: true }
@@ -66,19 +75,24 @@ export const close = async (id) => {
     const hasIncompleteOrders = session.orders.some(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
     if (hasIncompleteOrders) throw { status: 400, message: 'Cannot close session with incomplete orders' };
 
-    const updatedSession = await tx.tableSession.update({
-      where: { id },
-      data: {
-        status: 'CLOSED',
-        closedAt: new Date()
-      }
-    });
+    // Parallelize session close and table release
+    const [closedSession] = await Promise.all([
+      tx.tableSession.update({
+        where: { id },
+        data: {
+          status: 'CLOSED',
+          closedAt: new Date(),
+        },
+      }),
+      tx.table.update({
+        where: { id: session.tableId },
+        data: { status: 'AVAILABLE' },
+      }),
+    ]);
 
-    await tx.table.update({
-      where: { id: session.tableId },
-      data: { status: 'AVAILABLE' }
-    });
-
-    return updatedSession;
+    return closedSession;
   });
+
+  tableCache.invalidate();
+  return updatedSession;
 };
