@@ -29,14 +29,16 @@ export const getById = async (id) => {
 };
 
 export const create = async (data, userId) => {
-  const existing = await prisma.inventoryItem.findUnique({ where: { name: data.name } });
-  if (existing) throw { status: 400, message: 'Inventory item with this name already exists' };
-
-  const item = await prisma.inventoryItem.create({ data });
-  if (userId) {
-    await auditService.log({ userId, action: 'CREATE', entity: 'INVENTORY', entityId: item.id, after: { name: data.name, stock: data.currentStock, unit: data.unit } });
+  try {
+    const item = await prisma.inventoryItem.create({ data });
+    if (userId) {
+      await auditService.log({ userId, action: 'CREATE', entity: 'INVENTORY', entityId: item.id, after: { name: data.name, stock: data.currentStock, unit: data.unit } });
+    }
+    return item;
+  } catch (error) {
+    if (error.code === 'P2002') throw { status: 400, message: 'Inventory item with this name already exists' };
+    throw error;
   }
-  return item;
 };
 
 export const update = async (id, data, userId) => {
@@ -52,31 +54,50 @@ export const update = async (id, data, userId) => {
 
 export const adjust = async (data, userId) => {
   const { inventoryItemId, quantity, type, notes, referenceId } = data;
-
-  const item = await prisma.inventoryItem.findUnique({ where: { id: inventoryItemId } });
-  if (!item) throw { status: 404, message: 'Inventory item not found' };
-
-  const currentStock = Number(item.currentStock);
   const adjustQty = Number(quantity);
-  const newStock = currentStock + adjustQty;
-
-  if (newStock < 0) throw { status: 400, message: `Adjustment would result in negative stock (${currentStock} + ${adjustQty} = ${newStock})` };
 
   return prisma.$transaction(async (tx) => {
-    const updatedItem = await tx.inventoryItem.update({
-      where: { id: inventoryItemId },
-      data: { currentStock: newStock }
-    });
+    const item = await tx.inventoryItem.findUnique({ where: { id: inventoryItemId } });
+    if (!item) throw { status: 404, message: 'Inventory item not found' };
 
-    const transaction = await tx.inventoryTransaction.create({
-      data: { inventoryItemId, type, quantity: adjustQty, referenceId, notes }
-    });
+    const currentStock = Number(item.currentStock);
+    const newStock = currentStock + adjustQty;
 
-    if (userId) {
-      await auditService.log({ userId, action: 'ADJUST', entity: 'INVENTORY', entityId: inventoryItemId, before: { stock: currentStock }, after: { stock: newStock }, reason: notes || type }, tx);
+    if (newStock < 0) {
+      throw { status: 400, message: `Adjustment would result in negative stock (${currentStock} + ${adjustQty} = ${newStock})` };
     }
 
-    return { item: { ...updatedItem, currentStock: Number(updatedItem.currentStock) }, transaction };
+    const [updatedItem, transaction] = await Promise.all([
+      tx.inventoryItem.update({
+        where: { id: inventoryItemId },
+        data: { currentStock: newStock }
+      }),
+      tx.inventoryTransaction.create({
+        data: { inventoryItemId, type, quantity: adjustQty, referenceId, notes }
+      }),
+    ]);
+
+    if (userId) {
+      await auditService.log({
+        userId, action: 'ADJUST', entity: 'INVENTORY', entityId: inventoryItemId,
+        before: { stock: currentStock },
+        after: { stock: newStock },
+        reason: notes || type
+      }, tx);
+    }
+
+    return {
+      item: {
+        ...updatedItem,
+        currentStock: Number(updatedItem.currentStock),
+        lowStockThreshold: Number(updatedItem.lowStockThreshold),
+        lowStock: Number(updatedItem.currentStock) <= Number(updatedItem.lowStockThreshold)
+      },
+      transaction: {
+        ...transaction,
+        quantity: Number(transaction.quantity)
+      }
+    };
   });
 };
 

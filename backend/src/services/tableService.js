@@ -33,18 +33,25 @@ export const create = async (data) => {
 };
 
 export const update = async (id, data) => {
-  const table = await prisma.table.findUnique({ where: { id } });
-  if (!table) throw { status: 404, message: 'Table not found' };
-  const updated = await prisma.table.update({ where: { id }, data });
-  tableCache.invalidate();
-  return updated;
+  try {
+    const updated = await prisma.table.update({ where: { id }, data });
+    tableCache.invalidate();
+    return updated;
+  } catch (error) {
+    if (error.code === 'P2025') throw { status: 404, message: 'Table not found' };
+    throw error;
+  }
 };
 
 export const updateStatus = async (id, status) => {
-  await getById(id);
-  const updated = await prisma.table.update({ where: { id }, data: { status } });
-  tableCache.invalidate();
-  return updated;
+  try {
+    const updated = await prisma.table.update({ where: { id }, data: { status } });
+    tableCache.invalidate();
+    return updated;
+  } catch (error) {
+    if (error.code === 'P2025') throw { status: 404, message: 'Table not found' };
+    throw error;
+  }
 };
 
 export const softDelete = async (id) => {

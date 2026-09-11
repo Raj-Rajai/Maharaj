@@ -34,23 +34,28 @@ export const getById = async (id) => {
 };
 
 export const create = async (data) => {
-  const existing = await prisma.category.findUnique({ where: { name: data.name } });
-  if (existing) throw { status: 400, message: 'Category name already exists' };
-  const created = await prisma.category.create({ data });
-  categoryCache.invalidate();
-  invalidateMenuCaches();
-  return created;
+  try {
+    const created = await prisma.category.create({ data });
+    categoryCache.invalidate();
+    invalidateMenuCaches();
+    return created;
+  } catch (error) {
+    if (error.code === 'P2002') throw { status: 400, message: 'Category name already exists' };
+    throw error;
+  }
 };
 
 export const update = async (id, data) => {
-  if (data.name) {
-    const existing = await prisma.category.findUnique({ where: { name: data.name } });
-    if (existing && existing.id !== id) throw { status: 400, message: 'Category name already exists' };
+  try {
+    const updated = await prisma.category.update({ where: { id }, data });
+    categoryCache.invalidate();
+    invalidateMenuCaches();
+    return updated;
+  } catch (error) {
+    if (error.code === 'P2025') throw { status: 404, message: 'Category not found' };
+    if (error.code === 'P2002') throw { status: 400, message: 'Category name already exists' };
+    throw error;
   }
-  const updated = await prisma.category.update({ where: { id }, data });
-  categoryCache.invalidate();
-  invalidateMenuCaches();
-  return updated;
 };
 
 export const softDelete = async (id) => {
