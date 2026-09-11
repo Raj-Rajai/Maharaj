@@ -1,4 +1,22 @@
 import prisma from '../utils/prisma.js';
+import { settingsCache } from '../utils/cache.js';
+
+const getSettings = async () => {
+  const cached = settingsCache.get();
+  if (cached) return cached;
+
+  const settings = await prisma.settings.findFirst();
+  const result = settings || {
+    restaurantName: 'Maharaj Veg Villa',
+    address: '',
+    phone: '',
+    gstin: '',
+    sgstPercent: 2.5,
+    cgstPercent: 2.5,
+  };
+  settingsCache.set(result);
+  return result;
+};
 
 const MENU_TYPE_MAP = {
   DINE_IN_AC: 'AC',
@@ -85,9 +103,9 @@ export const createTakeAwayOrder = async (data, userId) => {
     dbItems.push(menuItem);
   }
 
-  const settings = await prisma.settings.findFirst();
-  const sgstPercent = settings ? Number(settings.sgstPercent) : 2.5;
-  const cgstPercent = settings ? Number(settings.cgstPercent) : 2.5;
+  const settings = await getSettings();
+  const sgstPercent = Number(settings.sgstPercent ?? 2.5);
+  const cgstPercent = Number(settings.cgstPercent ?? 2.5);
 
   // Calculate using DB prices — never trust client
   const subtotal = items.reduce(

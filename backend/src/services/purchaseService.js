@@ -57,9 +57,15 @@ export const create = async (data, userId) => {
       include: { items: true }
     });
 
-    if (addToInventory) {
+    if (addToInventory && purchase.items.length > 0) {
+      const names = [...new Set(purchase.items.map(i => i.name))];
+      const existingItems = await tx.inventoryItem.findMany({
+        where: { name: { in: names } }
+      });
+      const itemMap = new Map(existingItems.map(i => [i.name, i]));
+
       for (const item of purchase.items) {
-        await addItemToInventory(tx, item, purchase.id, purchase.purchaseNumber);
+        await addItemToInventoryOptimized(tx, item, purchase.id, purchase.purchaseNumber, itemMap);
       }
     }
 
@@ -119,9 +125,14 @@ export const update = async (id, data, userId) => {
       }
     }
 
-    if (!existing.addToInventory && addToInventory) {
+    if (!existing.addToInventory && addToInventory && items.length > 0) {
+      const names = [...new Set(items.map(i => i.name))];
+      const existingItems = await tx.inventoryItem.findMany({
+        where: { name: { in: names } }
+      });
+      const itemMap = new Map(existingItems.map(i => [i.name, i]));
       for (const ni of items) {
-        await addItemToInventoryRaw(tx, ni.name, ni.unit, Number(ni.quantity), id, purchaseNumber);
+        await addItemToInventoryOptimized(tx, ni, id, purchaseNumber, itemMap);
       }
     }
 
@@ -204,6 +215,37 @@ export const cancel = async (id, userId) => {
   });
 };
 
+async function addItemToInventoryOptimized(tx, purchaseItem, purchaseId, purchaseNumber, itemMap) {
+  const name = purchaseItem.name;
+  const unit = purchaseItem.unit;
+  const quantity = Number(purchaseItem.quantity);
+
+  let invItem = itemMap.get(name);
+  if (!invItem) {
+    invItem = await tx.inventoryItem.create({
+      data: { name, currentStock: quantity, unit, lowStockThreshold: 0 }
+    });
+    itemMap.set(name, invItem);
+  } else {
+    const newStock = Number(invItem.currentStock) + quantity;
+    invItem = await tx.inventoryItem.update({
+      where: { id: invItem.id },
+      data: { currentStock: Math.max(0, newStock) }
+    });
+    itemMap.set(name, invItem);
+  }
+
+  await tx.inventoryTransaction.create({
+    data: {
+      inventoryItemId: invItem.id,
+      type: 'PURCHASE',
+      quantity,
+      referenceId: purchaseId,
+      notes: `Purchase ${purchaseNumber || purchaseId}`
+    }
+  });
+}
+
 async function addItemToInventory(tx, purchaseItem, purchaseId, purchaseNumber) {
   await addItemToInventoryRaw(
     tx, purchaseItem.name, purchaseItem.unit,
@@ -243,10 +285,9 @@ async function adjustInventoryForPurchase(tx, name, unit, quantity, purchaseId, 
 
     if (quantity < 0) return;
 
-    await tx.inventoryItem.create({
+    const created = await tx.inventoryItem.create({
       data: { name, currentStock: Math.max(0, quantity), unit, lowStockThreshold: 0 }
     });
-    const created = await tx.inventoryItem.findUnique({ where: { name } });
     await tx.inventoryTransaction.create({
       data: {
         inventoryItemId: created.id, type: txType, quantity,

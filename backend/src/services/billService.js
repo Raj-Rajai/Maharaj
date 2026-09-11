@@ -264,14 +264,21 @@ export const amendBill = async (billId, changes, reason, userId, discount, custo
     }
   }
 
-  // For new items, load authoritative price from DB
+  // For new items, load authoritative price from DB in a single batch query
   const addedItems = changes.filter(c => c.isNew);
   if (addedItems.length > 0) {
     for (const added of addedItems) {
       if (!added.menuItemId) {
         throw { status: 400, message: 'New amendment items must include menuItemId' };
       }
-      const menuItem = await prisma.menuItem.findUnique({ where: { id: added.menuItemId } });
+    }
+    const addedIds = addedItems.map(c => c.menuItemId);
+    const dbMenuItems = await prisma.menuItem.findMany({
+      where: { id: { in: addedIds } },
+    });
+    const itemMap = new Map(dbMenuItems.map(m => [m.id, m]));
+    for (const added of addedItems) {
+      const menuItem = itemMap.get(added.menuItemId);
       if (!menuItem) {
         throw { status: 404, message: `Menu item not found: ${added.menuItemId}` };
       }
