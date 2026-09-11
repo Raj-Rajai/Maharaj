@@ -112,21 +112,44 @@ export const remove = async (id, userId) => {
 };
 
 export const getTransactions = async (filters = {}) => {
+  const { inventoryItemId, type, startDate, endDate, from, to, limit, take, page, all } = filters || {};
   const where = {};
-  if (filters.inventoryItemId) where.inventoryItemId = filters.inventoryItemId;
-  if (filters.type) where.type = filters.type;
-  if (filters.startDate || filters.endDate) {
+  if (inventoryItemId) where.inventoryItemId = inventoryItemId;
+  if (type && type !== 'ALL') where.type = type;
+
+  const startParam = startDate || from;
+  const endParam = endDate || to;
+  if (startParam || endParam) {
     where.createdAt = {};
-    if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
-    if (filters.endDate) {
-      const d = new Date(filters.endDate);
-      d.setHours(23, 59, 59, 999);
-      where.createdAt.lte = d;
+    if (startParam) {
+      const s = new Date(startParam);
+      s.setHours(0, 0, 0, 0);
+      where.createdAt.gte = s;
+    }
+    if (endParam) {
+      const e = new Date(endParam);
+      e.setHours(23, 59, 59, 999);
+      where.createdAt.lte = e;
     }
   }
-  return prisma.inventoryTransaction.findMany({
+
+  const queryOptions = {
     where,
     orderBy: { createdAt: 'desc' },
-    include: { inventoryItem: true }
-  });
+    include: { inventoryItem: true },
+  };
+
+  const limitParam = limit || take;
+  if (limitParam) {
+    queryOptions.take = Number(limitParam);
+  } else if (all !== true && all !== 'true') {
+    // Default safe bound to prevent unbounded transaction log scans
+    queryOptions.take = 100;
+  }
+
+  if (page && limitParam) {
+    queryOptions.skip = (Number(page) - 1) * Number(limitParam);
+  }
+
+  return prisma.inventoryTransaction.findMany(queryOptions);
 };

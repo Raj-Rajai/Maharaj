@@ -6,7 +6,13 @@ export const getAll = async (req, res, next) => {
       platform: req.query.platform,
       status: req.query.status,
       startDate: req.query.startDate,
-      endDate: req.query.endDate
+      endDate: req.query.endDate,
+      from: req.query.from,
+      to: req.query.to,
+      limit: req.query.limit,
+      take: req.query.take,
+      page: req.query.page,
+      all: req.query.all,
     };
     const orders = await onlineOrderService.getAll(filters);
     res.json(orders);

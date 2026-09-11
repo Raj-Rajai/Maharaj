@@ -1,15 +1,45 @@
 import prisma from '../utils/prisma.js';
 
 export const getAll = async (filters = {}) => {
+  const { platform, status, startDate, endDate, from, to, limit, take, page, all } = filters || {};
   const where = {};
-  if (filters.platform) where.platform = filters.platform;
-  if (filters.status) where.status = filters.status;
-  if (filters.startDate || filters.endDate) {
+  if (platform && platform !== 'ALL') where.platform = platform;
+  if (status && status !== 'ALL') where.status = status;
+
+  const startParam = startDate || from;
+  const endParam = endDate || to;
+  if (startParam || endParam) {
     where.createdAt = {};
-    if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
-    if (filters.endDate) where.createdAt.lte = new Date(filters.endDate);
+    if (startParam) {
+      const s = new Date(startParam);
+      s.setHours(0, 0, 0, 0);
+      where.createdAt.gte = s;
+    }
+    if (endParam) {
+      const e = new Date(endParam);
+      e.setHours(23, 59, 59, 999);
+      where.createdAt.lte = e;
+    }
   }
-  return prisma.onlineOrder.findMany({ where, orderBy: { createdAt: 'desc' } });
+
+  const queryOptions = {
+    where,
+    orderBy: { createdAt: 'desc' },
+  };
+
+  const limitParam = limit || take;
+  if (limitParam) {
+    queryOptions.take = Number(limitParam);
+  } else if (all !== true && all !== 'true') {
+    // Default safe bound to prevent unbounded historical memory spikes
+    queryOptions.take = 100;
+  }
+
+  if (page && limitParam) {
+    queryOptions.skip = (Number(page) - 1) * Number(limitParam);
+  }
+
+  return prisma.onlineOrder.findMany(queryOptions);
 };
 
 export const getById = async (id) => {
@@ -91,7 +121,6 @@ export const create = async (data) => {
 };
 
 export const update = async (id, data) => {
-  await getById(id);
   // Only allow updating non-financial fields and status
   const { customerName, notes, status, paymentStatus } = data;
   const updateData = {};
@@ -99,10 +128,19 @@ export const update = async (id, data) => {
   if (notes !== undefined) updateData.notes = notes;
   if (status !== undefined) updateData.status = status;
   if (paymentStatus !== undefined) updateData.paymentStatus = paymentStatus;
-  return prisma.onlineOrder.update({ where: { id }, data: updateData });
+  try {
+    return await prisma.onlineOrder.update({ where: { id }, data: updateData });
+  } catch (error) {
+    if (error.code === 'P2025') throw { status: 404, message: 'Online order not found' };
+    throw error;
+  }
 };
 
 export const updateStatus = async (id, status) => {
-  await getById(id);
-  return prisma.onlineOrder.update({ where: { id }, data: { status } });
+  try {
+    return await prisma.onlineOrder.update({ where: { id }, data: { status } });
+  } catch (error) {
+    if (error.code === 'P2025') throw { status: 404, message: 'Online order not found' };
+    throw error;
+  }
 };

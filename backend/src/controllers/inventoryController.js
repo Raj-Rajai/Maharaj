@@ -48,7 +48,13 @@ export const getTransactions = async (req, res, next) => {
       inventoryItemId: req.query.inventoryItemId,
       type: req.query.type,
       startDate: req.query.startDate,
-      endDate: req.query.endDate
+      endDate: req.query.endDate,
+      from: req.query.from,
+      to: req.query.to,
+      limit: req.query.limit,
+      take: req.query.take,
+      page: req.query.page,
+      all: req.query.all,
     };
     const transactions = await inventoryService.getTransactions(filters);
     res.json(transactions);
