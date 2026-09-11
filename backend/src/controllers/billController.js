@@ -18,7 +18,7 @@ export const create = async (req, res, next) => {
 
 export const getAll = async (req, res, next) => {
   try {
-    const filters = { status: req.query.status, startDate: req.query.startDate, endDate: req.query.endDate };
+    const filters = { ...req.query };
     const result = await billService.getAll(filters);
     res.json(result);
   } catch (error) { next(error); }

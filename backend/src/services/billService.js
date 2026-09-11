@@ -88,19 +88,38 @@ export const create = async (orderId, discount = 0, customerName = null, custome
 };
 
 export const getAll = async (filters) => {
-  const { status, startDate, endDate } = filters || {};
+  const { status, startDate, endDate, from, to, all, limit, page } = filters || {};
   const where = {};
-  if (status) where.status = status;
-  if (startDate || endDate) {
+  if (status && status !== 'ALL') where.status = status;
+
+  // Support startDate/endDate and from/to aliases
+  const startParam = startDate || from;
+  const endParam = endDate || to;
+
+  if (all === true || all === 'true' || startParam === 'ALL') {
+    // Explicitly requested all bills across history (no date filter)
+  } else if (startParam || endParam) {
     where.createdAt = {};
-    if (startDate) where.createdAt.gte = new Date(startDate);
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      where.createdAt.lte = end;
+    if (startParam) {
+      const s = new Date(startParam);
+      s.setHours(0, 0, 0, 0);
+      where.createdAt.gte = s;
     }
+    if (endParam) {
+      const e = new Date(endParam);
+      e.setHours(23, 59, 59, 999);
+      where.createdAt.lte = e;
+    }
+  } else {
+    // Default to today's bills if no date range is provided
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    where.createdAt = { gte: todayStart, lte: todayEnd };
   }
-  return prisma.bill.findMany({
+
+  const queryOptions = {
     where,
     include: {
       order: { include: { table: true, captain: { select: { id: true, name: true, role: true } } } },
@@ -108,7 +127,14 @@ export const getAll = async (filters) => {
       session: { include: { table: true, captain: { select: { name: true } } } },
     },
     orderBy: { createdAt: 'desc' },
-  });
+  };
+
+  const take = limit ? Number(limit) : undefined;
+  const skip = page && take ? (Number(page) - 1) * take : undefined;
+  if (take) queryOptions.take = take;
+  if (skip) queryOptions.skip = skip;
+
+  return prisma.bill.findMany(queryOptions);
 };
 
 export const getById = async (id) => {

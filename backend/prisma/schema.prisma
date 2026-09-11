@@ -284,6 +284,8 @@ model TableSession {
   @@index([tableId])
   @@index([captainId])
   @@index([status])
+  @@index([tableId, status])
+  @@index([status, openedAt])
 }
 
 model Order {
@@ -309,6 +311,8 @@ model Order {
   @@index([sessionId])
   @@index([tableId])
   @@index([captainId])
+  @@index([status, createdAt])
+  @@index([sessionId, status])
 }
 
 model OrderItem {
@@ -333,6 +337,7 @@ model OrderItem {
   @@index([menuItemId])
   @@index([kotId])
   @@index([status])
+  @@index([orderId, status])
 }
 
 model OrderItemHistory {
@@ -398,6 +403,8 @@ model Bill {
   @@index([createdAt])
   @@index([sessionId])
   @@index([tableId])
+  @@index([status, createdAt])
+  @@index([createdAt, status])
 }
 
 model BillAmendment {
@@ -453,6 +460,8 @@ model OnlineOrder {
   @@index([platform])
   @@index([status])
   @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([platform, status])
 }
 
 model Supplier {
@@ -482,6 +491,7 @@ model PurchaseEntry {
   @@index([supplierId])
   @@index([purchaseDate])
   @@index([status])
+  @@index([status, purchaseDate])
 }
 
 model PurchaseItem {

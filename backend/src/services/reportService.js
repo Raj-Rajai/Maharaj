@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { settingsCache } from '../utils/cache.js';
 
 const getDateRangeFilter = (startDate, endDate) => {
   const filter = {};
@@ -302,7 +303,7 @@ export const salesSummary = async (startDate, endDate) => {
   });
   const categorySales = Object.values(catMap).sort((a, b) => b.revenue - a.revenue);
 
-  const settings = await prisma.settings.findFirst();
+  const settings = settingsCache.get() || await prisma.settings.findFirst();
   let purchaseCost = 0;
   let netSalesAfterPurchases = totalRevenue;
 
@@ -324,10 +325,11 @@ export const salesSummary = async (startDate, endDate) => {
       purchaseDateFilter.purchaseDate = { gte: s, lte: e };
     }
 
-    const purchases = await prisma.purchaseEntry.findMany({
-      where: { status: 'ACTIVE', ...purchaseDateFilter }
+    const purchaseAgg = await prisma.purchaseEntry.aggregate({
+      where: { status: 'ACTIVE', ...purchaseDateFilter },
+      _sum: { totalAmount: true }
     });
-    purchaseCost = purchases.reduce((sum, p) => sum + Number(p.totalAmount), 0);
+    purchaseCost = Number(purchaseAgg._sum.totalAmount || 0);
     netSalesAfterPurchases = totalRevenue - purchaseCost;
   }
 
@@ -595,4 +597,455 @@ export const inventoryStatus = async () => {
   });
 
   return status;
+};
+
+export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
+  const dateFilter = getDateRangeFilter(startDate, endDate);
+  const settings = settingsCache.get() || await prisma.settings.findFirst();
+
+  const purchaseDateFilter = {};
+  if (startDate || endDate) {
+    purchaseDateFilter.purchaseDate = {};
+    if (startDate) {
+      const s = new Date(startDate); s.setHours(0, 0, 0, 0);
+      purchaseDateFilter.purchaseDate.gte = s;
+    }
+    if (endDate) {
+      const e = new Date(endDate); e.setHours(23, 59, 59, 999);
+      purchaseDateFilter.purchaseDate.lte = e;
+    }
+  } else {
+    const s = new Date(); s.setHours(0, 0, 0, 0);
+    const e = new Date(); e.setHours(23, 59, 59, 999);
+    purchaseDateFilter.purchaseDate = { gte: s, lte: e };
+  }
+
+  // Run the 4 core queries in parallel ONCE
+  const [bills, onlineOrders, allOrders, purchases] = await Promise.all([
+    prisma.bill.findMany({
+      where: { status: 'FINALIZED', ...dateFilter },
+      select: {
+        id: true,
+        total: true,
+        sgstAmount: true,
+        cgstAmount: true,
+        createdAt: true,
+        tableId: true,
+        sessionId: true,
+        order: {
+          select: {
+            orderSource: true,
+            table: { select: { id: true, number: true, type: true } },
+            items: {
+              where: { status: { not: 'CANCELLED' } },
+              select: {
+                itemNameSnapshot: true,
+                priceSnapshot: true,
+                quantity: true,
+                menuItem: {
+                  select: { name: true, price: true, category: { select: { name: true } } }
+                }
+              }
+            }
+          }
+        },
+        session: {
+          select: {
+            table: { select: { id: true, number: true, type: true } }
+          }
+        },
+        payment: {
+          select: { method: true, amount: true }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
+    }),
+
+    prisma.onlineOrder.findMany({
+      where: { ...dateFilter },
+      select: { id: true, platform: true, total: true, status: true, externalOrderId: true, createdAt: true }
+    }),
+
+    prisma.order.findMany({
+      where: { ...dateFilter },
+      select: { id: true, orderSource: true, sessionId: true, status: true }
+    }),
+
+    prisma.purchaseEntry.findMany({
+      where: { status: 'ACTIVE', ...purchaseDateFilter },
+      include: { supplier: true }
+    })
+  ]);
+
+  // --- 1. SALES SUMMARY ---
+  let acSales = 0;
+  let nonAcSales = 0;
+  let selfPickupSales = 0;
+  let swiggyRevenue = 0;
+  let zomatoRevenue = 0;
+
+  bills.forEach(b => {
+    const total = Number(b.total);
+    const source = b.order?.orderSource;
+
+    if (source === 'DINE_IN_AC') {
+      acSales += total;
+    } else if (source === 'DINE_IN_NON_AC') {
+      nonAcSales += total;
+    } else if (source === 'SELF_PICKUP') {
+      selfPickupSales += total;
+    } else if (source === 'SWIGGY') {
+      swiggyRevenue += total;
+    } else if (source === 'ZOMATO') {
+      zomatoRevenue += total;
+    } else {
+      if (b.session?.table?.type === 'AC' || b.order?.table?.type === 'AC') {
+        acSales += total;
+      } else {
+        nonAcSales += total;
+      }
+    }
+  });
+
+  const completedOnlineOrders = onlineOrders.filter(o => o.status === 'COMPLETED');
+  completedOnlineOrders.forEach(order => {
+    if (order.platform === 'SWIGGY') swiggyRevenue += Number(order.total);
+    if (order.platform === 'ZOMATO') zomatoRevenue += Number(order.total);
+  });
+
+  const dineInRevenue = acSales + nonAcSales;
+  const takeAwayRevenue = selfPickupSales + swiggyRevenue + zomatoRevenue;
+  const totalRevenue = dineInRevenue + takeAwayRevenue;
+  const totalOrders = bills.length + completedOnlineOrders.length;
+  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const taxCollected = bills.reduce((sum, b) => sum + Number(b.sgstAmount) + Number(b.cgstAmount), 0);
+
+  const purchaseCost = purchases.reduce((sum, p) => sum + Number(p.totalAmount), 0);
+  const netSalesAfterPurchases = totalRevenue - purchaseCost;
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const isSingleDay = Boolean(startDate && endDate && startDate === endDate);
+  let timeline = [];
+
+  if (isSingleDay) {
+    const hourMap = {};
+    for (let h = 8; h <= 23; h++) {
+      const key = `${pad(h)}:00`;
+      hourMap[key] = {
+        label: key,
+        time: key,
+        acSales: 0,
+        nonAcSales: 0,
+        selfPickupSales: 0,
+        swiggyRevenue: 0,
+        zomatoRevenue: 0,
+        dineIn: 0,
+        takeAway: 0,
+        total: 0,
+        orders: 0
+      };
+    }
+
+    bills.forEach(b => {
+      const d = new Date(b.createdAt);
+      const h = `${pad(d.getHours())}:00`;
+      if (!hourMap[h]) {
+        hourMap[h] = {
+          label: h,
+          time: h,
+          acSales: 0,
+          nonAcSales: 0,
+          selfPickupSales: 0,
+          swiggyRevenue: 0,
+          zomatoRevenue: 0,
+          dineIn: 0,
+          takeAway: 0,
+          total: 0,
+          orders: 0
+        };
+      }
+      const total = Number(b.total);
+      const source = b.order?.orderSource;
+      hourMap[h].orders += 1;
+      hourMap[h].total += total;
+
+      if (source === 'DINE_IN_AC') {
+        hourMap[h].acSales += total;
+        hourMap[h].dineIn += total;
+      } else if (source === 'DINE_IN_NON_AC') {
+        hourMap[h].nonAcSales += total;
+        hourMap[h].dineIn += total;
+      } else if (source === 'SELF_PICKUP') {
+        hourMap[h].selfPickupSales += total;
+        hourMap[h].takeAway += total;
+      } else if (source === 'SWIGGY') {
+        hourMap[h].swiggyRevenue += total;
+        hourMap[h].takeAway += total;
+      } else if (source === 'ZOMATO') {
+        hourMap[h].zomatoRevenue += total;
+        hourMap[h].takeAway += total;
+      } else {
+        if (b.session?.table?.type === 'AC' || b.order?.table?.type === 'AC') {
+          hourMap[h].acSales += total;
+          hourMap[h].dineIn += total;
+        } else {
+          hourMap[h].nonAcSales += total;
+          hourMap[h].dineIn += total;
+        }
+      }
+    });
+
+    timeline = Object.keys(hourMap).sort().map(k => hourMap[k]);
+  } else {
+    const dateMap = {};
+    const s = startDate ? new Date(startDate) : new Date(Date.now() - 6 * 86400000);
+    const e = endDate ? new Date(endDate) : new Date();
+    const cur = new Date(s);
+    while (cur <= e) {
+      const key = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
+      const dayName = cur.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      dateMap[key] = {
+        date: key,
+        label: dayName,
+        acSales: 0,
+        nonAcSales: 0,
+        selfPickupSales: 0,
+        swiggyRevenue: 0,
+        zomatoRevenue: 0,
+        dineIn: 0,
+        takeAway: 0,
+        total: 0,
+        orders: 0
+      };
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    bills.forEach(b => {
+      const d = new Date(b.createdAt);
+      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      if (!dateMap[key]) {
+        const dayName = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+        dateMap[key] = {
+          date: key,
+          label: dayName,
+          acSales: 0,
+          nonAcSales: 0,
+          selfPickupSales: 0,
+          swiggyRevenue: 0,
+          zomatoRevenue: 0,
+          dineIn: 0,
+          takeAway: 0,
+          total: 0,
+          orders: 0
+        };
+      }
+      const total = Number(b.total);
+      const source = b.order?.orderSource;
+      dateMap[key].orders += 1;
+      dateMap[key].total += total;
+
+      if (source === 'DINE_IN_AC') {
+        dateMap[key].acSales += total;
+        dateMap[key].dineIn += total;
+      } else if (source === 'DINE_IN_NON_AC') {
+        dateMap[key].nonAcSales += total;
+        dateMap[key].dineIn += total;
+      } else if (source === 'SELF_PICKUP') {
+        dateMap[key].selfPickupSales += total;
+        dateMap[key].takeAway += total;
+      } else if (source === 'SWIGGY') {
+        dateMap[key].swiggyRevenue += total;
+        dateMap[key].takeAway += total;
+      } else if (source === 'ZOMATO') {
+        dateMap[key].zomatoRevenue += total;
+        dateMap[key].takeAway += total;
+      } else {
+        if (b.session?.table?.type === 'AC' || b.order?.table?.type === 'AC') {
+          dateMap[key].acSales += total;
+          dateMap[key].dineIn += total;
+        } else {
+          dateMap[key].nonAcSales += total;
+          dateMap[key].dineIn += total;
+        }
+      }
+    });
+
+    timeline = Object.keys(dateMap).sort().map(k => dateMap[k]);
+  }
+
+  // Top Items & Category Sales
+  const itemMap = {};
+  const catMap = {};
+  bills.forEach(b => {
+    const items = b.order?.items || [];
+    items.forEach(it => {
+      const name = it.itemNameSnapshot || it.menuItem?.name || 'Unknown Item';
+      const category = it.menuItem?.category?.name || 'Other';
+      const qty = Number(it.quantity || 1);
+      const price = Number(it.priceSnapshot || it.menuItem?.price || 0);
+      const revenue = qty * price;
+
+      if (!itemMap[name]) {
+        itemMap[name] = { name, category, quantity: 0, revenue: 0 };
+      }
+      itemMap[name].quantity += qty;
+      itemMap[name].revenue += revenue;
+
+      if (!catMap[category]) {
+        catMap[category] = { name: category, revenue: 0, quantity: 0 };
+      }
+      catMap[category].quantity += qty;
+      catMap[category].revenue += revenue;
+    });
+  });
+
+  const topItems = Object.values(itemMap).sort((a, b) => b.revenue - a.revenue).slice(0, 100);
+  const categorySales = Object.values(catMap).sort((a, b) => b.revenue - a.revenue);
+
+  const sales = {
+    totalRevenue,
+    dineInRevenue,
+    acSales,
+    nonAcSales,
+    takeAwayRevenue,
+    selfPickupSales,
+    swiggyRevenue,
+    zomatoRevenue,
+    onlineRevenue: takeAwayRevenue,
+    totalOrders,
+    avgOrderValue,
+    taxCollected,
+    purchaseCost,
+    netSalesAfterPurchases,
+    includePurchasesInReports: !!settings?.includePurchasesInReports,
+    timeline,
+    topItems,
+    categorySales
+  };
+
+  // --- 2. ORDERS SUMMARY ---
+  const dineInOrders = allOrders.filter(
+    o => o.orderSource === 'DINE_IN_AC' || o.orderSource === 'DINE_IN_NON_AC' || (o.sessionId && !['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(o.orderSource))
+  );
+  const takeAwayOrders = allOrders.filter(
+    o => ['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(o.orderSource)
+  );
+
+  const dineInByStatus = dineInOrders.reduce((acc, order) => {
+    acc[order.status] = (acc[order.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const takeAwayByStatus = takeAwayOrders.reduce((acc, order) => {
+    acc[order.status] = (acc[order.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  onlineOrders.forEach(order => {
+    takeAwayByStatus[order.status] = (takeAwayByStatus[order.status] || 0) + 1;
+  });
+
+  const orders = {
+    dineIn: { total: dineInOrders.length, byStatus: dineInByStatus },
+    takeAway: {
+      total: takeAwayOrders.length + onlineOrders.length,
+      byStatus: takeAwayByStatus,
+      selfPickup: takeAwayOrders.filter(o => o.orderSource === 'SELF_PICKUP').length,
+      swiggy: takeAwayOrders.filter(o => o.orderSource === 'SWIGGY').length + onlineOrders.filter(o => o.platform === 'SWIGGY').length,
+      zomato: takeAwayOrders.filter(o => o.orderSource === 'ZOMATO').length + onlineOrders.filter(o => o.platform === 'ZOMATO').length,
+    },
+    online: {
+      total: takeAwayOrders.length + onlineOrders.length,
+      byStatus: takeAwayByStatus
+    }
+  };
+
+  // --- 3. PAYMENTS BREAKDOWN ---
+  const payments = {};
+  bills.forEach(bill => {
+    const method = bill.payment?.method || 'UNKNOWN';
+    if (!payments[method]) payments[method] = { total: 0, count: 0 };
+    payments[method].total += Number(bill.total);
+    payments[method].count += 1;
+  });
+
+  // --- 4. ONLINE ORDER SUMMARY ---
+  const onlineOrderReport = {
+    selfPickupOrders: 0,
+    selfPickupRevenue: 0,
+    swiggyOrders: 0,
+    swiggyRevenue: 0,
+    zomatoOrders: 0,
+    zomatoRevenue: 0,
+    totalTakeAwayRevenue: 0,
+    totalOnlineRevenue: 0
+  };
+
+  bills.forEach(b => {
+    const source = b.order?.orderSource;
+    if (['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(source)) {
+      const amount = Number(b.total);
+      onlineOrderReport.totalTakeAwayRevenue += amount;
+      if (source === 'SELF_PICKUP') {
+        onlineOrderReport.selfPickupOrders += 1;
+        onlineOrderReport.selfPickupRevenue += amount;
+      } else if (source === 'SWIGGY') {
+        onlineOrderReport.swiggyOrders += 1;
+        onlineOrderReport.swiggyRevenue += amount;
+      } else if (source === 'ZOMATO') {
+        onlineOrderReport.zomatoOrders += 1;
+        onlineOrderReport.zomatoRevenue += amount;
+      }
+    }
+  });
+
+  completedOnlineOrders.forEach(order => {
+    const amount = Number(order.total);
+    onlineOrderReport.totalTakeAwayRevenue += amount;
+    if (order.platform === 'SWIGGY') {
+      onlineOrderReport.swiggyOrders += 1;
+      onlineOrderReport.swiggyRevenue += amount;
+    } else if (order.platform === 'ZOMATO') {
+      onlineOrderReport.zomatoOrders += 1;
+      onlineOrderReport.zomatoRevenue += amount;
+    }
+  });
+  onlineOrderReport.totalOnlineRevenue = onlineOrderReport.totalTakeAwayRevenue;
+
+  // --- 5. PURCHASES SUMMARY ---
+  const purchaseReport = {
+    totalPurchaseAmount: purchaseCost,
+    bySupplier: {}
+  };
+  purchases.forEach(purchase => {
+    const amount = Number(purchase.totalAmount);
+    const supplierName = purchase.supplier?.name || 'Unknown';
+    if (!purchaseReport.bySupplier[supplierName]) {
+      purchaseReport.bySupplier[supplierName] = { amount: 0, count: 0 };
+    }
+    purchaseReport.bySupplier[supplierName].amount += amount;
+    purchaseReport.bySupplier[supplierName].count += 1;
+  });
+
+  // --- 6. TABLES SUMMARY ---
+  const tableSummaryMap = bills.reduce((acc, bill) => {
+    const table = bill.session?.table || bill.order?.table;
+    if (!table) return acc;
+    const tableNo = table.number;
+    if (!acc[tableNo]) {
+      acc[tableNo] = {
+        tableId: table.id,
+        tableNumber: tableNo,
+        type: table.type,
+        revenue: 0,
+        ordersCount: 0
+      };
+    }
+    acc[tableNo].revenue += Number(bill.total);
+    acc[tableNo].ordersCount += 1;
+    return acc;
+  }, {});
+  const tables = Object.values(tableSummaryMap).sort((a, b) => b.revenue - a.revenue);
+
+  return { sales, orders, payments, onlineOrders: onlineOrderReport, purchases: purchaseReport, tables };
 };

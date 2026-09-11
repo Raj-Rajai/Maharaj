@@ -3,14 +3,8 @@ import * as reportService from '../services/reportService.js';
 export const getDashboard = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
-    // Run sequentially to avoid connection pool exhaustion on remote Supabase
-    const sales = await reportService.salesSummary(startDate, endDate);
-    const orders = await reportService.orderSummary(startDate, endDate);
-    const payments = await reportService.paymentBreakdown(startDate, endDate);
-    const onlineOrders = await reportService.onlineOrderSummary(startDate, endDate);
-    const purchases = await reportService.purchaseSummary(startDate, endDate).catch(() => ({ totalPurchaseAmount: 0, bySupplier: {} }));
-    const tables = await reportService.tableSummary(startDate, endDate).catch(() => []);
-    res.json({ sales, orders, payments, onlineOrders, purchases, tables });
+    const metrics = await reportService.getUnifiedDashboardMetrics(startDate, endDate);
+    res.json(metrics);
   } catch (error) {
     next(error);
   }

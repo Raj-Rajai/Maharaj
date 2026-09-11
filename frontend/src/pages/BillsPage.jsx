@@ -222,11 +222,17 @@ const getThermalHtml = (bill, settings, validItems) => {
 
 export default function BillsPage() {
   const { hasPermission } = useAuth();
+  const getTodayStr = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(getTodayStr());
+  const [endDate, setEndDate] = useState(getTodayStr());
   const [selectedBill, setSelectedBill] = useState(null);
   const [billDetails, setBillDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -244,6 +250,59 @@ export default function BillsPage() {
   const [amendments, setAmendments] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  const setDatePreset = (preset) => {
+    const today = getTodayStr();
+    const pad = (n) => String(n).padStart(2, '0');
+    if (preset === 'today') {
+      setStartDate(today);
+      setEndDate(today);
+    } else if (preset === 'yesterday') {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      const yStr = `${y.getFullYear()}-${pad(y.getMonth() + 1)}-${pad(y.getDate())}`;
+      setStartDate(yStr);
+      setEndDate(yStr);
+    } else if (preset === '7days') {
+      const d = new Date();
+      d.setDate(d.getDate() - 6);
+      setStartDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+      setEndDate(today);
+    } else if (preset === 'month') {
+      const d = new Date();
+      setStartDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`);
+      setEndDate(today);
+    } else if (preset === 'all') {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
+
+  const isPresetActive = (preset) => {
+    const today = getTodayStr();
+    const pad = (n) => String(n).padStart(2, '0');
+    if (preset === 'today') return startDate === today && endDate === today;
+    if (preset === 'yesterday') {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      const yStr = `${y.getFullYear()}-${pad(y.getMonth() + 1)}-${pad(y.getDate())}`;
+      return startDate === yStr && endDate === yStr;
+    }
+    if (preset === '7days') {
+      const d = new Date();
+      d.setDate(d.getDate() - 6);
+      const dStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      return startDate === dStr && endDate === today;
+    }
+    if (preset === 'month') {
+      const d = new Date();
+      const mStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
+      return startDate === mStr && endDate === today;
+    }
+    if (preset === 'all') return !startDate && !endDate;
+    return false;
+  };
+
+
   const fetchBills = async () => {
     try {
       setLoading(true);
@@ -251,6 +310,7 @@ export default function BillsPage() {
       if (filter !== 'ALL') params.status = filter;
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
+      if (!startDate && !endDate) params.all = true;
 
       const res = await api.get('/bills', { params });
       setBills(Array.isArray(res.data) ? res.data : res.data.value || []);
@@ -795,6 +855,49 @@ export default function BillsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 text-xs">
+            <button
+              onClick={() => setDatePreset('today')}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                isPresetActive('today') ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setDatePreset('yesterday')}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                isPresetActive('yesterday') ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
+              }`}
+            >
+              Yesterday
+            </button>
+            <button
+              onClick={() => setDatePreset('7days')}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                isPresetActive('7days') ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
+              }`}
+            >
+              7 Days
+            </button>
+            <button
+              onClick={() => setDatePreset('month')}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                isPresetActive('month') ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
+              }`}
+            >
+              This Month
+            </button>
+            <button
+              onClick={() => setDatePreset('all')}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                isPresetActive('all') ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
+              }`}
+            >
+              All Time
+            </button>
+          </div>
+
           <div className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 px-3 py-1.5 text-xs text-text dark:text-slate-100">
             <Calendar size={14} className="text-text-secondary dark:text-slate-400" />
             <input
