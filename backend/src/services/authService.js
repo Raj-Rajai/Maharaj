@@ -35,6 +35,14 @@ export const login = async (username, password) => {
     }
   });
 
+  const permissionsList = user.permissions.map(p => p.permission);
+  userAuthCache.set(user.id, {
+    id: user.id,
+    role: user.role,
+    active: user.active,
+    permissions: permissionsList,
+  });
+
   return {
     accessToken,
     refreshToken,
@@ -43,7 +51,7 @@ export const login = async (username, password) => {
       username: user.username,
       name: user.name,
       role: user.role,
-      permissions: user.permissions.map(p => p.permission)
+      permissions: permissionsList,
     }
   };
 };

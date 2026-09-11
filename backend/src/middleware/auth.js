@@ -21,11 +21,22 @@ export const authenticate = async (req, res, next) => {
     // Check in-memory user cache first (avoids remote DB query on every request)
     let dbUser = userAuthCache.get(payload.id);
     if (!dbUser) {
-      dbUser = await prisma.user.findUnique({
+      const userRecord = await prisma.user.findUnique({
         where: { id: payload.id },
-        select: { id: true, role: true, active: true }
+        select: {
+          id: true,
+          role: true,
+          active: true,
+          permissions: { select: { permission: true } }
+        }
       });
-      if (dbUser) {
+      if (userRecord) {
+        dbUser = {
+          id: userRecord.id,
+          role: userRecord.role,
+          active: userRecord.active,
+          permissions: (userRecord.permissions || []).map(p => p.permission)
+        };
         userAuthCache.set(payload.id, dbUser);
       }
     }
@@ -38,7 +49,11 @@ export const authenticate = async (req, res, next) => {
       return res.status(403).json({ message: 'Account is deactivated' });
     }
 
-    req.user = { id: dbUser.id, role: dbUser.role };
+    req.user = {
+      id: dbUser.id,
+      role: dbUser.role,
+      permissions: dbUser.permissions || []
+    };
     next();
   } catch (error) {
     // Database connection error must NOT be returned as 401!
@@ -64,11 +79,21 @@ export const requirePermission = (...permissions) => {
   return async (req, res, next) => {
     try {
       // SUPER_ADMIN bypasses all permission checks
-      if (req.user.role === 'SUPER_ADMIN') {
+      if (req.user?.role === 'SUPER_ADMIN') {
         return next();
       }
 
-      // Check if user has ANY of the required permissions
+      // Check in-memory permissions attached by authenticate middleware (0 DB roundtrips)
+      const userPermissions = req.user?.permissions;
+      if (Array.isArray(userPermissions)) {
+        const hasPermission = permissions.some(p => userPermissions.includes(p));
+        if (hasPermission) {
+          return next();
+        }
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+
+      // Safe fallback: If permissions array was not loaded on req.user, check DB
       const userPermission = await prisma.userPermission.findFirst({
         where: {
           userId: req.user.id,
