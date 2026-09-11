@@ -32,6 +32,19 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
+// Support requests without /api prefix (e.g. /auth/login -> /api/auth/login)
+app.use((req, res, next) => {
+  if (!req.url.startsWith('/api') && req.url !== '/') {
+    req.url = `/api${req.url}`;
+  }
+  next();
+});
+
+// Root & Health check
+app.get(['/', '/api', '/api/health', '/health'], (req, res) => {
+  res.json({ status: 'ok', service: 'Maharaj Veg Villa API', timestamp: new Date().toISOString() });
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -51,10 +64,6 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/audit', auditRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // Error handler (must be last)
 app.use(errorHandler);
