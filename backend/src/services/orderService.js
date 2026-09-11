@@ -209,14 +209,31 @@ export const createTakeAwayOrder = async (data, userId) => {
 };
 
 export const getAll = async (filters) => {
-  const { sessionId, tableId, status, orderSource } = filters || {};
+  const { sessionId, tableId, status, orderSource, startDate, endDate, from, to, limit, take, page } = filters || {};
   const where = {};
   if (sessionId) where.sessionId = sessionId;
   if (tableId) where.tableId = tableId;
-  if (status) where.status = status;
-  if (orderSource) where.orderSource = orderSource;
+  if (status && status !== 'ALL') where.status = status;
+  if (orderSource && orderSource !== 'ALL') where.orderSource = orderSource;
 
-  return prisma.order.findMany({
+  // Support date range filtering
+  const startParam = startDate || from;
+  const endParam = endDate || to;
+  if (startParam || endParam) {
+    where.createdAt = {};
+    if (startParam) {
+      const s = new Date(startParam);
+      s.setHours(0, 0, 0, 0);
+      where.createdAt.gte = s;
+    }
+    if (endParam) {
+      const e = new Date(endParam);
+      e.setHours(23, 59, 59, 999);
+      where.createdAt.lte = e;
+    }
+  }
+
+  const queryOptions = {
     where,
     include: {
       items: true,
@@ -225,7 +242,20 @@ export const getAll = async (filters) => {
       captain: { select: { id: true, name: true, role: true } },
     },
     orderBy: { createdAt: 'desc' },
-  });
+  };
+
+  const limitParam = limit || take;
+  if (limitParam) {
+    queryOptions.take = Number(limitParam);
+  } else if (!sessionId && !tableId && !status) {
+    // If unbounded query without specific session/table/status, cap to recent 100
+    queryOptions.take = 100;
+  }
+  if (page && limitParam) {
+    queryOptions.skip = (Number(page) - 1) * Number(limitParam);
+  }
+
+  return prisma.order.findMany(queryOptions);
 };
 
 export const getById = async (id) => {
