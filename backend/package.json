@@ -4,21 +4,23 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/index.js",
+    "build": "prisma generate",
+    "postinstall": "prisma generate",
     "start": "node src/index.js",
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
-    "@prisma/client": "^6.8.2",
+    "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "prisma": "^6.19.3",
     "zod": "^3.25.23"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10",
-    "prisma": "^6.19.3"
+    "nodemon": "^3.1.10"
   }
 }
