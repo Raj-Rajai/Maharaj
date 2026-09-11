@@ -62,4 +62,210 @@ api.interceptors.response.use(
   }
 );
 
+// ==========================================
+// CLIENT-SIDE API CACHING & DEDUPLICATION
+// ==========================================
+const memoryCache = new Map();
+const inFlightRequests = new Map();
+const SESSION_CACHE_PREFIX = 'mvv_api_cache:';
+const DEFAULT_TTL_MS = 3 * 60 * 1000; // 3 minutes default TTL
+
+const normalizeCacheKey = (url, params) => {
+  let key = (url || '').replace(/^\/api/, '');
+  if (!key.startsWith('/')) key = `/${key}`;
+  if (params && typeof params === 'object' && Object.keys(params).length > 0) {
+    const sorted = Object.keys(params)
+      .sort()
+      .filter((k) => params[k] !== undefined && params[k] !== null && params[k] !== '')
+      .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`)
+      .join('&');
+    if (sorted) key += (key.includes('?') ? '&' : '?') + sorted;
+  }
+  return key;
+};
+
+const getFromCache = (key) => {
+  if (memoryCache.has(key)) {
+    const item = memoryCache.get(key);
+    if (item.expiresAt > Date.now()) return item;
+    memoryCache.delete(key);
+  }
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const raw = sessionStorage.getItem(SESSION_CACHE_PREFIX + key);
+      if (raw) {
+        const item = JSON.parse(raw);
+        if (item.expiresAt > Date.now()) {
+          memoryCache.set(key, item);
+          return item;
+        }
+        sessionStorage.removeItem(SESSION_CACHE_PREFIX + key);
+      }
+    }
+  } catch {}
+  return null;
+};
+
+const saveToCache = (key, data, headers, customTtl) => {
+  const expiresAt = Date.now() + (customTtl || DEFAULT_TTL_MS);
+  const entry = { data, headers, expiresAt };
+  memoryCache.set(key, entry);
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(SESSION_CACHE_PREFIX + key, JSON.stringify(entry));
+    }
+  } catch {}
+};
+
+api.getCached = (url, params) => {
+  const key = normalizeCacheKey(url, params);
+  const item = getFromCache(key);
+  return item ? item.data : null;
+};
+
+api.hasCached = (url, params) => {
+  const key = normalizeCacheKey(url, params);
+  return Boolean(getFromCache(key));
+};
+
+api.invalidateCache = (pattern) => {
+  for (const k of memoryCache.keys()) {
+    if (!pattern || k.includes(pattern)) memoryCache.delete(k);
+  }
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const k = sessionStorage.key(i);
+        if (k && k.startsWith(SESSION_CACHE_PREFIX)) {
+          const sub = k.slice(SESSION_CACHE_PREFIX.length);
+          if (!pattern || sub.includes(pattern)) {
+            sessionStorage.removeItem(k);
+          }
+        }
+      }
+    }
+  } catch {}
+};
+
+api.clearCache = () => {
+  api.invalidateCache();
+};
+
+const invalidateForMutation = (url) => {
+  const u = (url || '').toLowerCase();
+  if (u.includes('/table-session') || u.includes('/table') || u.includes('/order')) {
+    api.invalidateCache('/tables');
+    api.invalidateCache('/table-sessions');
+    api.invalidateCache('/orders');
+    api.invalidateCache('/reports');
+    api.invalidateCache('/kots');
+    api.invalidateCache('/bills');
+  } else if (u.includes('/bill') || u.includes('/payment')) {
+    api.invalidateCache('/bills');
+    api.invalidateCache('/reports');
+    api.invalidateCache('/tables');
+    api.invalidateCache('/orders');
+  } else if (u.includes('/menu')) {
+    api.invalidateCache('/menu');
+    api.invalidateCache('/reports');
+  } else if (u.includes('/kot')) {
+    api.invalidateCache('/kots');
+    api.invalidateCache('/orders');
+    api.invalidateCache('/reports');
+  } else if (u.includes('/inventory') || u.includes('/purchase') || u.includes('/supplier')) {
+    api.invalidateCache('/inventory');
+    api.invalidateCache('/purchases');
+    api.invalidateCache('/suppliers');
+    api.invalidateCache('/reports');
+  } else if (u.includes('/setting')) {
+    api.invalidateCache('/settings');
+    api.invalidateCache('/reports');
+    api.invalidateCache('/bills');
+  } else if (u.includes('/user')) {
+    api.invalidateCache('/users');
+  } else {
+    api.clearCache();
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('pos:cache-invalidated', { detail: { url } }));
+  }
+};
+
+// Wrap api.get with cache checking & deduplication
+const originalGet = api.get.bind(api);
+api.get = async (url, config = {}) => {
+  const skipCache = config.skipCache || config.headers?.['x-skip-cache'] === 'true';
+  const shouldCache = !skipCache && !url.includes('/auth/');
+
+  if (shouldCache) {
+    const cacheKey = normalizeCacheKey(url, config.params);
+    const cached = getFromCache(cacheKey);
+    if (cached) {
+      return {
+        data: cached.data,
+        status: 200,
+        statusText: 'OK (cached)',
+        headers: cached.headers || {},
+        config,
+        fromCache: true,
+      };
+    }
+
+    if (inFlightRequests.has(cacheKey)) {
+      return inFlightRequests.get(cacheKey);
+    }
+
+    const requestPromise = (async () => {
+      try {
+        const response = await originalGet(url, config);
+        saveToCache(cacheKey, response.data, response.headers, config.ttl);
+        return response;
+      } finally {
+        inFlightRequests.delete(cacheKey);
+      }
+    })();
+
+    inFlightRequests.set(cacheKey, requestPromise);
+    return requestPromise;
+  }
+
+  const response = await originalGet(url, config);
+  if (!url.includes('/auth/')) {
+    const cacheKey = normalizeCacheKey(url, config.params);
+    saveToCache(cacheKey, response.data, response.headers, config.ttl);
+  }
+  return response;
+};
+
+// Wrap mutations to auto-invalidate related cache
+const originalPost = api.post.bind(api);
+const originalPut = api.put.bind(api);
+const originalPatch = api.patch.bind(api);
+const originalDelete = api.delete.bind(api);
+
+api.post = async (url, data, config) => {
+  const res = await originalPost(url, data, config);
+  invalidateForMutation(url);
+  return res;
+};
+
+api.put = async (url, data, config) => {
+  const res = await originalPut(url, data, config);
+  invalidateForMutation(url);
+  return res;
+};
+
+api.patch = async (url, data, config) => {
+  const res = await originalPatch(url, data, config);
+  invalidateForMutation(url);
+  return res;
+};
+
+api.delete = async (url, config) => {
+  const res = await originalDelete(url, config);
+  invalidateForMutation(url);
+  return res;
+};
+
 export default api;

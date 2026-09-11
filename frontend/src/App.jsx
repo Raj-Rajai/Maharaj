@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AdminLayout from './components/layouts/AdminLayout';
 import Spinner from './components/ui/Spinner';
+import RouteKeepAlive from './components/common/RouteKeepAlive';
 
 // Route-level code-splitting with React.lazy()
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -54,7 +55,7 @@ const LayoutWrapper = () => {
   return (
     <AdminLayout>
       <Suspense fallback={<PageLoader />}>
-        <Outlet />
+        <RouteKeepAlive />
       </Suspense>
     </AdminLayout>
   );
