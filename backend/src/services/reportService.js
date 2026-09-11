@@ -29,48 +29,49 @@ const getDateRangeFilter = (startDate, endDate) => {
 export const salesSummary = async (startDate, endDate) => {
   const dateFilter = getDateRangeFilter(startDate, endDate);
 
-  const bills = await prisma.bill.findMany({
-    where: { status: 'FINALIZED', ...dateFilter },
-    select: {
-      total: true,
-      sgstAmount: true,
-      cgstAmount: true,
-      createdAt: true,
-      order: {
-        select: {
-          orderSource: true,
-          table: { select: { type: true } },
-          items: {
-            where: { status: { not: 'CANCELLED' } },
-            select: {
-              itemNameSnapshot: true,
-              priceSnapshot: true,
-              quantity: true,
-              status: true,
-              menuItem: {
-                select: {
-                  name: true,
-                  price: true,
-                  category: { select: { name: true } }
+  const [bills, onlineOrders] = await Promise.all([
+    prisma.bill.findMany({
+      where: { status: 'FINALIZED', ...dateFilter },
+      select: {
+        total: true,
+        sgstAmount: true,
+        cgstAmount: true,
+        createdAt: true,
+        order: {
+          select: {
+            orderSource: true,
+            table: { select: { type: true } },
+            items: {
+              where: { status: { not: 'CANCELLED' } },
+              select: {
+                itemNameSnapshot: true,
+                priceSnapshot: true,
+                quantity: true,
+                status: true,
+                menuItem: {
+                  select: {
+                    name: true,
+                    price: true,
+                    category: { select: { name: true } }
+                  }
                 }
               }
             }
           }
+        },
+        session: {
+          select: {
+            table: { select: { type: true } }
+          }
         }
       },
-      session: {
-        select: {
-          table: { select: { type: true } }
-        }
-      }
-    },
-    orderBy: { createdAt: 'asc' }
-  });
-
-  const onlineOrders = await prisma.onlineOrder.findMany({
-    where: { status: 'COMPLETED', ...dateFilter },
-    select: { platform: true, total: true }
-  });
+      orderBy: { createdAt: 'asc' }
+    }),
+    prisma.onlineOrder.findMany({
+      where: { status: 'COMPLETED', ...dateFilter },
+      select: { platform: true, total: true }
+    })
+  ]);
 
   let acSales = 0;
   let nonAcSales = 0;
@@ -358,13 +359,23 @@ export const salesSummary = async (startDate, endDate) => {
 export const orderSummary = async (startDate, endDate) => {
   const dateFilter = getDateRangeFilter(startDate, endDate);
 
-  const allOrders = await prisma.order.findMany({
-    where: { ...dateFilter }
-  });
-
-  const onlineOrders = await prisma.onlineOrder.findMany({
-    where: { ...dateFilter }
-  });
+  const [allOrders, onlineOrders] = await Promise.all([
+    prisma.order.findMany({
+      where: { ...dateFilter },
+      select: {
+        orderSource: true,
+        status: true,
+        sessionId: true,
+      },
+    }),
+    prisma.onlineOrder.findMany({
+      where: { ...dateFilter },
+      select: {
+        platform: true,
+        status: true,
+      },
+    }),
+  ]);
 
   const dineInOrders = allOrders.filter(
     o => o.orderSource === 'DINE_IN_AC' || o.orderSource === 'DINE_IN_NON_AC' || (o.sessionId && !['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(o.orderSource))
@@ -416,7 +427,10 @@ export const paymentBreakdown = async (startDate, endDate) => {
 
   const bills = await prisma.bill.findMany({
     where: { status: 'FINALIZED', ...dateFilter },
-    include: { payment: true }
+    select: {
+      total: true,
+      payment: { select: { method: true } },
+    },
   });
 
   const breakdown = {};
@@ -434,10 +448,19 @@ export const tableSummary = async (startDate, endDate) => {
 
   const bills = await prisma.bill.findMany({
     where: { status: 'FINALIZED', ...dateFilter },
-    include: {
-      order: { include: { table: true } },
-      session: { include: { table: true } }
-    }
+    select: {
+      total: true,
+      order: {
+        select: {
+          table: { select: { id: true, number: true, type: true } },
+        },
+      },
+      session: {
+        select: {
+          table: { select: { id: true, number: true, type: true } },
+        },
+      },
+    },
   });
 
   const summary = bills.reduce((acc, bill) => {
@@ -466,20 +489,25 @@ export const tableSummary = async (startDate, endDate) => {
 export const onlineOrderSummary = async (startDate, endDate) => {
   const dateFilter = getDateRangeFilter(startDate, endDate);
 
-  const takeAwayBills = await prisma.bill.findMany({
-    where: {
-      status: 'FINALIZED',
-      ...dateFilter,
-      order: {
-        orderSource: { in: ['SELF_PICKUP', 'SWIGGY', 'ZOMATO'] }
-      }
-    },
-    include: { order: true }
-  });
-
-  const onlineOrders = await prisma.onlineOrder.findMany({
-    where: { status: 'COMPLETED', ...dateFilter }
-  });
+  const [takeAwayBills, onlineOrders] = await Promise.all([
+    prisma.bill.findMany({
+      where: {
+        status: 'FINALIZED',
+        ...dateFilter,
+        order: {
+          orderSource: { in: ['SELF_PICKUP', 'SWIGGY', 'ZOMATO'] },
+        },
+      },
+      select: {
+        total: true,
+        order: { select: { orderSource: true } },
+      },
+    }),
+    prisma.onlineOrder.findMany({
+      where: { status: 'COMPLETED', ...dateFilter },
+      select: { platform: true, total: true },
+    }),
+  ]);
 
   const summary = {
     selfPickupOrders: 0,
@@ -549,7 +577,10 @@ export const purchaseSummary = async (startDate, endDate) => {
 
   const purchases = await prisma.purchaseEntry.findMany({
     where: filter,
-    include: { supplier: true }
+    select: {
+      totalAmount: true,
+      supplier: { select: { name: true } },
+    },
   });
 
   const summary = {
@@ -574,7 +605,14 @@ export const purchaseSummary = async (startDate, endDate) => {
 
 export const inventoryStatus = async () => {
   const items = await prisma.inventoryItem.findMany({
-    orderBy: { name: 'asc' }
+    select: {
+      id: true,
+      name: true,
+      currentStock: true,
+      lowStockThreshold: true,
+      unit: true,
+    },
+    orderBy: { name: 'asc' },
   });
 
   const status = {
@@ -673,7 +711,10 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
 
     prisma.purchaseEntry.findMany({
       where: { status: 'ACTIVE', ...purchaseDateFilter },
-      include: { supplier: true }
+      select: {
+        totalAmount: true,
+        supplier: { select: { name: true } }
+      }
     })
   ]);
 
