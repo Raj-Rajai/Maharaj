@@ -30,7 +30,21 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(helmet());
-app.use(compression());
+app.use(
+  compression({
+    // Only compress responses that exceed 1 KB
+    threshold: 1024,
+    // Optimal compression level balancing CPU performance and size
+    level: 6,
+    // Custom filter to respect 'x-no-compression' header
+    filter: (req, res) => {
+      if (req.headers['x-no-compression']) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  })
+);
 app.use(cors());
 app.use(express.json());
 
