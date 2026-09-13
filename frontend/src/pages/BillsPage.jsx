@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import {
@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Filter,
   RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
@@ -304,9 +305,22 @@ export default function BillsPage() {
   };
 
 
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState('');
+  const isFetchingRef = useRef(false);
+
   const fetchBills = async (opts = {}) => {
+    // Prevent overlapping background requests if one is still in-flight
+    if (opts.background && isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     try {
-      if (!opts.background) setLoading(true);
+      if (!opts.background) {
+        setLoading(true);
+      } else {
+        setIsSyncing(true);
+      }
+
       const params = {};
       if (filter !== 'ALL') params.status = filter;
       if (startDate) params.startDate = startDate;
@@ -314,11 +328,15 @@ export default function BillsPage() {
       if (!startDate && !endDate) params.all = true;
 
       const res = await api.get('/bills', { params, skipCache: true });
-      setBills(Array.isArray(res.data) ? res.data : res.data.value || []);
+      const newBills = Array.isArray(res.data) ? res.data : res.data.value || [];
+      setBills(newBills);
+      setLastSyncTime(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } catch {
       if (!opts.background) toast.error('Failed to load bills');
     } finally {
+      isFetchingRef.current = false;
       if (!opts.background) setLoading(false);
+      setIsSyncing(false);
     }
   };
 
@@ -328,15 +346,43 @@ export default function BillsPage() {
 
   const isActive = useRouteActive();
 
+  // 1. Regular 5-second polling while route is active
   useEffect(() => {
     if (!isActive) return;
     fetchBills({ background: bills.length > 0 });
-    // Auto-sync bills every 8 seconds so cashiers see new bills without manual page refresh
+    // Auto-sync bills every 5 seconds so cashiers see new bills immediately without manual page refresh
     const iv = setInterval(() => {
       fetchBills({ background: true });
-    }, 8000);
+    }, 5000);
     return () => clearInterval(iv);
   }, [isActive, filter, startDate, endDate]);
+
+  // 2. Immediate refetch on window focus / tab visibility
+  useEffect(() => {
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible' && isActive) {
+        fetchBills({ background: true });
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [isActive]);
+
+  // 3. Immediate refetch on local cache invalidation (e.g. bill generated, settled, or amended)
+  useEffect(() => {
+    const handleInvalidation = (e) => {
+      const url = e.detail?.url || '';
+      if (isActive && (url.includes('/bill') || url.includes('/order') || url.includes('/table'))) {
+        fetchBills({ background: true });
+      }
+    };
+    window.addEventListener('pos:cache-invalidated', handleInvalidation);
+    return () => window.removeEventListener('pos:cache-invalidated', handleInvalidation);
+  }, [isActive]);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -856,11 +902,27 @@ export default function BillsPage() {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-text dark:text-white flex items-center gap-2.5">
-            <img src={billBlue} alt="Bills" className="w-6 h-6 object-contain dark:brightness-0 dark:invert" />
-            Bills
-          </h1>
-          <p className="text-xs text-text-secondary dark:text-slate-400 mt-0.5">Manage, print and finalize customer bills</p>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold text-text dark:text-white flex items-center gap-2.5">
+              <img src={billBlue} alt="Bills" className="w-6 h-6 object-contain dark:brightness-0 dark:invert" />
+              Bills
+            </h1>
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${
+                isSyncing
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+              }`}
+              title="Live auto-polling active (5s interval)"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-blue-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`} />
+              {isSyncing ? 'Syncing...' : 'Live Sync'}
+            </span>
+          </div>
+          <p className="text-xs text-text-secondary dark:text-slate-400 mt-0.5">
+            Manage, print and finalize customer bills
+            {lastSyncTime && <span className="ml-1 opacity-75">• Synced {lastSyncTime}</span>}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -948,6 +1010,16 @@ export default function BillsPage() {
               </button>
             ))}
           </div>
+
+          <button
+            onClick={() => fetchBills({ background: true })}
+            disabled={isSyncing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-surface dark:hover:bg-slate-800 text-text dark:text-slate-100 text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-60"
+            title="Refresh bills now"
+          >
+            <RefreshCw size={13} className={`text-text-secondary dark:text-slate-400 ${isSyncing ? 'animate-spin text-primary' : ''}`} />
+            <span>{isSyncing ? 'Syncing...' : 'Refresh'}</span>
+          </button>
 
           <button
             onClick={handleExportCSV}
