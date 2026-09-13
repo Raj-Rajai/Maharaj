@@ -112,10 +112,11 @@ export const userAuthCache = {
 };
 
 /**
- * Invalidate all menu caches
+ * Invalidate all menu caches and category cache (since category has menuItems _count)
  */
 export function invalidateMenuCaches() {
   for (const cache of Object.values(_menuSubs)) {
     cache.invalidate();
   }
+  categoryCache.invalidate();
 }

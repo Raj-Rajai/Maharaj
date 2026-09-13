@@ -87,13 +87,16 @@ export const refreshAccessToken = async (token) => {
   return { accessToken };
 };
 
-export const logout = async (token) => {
+export const logout = async (token, userId) => {
   if (token) {
     try {
       await prisma.refreshToken.delete({ where: { token } });
     } catch (e) {
 
     }
+  }
+  if (userId) {
+    userAuthCache.invalidate(userId);
   }
 };
 

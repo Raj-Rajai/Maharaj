@@ -25,7 +25,7 @@ export const logout = async (req, res, next) => {
     // Client might send token in body or we get it from elsewhere, 
     // depending on implementation, let's look for refreshToken in body
     const { refreshToken } = req.body;
-    await authService.logout(refreshToken);
+    await authService.logout(refreshToken, req.user?.id);
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
     next(error);

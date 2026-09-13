@@ -1,6 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { hashPassword } from '../utils/password.js';
-import { userAuthCache } from '../utils/cache.js';
+import { userAuthCache, tableCache } from '../utils/cache.js';
 
 export const updatePermissions = async (userId, permissions) => {
   // Atomic: delete old + create new in one transaction
@@ -129,6 +129,7 @@ export const update = async (id, data) => {
     }
 
     userAuthCache.invalidate(id);
+    tableCache.invalidate();
     return user;
   });
 };
@@ -154,6 +155,7 @@ export const updateStatus = async (id, active) => {
   });
 
   userAuthCache.invalidate(id);
+  tableCache.invalidate();
   return user;
 };
 
@@ -177,5 +179,6 @@ export const remove = async (id, currentUserId) => {
   });
 
   userAuthCache.invalidate(id);
+  tableCache.invalidate();
   return { message: 'User deleted successfully' };
 };

@@ -212,7 +212,7 @@ export const finalize = async (billId, paymentMethod, customerName = null, custo
     return { ...finalizedBill, payment };
   });
 
-  if (bill.tableId) {
+  if (bill.tableId || bill.sessionId) {
     tableCache.invalidate();
   }
 

@@ -1,5 +1,5 @@
 import prisma from '../utils/prisma.js';
-import { menuCache, invalidateMenuCaches } from '../utils/cache.js';
+import { menuCache, categoryCache, invalidateMenuCaches } from '../utils/cache.js';
 
 export const getAll = async (filters = {}) => {
   const cacheKey = filters.menuType || 'ALL';
