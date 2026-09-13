@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Settings, Store, Phone, MapPin, FileText, Percent, Save } from 'lucide-react';
 import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../context/AuthContext';
+import { useOnRouteActive } from '../components/common/RouteKeepAlive';
 import { settingsBlue } from '../assets';
 
 export default function SettingsPage() {
@@ -22,28 +23,34 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await api.get('/settings');
-        if (res.data) {
-          setSettings({
-            restaurantName: res.data.restaurantName || '',
-            address: res.data.address || '',
-            phone: res.data.phone || '',
-            gstin: res.data.gstin || '',
-            sgstPercent: res.data.sgstPercent !== undefined ? String(res.data.sgstPercent) : '2.5',
-            cgstPercent: res.data.cgstPercent !== undefined ? String(res.data.cgstPercent) : '2.5',
-            includePurchasesInReports: !!res.data.includePurchasesInReports,
-          });
-        }
-      } catch {
-        toast.error('Failed to load settings');
-      } finally {
-        setLoading(false);
+  const fetchSettings = async () => {
+    try {
+      const res = await api.get('/settings');
+      if (res.data) {
+        setSettings({
+          restaurantName: res.data.restaurantName || '',
+          address: res.data.address || '',
+          phone: res.data.phone || '',
+          gstin: res.data.gstin || '',
+          sgstPercent: res.data.sgstPercent !== undefined ? String(res.data.sgstPercent) : '2.5',
+          cgstPercent: res.data.cgstPercent !== undefined ? String(res.data.cgstPercent) : '2.5',
+          includePurchasesInReports: !!res.data.includePurchasesInReports,
+        });
       }
-    })();
+    } catch {
+      toast.error('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSettings();
   }, []);
+
+  useOnRouteActive(() => {
+    fetchSettings();
+  });
 
   const save = async (e) => {
     if (e) e.preventDefault();

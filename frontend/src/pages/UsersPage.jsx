@@ -24,6 +24,7 @@ import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../context/AuthContext';
+import { useOnRouteActive } from '../components/common/RouteKeepAlive';
 import { usersBlue } from '../assets';
 
 const PERMISSION_GROUPS = [
@@ -169,6 +170,10 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useOnRouteActive(() => {
+    fetchUsers();
+  });
 
   const openAddModal = () => {
     setForm({

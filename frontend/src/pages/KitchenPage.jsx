@@ -8,6 +8,8 @@ import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { takeAwayBlue, swiggyIcon, zomatoIcon, kitchenBlue } from '../assets';
 
+import { useRouteActive } from '../components/common/RouteKeepAlive';
+
 const statusColors = { SENT: 'warning', PREPARING: 'info', READY: 'success', SERVED: 'neutral', CANCELLED: 'danger', PENDING: 'neutral' };
 const statusOrder = ['SENT', 'PREPARING', 'READY', 'SERVED'];
 const nextStatus = { SENT: 'PREPARING', PREPARING: 'READY', READY: 'SERVED' };
@@ -21,6 +23,7 @@ export default function KitchenPage() {
   const [editQty, setEditQty] = useState('');
   const [editReason, setEditReason] = useState('');
   const printRef = useRef();
+  const isActive = useRouteActive();
 
   const fetchKots = async (opts = {}) => {
     try {
@@ -36,10 +39,11 @@ export default function KitchenPage() {
   };
 
   useEffect(() => {
-    fetchKots();
+    if (!isActive) return;
+    fetchKots({ background: kots.length > 0 });
     const iv = setInterval(() => fetchKots({ background: true }), 5000);
     return () => clearInterval(iv);
-  }, []);
+  }, [isActive]);
 
   const filtered = kots.filter(k => filter === 'ALL' || k.status === filter);
 

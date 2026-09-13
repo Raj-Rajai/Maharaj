@@ -10,6 +10,7 @@ import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../context/AuthContext';
+import { useOnRouteActive } from '../components/common/RouteKeepAlive';
 import { swiggyIcon, zomatoIcon, takeAwayBlue } from '../assets';
 
 const CHANNELS = [
@@ -120,6 +121,10 @@ export default function TakeAwayPage() {
   useEffect(() => {
     loadMenuData();
   }, [loadMenuData]);
+
+  useOnRouteActive(() => {
+    loadMenuData();
+  });
 
   // When changing channel, reset cart if switching menu type
   const handleChannelChange = (channelId) => {

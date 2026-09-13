@@ -17,8 +17,10 @@ import {
 import AnimatedNumber from '../components/ui/AnimatedNumber';
 import HourlyWaveChart from '../components/dashboard/HourlyWaveChart';
 import QuickOperations from '../components/dashboard/QuickOperations';
+import { useRouteActive } from '../components/common/RouteKeepAlive';
 
 export default function DashboardPage() {
+  const isActive = useRouteActive();
   const [salesData, setSalesData] = useState({
     totalSales: 0,
     dineInRevenue: 0,
@@ -203,10 +205,11 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    if (!isActive) return;
+    fetchData(false);
     const interval = setInterval(() => fetchData(false), 45000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isActive]);
 
   const totalPayments = paymentsData.cash + paymentsData.upi + paymentsData.card;
   const cashPct = totalPayments > 0 ? (paymentsData.cash / totalPayments) * 100 : 0;

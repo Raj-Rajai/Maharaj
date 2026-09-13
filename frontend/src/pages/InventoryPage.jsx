@@ -7,6 +7,7 @@ import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
+import { useOnRouteActive } from '../components/common/RouteKeepAlive';
 import { inventoryBlue } from '../assets';
 import MasterColumnFilter from '../components/ui/MasterColumnFilter';
 
@@ -65,6 +66,10 @@ export default function InventoryPage() {
   useEffect(() => {
     fetchItems();
   }, []);
+
+  useOnRouteActive(() => {
+    fetchItems();
+  });
 
   const handleAdd = async (e) => {
     e.preventDefault();

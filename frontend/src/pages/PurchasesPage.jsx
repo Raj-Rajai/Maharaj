@@ -6,6 +6,7 @@ import Modal from '../components/ui/Modal';
 import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../context/AuthContext';
+import { useOnRouteActive } from '../components/common/RouteKeepAlive';
 import { purchasesBlue } from '../assets';
 import MasterColumnFilter from '../components/ui/MasterColumnFilter';
 
@@ -76,6 +77,11 @@ export default function PurchasesPage() {
     };
     loadData();
   }, []);
+
+  useOnRouteActive(() => {
+    fetchPurchases();
+    fetchSuppliers();
+  });
 
   const sortedPurchaseTypes = useMemo(() => {
     return suppliers

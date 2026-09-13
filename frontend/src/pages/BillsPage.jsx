@@ -21,6 +21,7 @@ import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../context/AuthContext';
 import { acBlue, nonAcBlue, takeAwayBlue, swiggyIcon, zomatoIcon, billBlue, tableBlue } from '../assets';
 import MasterColumnFilter from '../components/ui/MasterColumnFilter';
+import { useRouteActive } from '../components/common/RouteKeepAlive';
 
 const statusVariant = {
   DRAFT: 'warning',
@@ -325,14 +326,17 @@ export default function BillsPage() {
   const [draftCustomerName, setDraftCustomerName] = useState('');
   const [draftCustomerPhone, setDraftCustomerPhone] = useState('');
 
+  const isActive = useRouteActive();
+
   useEffect(() => {
-    fetchBills();
+    if (!isActive) return;
+    fetchBills({ background: bills.length > 0 });
     // Auto-sync bills every 8 seconds so cashiers see new bills without manual page refresh
     const iv = setInterval(() => {
       fetchBills({ background: true });
     }, 8000);
     return () => clearInterval(iv);
-  }, [filter, startDate, endDate]);
+  }, [isActive, filter, startDate, endDate]);
 
   useEffect(() => {
     const loadSettings = async () => {

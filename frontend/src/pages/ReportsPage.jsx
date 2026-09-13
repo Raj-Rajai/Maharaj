@@ -10,6 +10,7 @@ import {
 import Card from '../components/ui/Card';
 import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../context/AuthContext';
+import { useOnRouteActive } from '../components/common/RouteKeepAlive';
 import {
   acBlue, nonAcBlue, takeAwayBlue, swiggyIcon, zomatoIcon,
   reportsBlue, tableBlue
@@ -68,6 +69,10 @@ export default function ReportsPage() {
   useEffect(() => {
     fetchReports();
   }, [startDate, endDate]);
+
+  useOnRouteActive(() => {
+    fetchReports();
+  });
 
   const setPreset = (type) => {
     setActivePreset(type);

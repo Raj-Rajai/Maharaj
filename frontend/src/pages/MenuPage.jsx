@@ -6,6 +6,7 @@ import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../context/AuthContext';
+import { useOnRouteActive } from '../components/common/RouteKeepAlive';
 import { menuBlue, acBlue, nonAcBlue, swiggyIcon, zomatoIcon } from '../assets';
 
 const TABS = [
@@ -124,6 +125,13 @@ export default function MenuPage() {
       setLoading(false);
     }
   }, []);
+
+  useOnRouteActive(() => {
+    fetchCategories();
+    if (menuType) {
+      fetchItems(menuType);
+    }
+  });
 
   const handleMenuTypeChange = (newType) => {
     setMenuType(newType);

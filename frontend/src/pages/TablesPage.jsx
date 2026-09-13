@@ -9,6 +9,8 @@ import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../context/AuthContext';
 import { dineInBlue, acBlue, nonAcBlue, tableBlue } from '../assets';
 
+import { useRouteActive } from '../components/common/RouteKeepAlive';
+
 const statusColors = { AVAILABLE: 'success', OCCUPIED: 'info', BILLING: 'warning' };
 
 const typeColors = { AC: 'info', NON_AC: 'neutral' };
@@ -24,6 +26,7 @@ export default function TablesPage() {
   const [tableForm, setTableForm] = useState({ number: '', capacity: 4, type: 'AC' });
   const navigate = useNavigate();
   const { user, hasPermission } = useAuth();
+  const isActive = useRouteActive();
 
   const fetchTables = async (opts = {}) => {
     try {
@@ -38,10 +41,11 @@ export default function TablesPage() {
   };
 
   useEffect(() => {
-    fetchTables();
+    if (!isActive) return;
+    fetchTables({ background: tables.length > 0 });
     const iv = setInterval(() => fetchTables({ background: true }), 8000);
     return () => clearInterval(iv);
-  }, []);
+  }, [isActive]);
 
   const filtered = tables.filter(t => {
 
