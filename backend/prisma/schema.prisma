@@ -264,6 +264,8 @@ model MenuItem {
   @@index([menuType])
   @@index([categoryId])
   @@index([active])
+  @@index([menuType, active])
+  @@index([categoryId, active])
 }
 
 model TableSession {
@@ -313,6 +315,7 @@ model Order {
   @@index([captainId])
   @@index([status, createdAt])
   @@index([sessionId, status])
+  @@index([tableId, status])
 }
 
 model OrderItem {
@@ -338,6 +341,7 @@ model OrderItem {
   @@index([kotId])
   @@index([status])
   @@index([orderId, status])
+  @@index([kotId, status])
 }
 
 model OrderItemHistory {
@@ -371,6 +375,7 @@ model KOT {
   @@index([sessionId])
   @@index([status])
   @@index([createdAt])
+  @@index([status, createdAt])
 }
 
 model Bill {
@@ -405,6 +410,7 @@ model Bill {
   @@index([tableId])
   @@index([status, createdAt])
   @@index([createdAt, status])
+  @@index([tableId, status])
 }
 
 model BillAmendment {
@@ -439,6 +445,7 @@ model Payment {
 
   @@index([paidAt])
   @@index([method])
+  @@index([status, paidAt])
 }
 
 model OnlineOrder {
@@ -492,6 +499,7 @@ model PurchaseEntry {
   @@index([purchaseDate])
   @@index([status])
   @@index([status, purchaseDate])
+  @@index([supplierId, purchaseDate])
 }
 
 model PurchaseItem {
@@ -531,6 +539,7 @@ model InventoryTransaction {
   @@index([inventoryItemId])
   @@index([type])
   @@index([createdAt])
+  @@index([inventoryItemId, createdAt])
 }
 
 model Settings {
