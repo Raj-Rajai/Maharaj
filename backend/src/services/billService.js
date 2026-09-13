@@ -122,9 +122,18 @@ export const getAll = async (filters) => {
   const queryOptions = {
     where,
     include: {
-      order: { include: { table: true, captain: { select: { id: true, name: true, role: true } } } },
-      payment: true,
-      session: { include: { table: true, captain: { select: { name: true } } } },
+      order: {
+        select: {
+          id: true,
+          orderSource: true,
+          tableId: true,
+          table: { select: { id: true, number: true, type: true } },
+          captain: { select: { id: true, name: true, role: true } },
+        }
+      },
+      payment: {
+        select: { id: true, method: true, amount: true, status: true, paidAt: true }
+      },
     },
     orderBy: { createdAt: 'desc' },
   };
@@ -143,13 +152,12 @@ export const getById = async (id) => {
     include: {
       order: {
         include: {
-          items: { include: { menuItem: true, history: true } },
+          items: { include: { menuItem: true } },
           table: true,
           captain: { select: { id: true, name: true, role: true } },
         },
       },
       payment: true,
-      session: { include: { table: true, captain: { select: { name: true } } } },
     },
   });
   if (!bill) throw { status: 404, message: 'Bill not found' };

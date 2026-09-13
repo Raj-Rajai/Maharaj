@@ -236,9 +236,26 @@ export const getAll = async (filters) => {
   const queryOptions = {
     where,
     include: {
-      items: true,
-      table: true,
-      bill: true,
+      items: {
+        select: {
+          id: true,
+          itemNameSnapshot: true,
+          priceSnapshot: true,
+          quantity: true,
+          originalQuantity: true,
+          status: true,
+          notes: true,
+          menuItemId: true,
+          kotId: true,
+          createdAt: true,
+        }
+      },
+      table: {
+        select: { id: true, number: true, type: true, status: true },
+      },
+      bill: {
+        select: { id: true, billNumber: true, total: true, status: true },
+      },
       captain: { select: { id: true, name: true, role: true } },
     },
     orderBy: { createdAt: 'desc' },
@@ -263,7 +280,7 @@ export const getById = async (id) => {
     where: { id },
     include: {
       items: {
-        include: { menuItem: true, history: true },
+        include: { menuItem: true },
       },
       kots: true,
       bill: true,

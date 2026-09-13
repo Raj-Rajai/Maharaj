@@ -16,7 +16,10 @@ export const getAll = async (filters = {}) => {
   }
   return prisma.purchaseEntry.findMany({
     where,
-    include: { supplier: true, items: true },
+    include: {
+      supplier: { select: { id: true, name: true } },
+      items: { select: { id: true, name: true, quantity: true, unit: true, rate: true, amount: true } },
+    },
     orderBy: { purchaseDate: 'desc' }
   });
 };

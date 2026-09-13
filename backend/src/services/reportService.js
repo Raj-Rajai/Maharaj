@@ -33,6 +33,7 @@ export const salesSummary = async (startDate, endDate) => {
     prisma.bill.findMany({
       where: { status: 'FINALIZED', ...dateFilter },
       select: {
+        orderId: true,
         total: true,
         sgstAmount: true,
         cgstAmount: true,
@@ -41,22 +42,6 @@ export const salesSummary = async (startDate, endDate) => {
           select: {
             orderSource: true,
             table: { select: { type: true } },
-            items: {
-              where: { status: { not: 'CANCELLED' } },
-              select: {
-                itemNameSnapshot: true,
-                priceSnapshot: true,
-                quantity: true,
-                status: true,
-                menuItem: {
-                  select: {
-                    name: true,
-                    price: true,
-                    category: { select: { name: true } }
-                  }
-                }
-              }
-            }
           }
         },
         session: {
@@ -267,41 +252,49 @@ export const salesSummary = async (startDate, endDate) => {
     timeline = Object.keys(dateMap).sort().map(k => dateMap[k]);
   }
 
-  const itemMap = {};
-  bills.forEach(b => {
-    const items = b.order?.items || [];
-    items.forEach(it => {
-      if (it.status === 'CANCELLED') return;
-      const name = it.itemNameSnapshot || it.menuItem?.name || 'Unknown Item';
-      const category = it.menuItem?.category?.name || 'Other';
-      const qty = Number(it.quantity || 1);
-      const price = Number(it.priceSnapshot || it.menuItem?.price || 0);
-      const revenue = qty * price;
-      if (!itemMap[name]) {
-        itemMap[name] = { name, category, quantity: 0, revenue: 0 };
+  const orderIds = bills.map(b => b.orderId).filter(Boolean);
+  const orderItems = orderIds.length > 0 ? await prisma.orderItem.findMany({
+    where: {
+      orderId: { in: orderIds },
+      status: { not: 'CANCELLED' }
+    },
+    select: {
+      itemNameSnapshot: true,
+      priceSnapshot: true,
+      quantity: true,
+      menuItem: {
+        select: {
+          name: true,
+          price: true,
+          category: { select: { name: true } }
+        }
       }
-      itemMap[name].quantity += qty;
-      itemMap[name].revenue += revenue;
-    });
-  });
-  const topItems = Object.values(itemMap).sort((a, b) => b.revenue - a.revenue).slice(0, 100);
+    }
+  }) : [];
 
+  const itemMap = {};
   const catMap = {};
-  bills.forEach(b => {
-    const items = b.order?.items || [];
-    items.forEach(it => {
-      if (it.status === 'CANCELLED') return;
-      const category = it.menuItem?.category?.name || 'Other';
-      const qty = Number(it.quantity || 1);
-      const price = Number(it.priceSnapshot || it.menuItem?.price || 0);
-      const revenue = qty * price;
-      if (!catMap[category]) {
-        catMap[category] = { name: category, revenue: 0, quantity: 0 };
-      }
-      catMap[category].quantity += qty;
-      catMap[category].revenue += revenue;
-    });
+  orderItems.forEach(it => {
+    const name = it.itemNameSnapshot || it.menuItem?.name || 'Unknown Item';
+    const category = it.menuItem?.category?.name || 'Other';
+    const qty = Number(it.quantity || 1);
+    const price = Number(it.priceSnapshot || it.menuItem?.price || 0);
+    const revenue = qty * price;
+
+    if (!itemMap[name]) {
+      itemMap[name] = { name, category, quantity: 0, revenue: 0 };
+    }
+    itemMap[name].quantity += qty;
+    itemMap[name].revenue += revenue;
+
+    if (!catMap[category]) {
+      catMap[category] = { name: category, revenue: 0, quantity: 0 };
+    }
+    catMap[category].quantity += qty;
+    catMap[category].revenue += revenue;
   });
+
+  const topItems = Object.values(itemMap).sort((a, b) => b.revenue - a.revenue).slice(0, 100);
   const categorySales = Object.values(catMap).sort((a, b) => b.revenue - a.revenue);
 
   const settings = settingsCache.get() || await prisma.settings.findFirst();
@@ -664,6 +657,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
       where: { status: 'FINALIZED', ...dateFilter },
       select: {
         id: true,
+        orderId: true,
         total: true,
         sgstAmount: true,
         cgstAmount: true,
@@ -674,17 +668,6 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
           select: {
             orderSource: true,
             table: { select: { id: true, number: true, type: true } },
-            items: {
-              where: { status: { not: 'CANCELLED' } },
-              select: {
-                itemNameSnapshot: true,
-                priceSnapshot: true,
-                quantity: true,
-                menuItem: {
-                  select: { name: true, price: true, category: { select: { name: true } } }
-                }
-              }
-            }
           }
         },
         session: {
@@ -717,6 +700,23 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
       }
     })
   ]);
+
+  // Fetch non-cancelled order items in a flat batch query to prevent connection resets and 5-level deep joins
+  const orderIds = bills.map(b => b.orderId).filter(Boolean);
+  const orderItems = orderIds.length > 0 ? await prisma.orderItem.findMany({
+    where: {
+      orderId: { in: orderIds },
+      status: { not: 'CANCELLED' }
+    },
+    select: {
+      itemNameSnapshot: true,
+      priceSnapshot: true,
+      quantity: true,
+      menuItem: {
+        select: { name: true, price: true, category: { select: { name: true } } }
+      }
+    }
+  }) : [];
 
   // --- 1. SALES SUMMARY ---
   let acSales = 0;
@@ -917,27 +917,24 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   // Top Items & Category Sales
   const itemMap = {};
   const catMap = {};
-  bills.forEach(b => {
-    const items = b.order?.items || [];
-    items.forEach(it => {
-      const name = it.itemNameSnapshot || it.menuItem?.name || 'Unknown Item';
-      const category = it.menuItem?.category?.name || 'Other';
-      const qty = Number(it.quantity || 1);
-      const price = Number(it.priceSnapshot || it.menuItem?.price || 0);
-      const revenue = qty * price;
+  orderItems.forEach(it => {
+    const name = it.itemNameSnapshot || it.menuItem?.name || 'Unknown Item';
+    const category = it.menuItem?.category?.name || 'Other';
+    const qty = Number(it.quantity || 1);
+    const price = Number(it.priceSnapshot || it.menuItem?.price || 0);
+    const revenue = qty * price;
 
-      if (!itemMap[name]) {
-        itemMap[name] = { name, category, quantity: 0, revenue: 0 };
-      }
-      itemMap[name].quantity += qty;
-      itemMap[name].revenue += revenue;
+    if (!itemMap[name]) {
+      itemMap[name] = { name, category, quantity: 0, revenue: 0 };
+    }
+    itemMap[name].quantity += qty;
+    itemMap[name].revenue += revenue;
 
-      if (!catMap[category]) {
-        catMap[category] = { name: category, revenue: 0, quantity: 0 };
-      }
-      catMap[category].quantity += qty;
-      catMap[category].revenue += revenue;
-    });
+    if (!catMap[category]) {
+      catMap[category] = { name: category, revenue: 0, quantity: 0 };
+    }
+    catMap[category].quantity += qty;
+    catMap[category].revenue += revenue;
   });
 
   const topItems = Object.values(itemMap).sort((a, b) => b.revenue - a.revenue).slice(0, 100);

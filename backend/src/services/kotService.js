@@ -81,10 +81,12 @@ export const getAll = async (filters) => {
     include: {
       items: true,
       order: {
-        include: { table: true },
-      },
-      session: {
-        include: { table: true },
+        select: {
+          id: true,
+          orderSource: true,
+          tableId: true,
+          table: { select: { id: true, number: true, type: true } },
+        },
       },
     },
     orderBy: { createdAt: 'desc' },
@@ -99,10 +101,12 @@ export const getById = async (id) => {
         include: { menuItem: true },
       },
       order: {
-        include: { table: true },
-      },
-      session: {
-        include: { table: true },
+        select: {
+          id: true,
+          orderSource: true,
+          tableId: true,
+          table: { select: { id: true, number: true, type: true } },
+        },
       },
     },
   });

@@ -77,10 +77,12 @@ export const bulkAdd = async (data) => {
   const results = await prisma.$transaction(async (tx) => {
     const menuTypes = items.map(i => i.menuType);
     const existingItems = await tx.menuItem.findMany({
-      where: { name, categoryId, menuType: { in: menuTypes } }
+      where: { name, categoryId, menuType: { in: menuTypes } },
+      include: { category: true }
     });
     
     const existingMap = new Map(existingItems.map(i => [i.menuType, i]));
+    const toCreate = [];
     const res = [];
     
     for (const item of items) {
@@ -91,22 +93,30 @@ export const bulkAdd = async (data) => {
           item: existingMap.get(item.menuType)
         });
       } else {
-        const created = await tx.menuItem.create({
-          data: {
-            name,
-            categoryId,
-            menuType: item.menuType,
-            price: item.price,
-            description: description || null
-          },
-          include: { category: true }
-        });
-        res.push({
+        toCreate.push({
+          name,
+          categoryId,
           menuType: item.menuType,
+          price: item.price,
+          description: description || null
+        });
+      }
+    }
+
+    if (toCreate.length > 0) {
+      const createdItems = await Promise.all(
+        toCreate.map(itemData => tx.menuItem.create({
+          data: itemData,
+          include: { category: true }
+        }))
+      );
+      createdItems.forEach(created => {
+        res.push({
+          menuType: created.menuType,
           status: 'CREATED',
           item: created
         });
-      }
+      });
     }
     
     return res;
@@ -122,23 +132,36 @@ export const bulkUpdate = async (data) => {
   const results = await prisma.$transaction(async (tx) => {
     const menuTypes = items.map(i => i.menuType);
     const existingItems = await tx.menuItem.findMany({
-      where: { name, categoryId, menuType: { in: menuTypes } }
+      where: { name, categoryId, menuType: { in: menuTypes } },
+      include: { category: true }
     });
     
     const existingMap = new Map(existingItems.map(i => [i.menuType, i]));
+    const updatePromises = [];
     const res = [];
     
     for (const item of items) {
       if (existingMap.has(item.menuType)) {
-        const updated = await tx.menuItem.update({
-          where: { id: existingMap.get(item.menuType).id },
-          data: { price: item.price },
-          include: { category: true }
-        });
-        res.push({ menuType: item.menuType, status: 'UPDATED', item: updated });
+        const existing = existingMap.get(item.menuType);
+        updatePromises.push(
+          tx.menuItem.update({
+            where: { id: existing.id },
+            data: { price: item.price }
+          }).then(updated => {
+            res.push({
+              menuType: item.menuType,
+              status: 'UPDATED',
+              item: { ...updated, category: existing.category }
+            });
+          })
+        );
       } else {
         res.push({ menuType: item.menuType, status: 'NOT_FOUND' });
       }
+    }
+    
+    if (updatePromises.length > 0) {
+      await Promise.all(updatePromises);
     }
     
     return res;
