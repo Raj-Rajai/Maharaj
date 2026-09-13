@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { dineInBlue, acBlue, nonAcBlue, tableBlue } from '../assets';
 
 import { useRouteActive } from '../components/common/RouteKeepAlive';
+import useRealtime from '../hooks/useRealtime';
 
 const statusColors = { AVAILABLE: 'success', OCCUPIED: 'info', BILLING: 'warning' };
 
@@ -40,10 +41,30 @@ export default function TablesPage() {
     }
   };
 
+  // Instant real-time push for table updates & sessions
+  useRealtime({
+    'table:updated': () => {
+      fetchTables({ background: true });
+    },
+    'session:opened': () => {
+      fetchTables({ background: true });
+    },
+    'session:closed': () => {
+      fetchTables({ background: true });
+    },
+    'bill:created': () => {
+      fetchTables({ background: true });
+    },
+    'bill:finalized': () => {
+      fetchTables({ background: true });
+    },
+  }, isActive, ['tables']);
+
   useEffect(() => {
     if (!isActive) return;
     fetchTables({ background: tables.length > 0 });
-    const iv = setInterval(() => fetchTables({ background: true }), 8000);
+    // Gentle 30s background fallback heartbeat (primary sync is instant push)
+    const iv = setInterval(() => fetchTables({ background: true }), 30000);
     return () => clearInterval(iv);
   }, [isActive]);
 

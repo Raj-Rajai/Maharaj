@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { settingsCache } from '../utils/cache.js';
+import { emitKotCreated, emitBillCreated, emitOrderUpdated } from '../utils/socket.js';
 
 const getSettings = async () => {
   const cached = settingsCache.get();
@@ -228,6 +229,12 @@ export const createTakeAwayOrder = async (data, userId) => {
       bill: createdBill ? { ...createdBill, orderSource: newOrder.orderSource, order: fullOrder } : null,
     };
   });
+
+  if (result.kot) emitKotCreated(result.kot);
+  if (result.bill) emitBillCreated(result.bill);
+  if (result.order) emitOrderUpdated(result.order);
+
+  return result;
 };
 
 export const getAll = async (filters) => {
@@ -412,6 +419,10 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
         itemsCount: orderItemsData.length,
       };
     });
+
+    if (result.kot) emitKotCreated(result.kot);
+    if (result.order) emitOrderUpdated(result.order);
+    return result;
   }
 
   // If generateKot is false, insert items as PENDING (legacy behavior)
@@ -434,7 +445,9 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
     data: orderItemsData,
   });
 
-  return getById(orderId);
+  const updatedOrder = await getById(orderId);
+  emitOrderUpdated(updatedOrder);
+  return updatedOrder;
 };
 
 export const cancel = async (id) => {
@@ -453,10 +466,13 @@ export const cancel = async (id) => {
     throw { status: 400, message: 'Cannot cancel order with a finalized bill' };
   }
 
-  return prisma.order.update({
+  const cancelled = await prisma.order.update({
     where: { id },
     data: { status: 'CANCELLED' },
   });
+
+  emitOrderUpdated(cancelled);
+  return cancelled;
 };
 
 export const sendKotOrder = async (data, captainId) => {
@@ -581,4 +597,9 @@ export const sendKotOrder = async (data, captainId) => {
       itemsCount: orderItemsData.length,
     };
   });
+
+  if (result.kot) emitKotCreated(result.kot);
+  if (result.order) emitOrderUpdated(result.order);
+
+  return result;
 };

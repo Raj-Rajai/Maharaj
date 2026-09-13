@@ -23,6 +23,7 @@ import { useAuth } from '../context/AuthContext';
 import { acBlue, nonAcBlue, takeAwayBlue, swiggyIcon, zomatoIcon, billBlue, tableBlue } from '../assets';
 import MasterColumnFilter from '../components/ui/MasterColumnFilter';
 import { useRouteActive } from '../components/common/RouteKeepAlive';
+import useRealtime from '../hooks/useRealtime';
 
 const statusVariant = {
   DRAFT: 'warning',
@@ -346,14 +347,26 @@ export default function BillsPage() {
 
   const isActive = useRouteActive();
 
-  // 1. Regular 5-second polling while route is active
+  // Instant real-time push for bill creation, edits, and finalization
+  useRealtime({
+    'bill:created': () => {
+      fetchBills({ background: true });
+    },
+    'bill:updated': () => {
+      fetchBills({ background: true });
+    },
+    'bill:finalized': () => {
+      fetchBills({ background: true });
+    },
+  }, isActive, ['billing']);
+
+  // 1. Regular polling while route is active (relaxed to 30s as fallback heartbeat)
   useEffect(() => {
     if (!isActive) return;
     fetchBills({ background: bills.length > 0 });
-    // Auto-sync bills every 5 seconds so cashiers see new bills immediately without manual page refresh
     const iv = setInterval(() => {
       fetchBills({ background: true });
-    }, 5000);
+    }, 30000);
     return () => clearInterval(iv);
   }, [isActive, filter, startDate, endDate]);
 

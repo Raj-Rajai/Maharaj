@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { tableCache } from '../utils/cache.js';
+import { emitTableUpdated } from '../utils/socket.js';
 
 export const getAll = async () => {
   const cached = tableCache.get();
@@ -29,6 +30,7 @@ export const getById = async (id) => {
 export const create = async (data) => {
   const table = await prisma.table.create({ data });
   tableCache.invalidate();
+  emitTableUpdated(table);
   return table;
 };
 
@@ -36,6 +38,7 @@ export const update = async (id, data) => {
   try {
     const updated = await prisma.table.update({ where: { id }, data });
     tableCache.invalidate();
+    emitTableUpdated(updated);
     return updated;
   } catch (error) {
     if (error.code === 'P2025') throw { status: 404, message: 'Table not found' };
@@ -47,6 +50,7 @@ export const updateStatus = async (id, status) => {
   try {
     const updated = await prisma.table.update({ where: { id }, data: { status } });
     tableCache.invalidate();
+    emitTableUpdated(updated);
     return updated;
   } catch (error) {
     if (error.code === 'P2025') throw { status: 404, message: 'Table not found' };
@@ -59,6 +63,7 @@ export const softDelete = async (id) => {
   if (table.status !== 'AVAILABLE') throw { status: 400, message: 'Cannot delete table that is not available' };
   const updated = await prisma.table.update({ where: { id }, data: { active: false } });
   tableCache.invalidate();
+  emitTableUpdated(updated);
   return updated;
 };
 

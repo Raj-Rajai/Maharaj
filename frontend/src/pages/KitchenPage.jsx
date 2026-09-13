@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { takeAwayBlue, swiggyIcon, zomatoIcon, kitchenBlue } from '../assets';
 
 import { useRouteActive } from '../components/common/RouteKeepAlive';
+import useRealtime from '../hooks/useRealtime';
 
 const statusColors = { SENT: 'warning', PREPARING: 'info', READY: 'success', SERVED: 'neutral', CANCELLED: 'danger', PENDING: 'neutral' };
 const statusOrder = ['SENT', 'PREPARING', 'READY', 'SERVED'];
@@ -38,10 +39,21 @@ export default function KitchenPage() {
     }
   };
 
+  // Instant real-time push for new and updated KOTs
+  useRealtime({
+    'kot:created': () => {
+      fetchKots({ background: true });
+    },
+    'kot:updated': () => {
+      fetchKots({ background: true });
+    },
+  }, isActive, ['kitchen']);
+
   useEffect(() => {
     if (!isActive) return;
     fetchKots({ background: kots.length > 0 });
-    const iv = setInterval(() => fetchKots({ background: true }), 5000);
+    // Gentle 30s background fallback heartbeat (primary sync is instant push)
+    const iv = setInterval(() => fetchKots({ background: true }), 30000);
     return () => clearInterval(iv);
   }, [isActive]);
 

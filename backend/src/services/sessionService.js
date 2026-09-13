@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { tableCache } from '../utils/cache.js';
+import { emitSessionOpened, emitSessionClosed, emitTableUpdated } from '../utils/socket.js';
 
 export const create = async (data, captainId) => {
   const session = await prisma.$transaction(async (tx) => {
@@ -35,6 +36,8 @@ export const create = async (data, captainId) => {
   });
 
   tableCache.invalidate();
+  emitSessionOpened(session);
+  emitTableUpdated({ id: data.tableId, status: 'OCCUPIED' });
   return session;
 };
 
@@ -94,5 +97,7 @@ export const close = async (id) => {
   });
 
   tableCache.invalidate();
+  emitSessionClosed(updatedSession);
+  emitTableUpdated({ id: updatedSession.tableId, status: 'AVAILABLE' });
   return updatedSession;
 };

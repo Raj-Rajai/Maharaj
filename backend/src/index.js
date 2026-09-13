@@ -1,8 +1,10 @@
+import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import dotenv from 'dotenv';
+import { initSocket } from './utils/socket.js';
 
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
@@ -84,10 +86,14 @@ app.use('/api/audit', auditRoutes);
 // Error handler (must be last)
 app.use(errorHandler);
 
+const server = http.createServer(app);
+initSocket(server);
+
 if (!process.env.VERCEL) {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT} with WebSockets enabled`);
   });
 }
 
+export { server };
 export default app;

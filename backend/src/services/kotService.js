@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { emitKotCreated, emitKotUpdated } from '../utils/socket.js';
 
 export const create = async (orderId, captainId) => {
   const order = await prisma.order.findUnique({
@@ -50,7 +51,9 @@ export const create = async (orderId, captainId) => {
     return newKot;
   });
 
-  return getById(kot.id);
+  const result = await getById(kot.id);
+  emitKotCreated(result);
+  return result;
 };
 
 export const getAll = async (filters) => {
@@ -185,6 +188,9 @@ export const updateItemStatus = async (itemId, status) => {
 
     return updatedItem;
   });
+
+  emitKotUpdated({ itemId, status, kotId: orderItem.kotId });
+  return result;
 };
 
 export const editItemQuantity = async (orderItemId, newQuantity, reason, userId) => {
@@ -223,6 +229,9 @@ export const editItemQuantity = async (orderItemId, newQuantity, reason, userId)
 
     return updated;
   });
+
+  emitKotUpdated({ itemId: orderItemId, quantity: newQuantity, kotId: orderItem.kotId });
+  return result;
 };
 
 export const cancelItem = async (orderItemId, reason, userId) => {
@@ -234,7 +243,7 @@ export const cancelItem = async (orderItemId, reason, userId) => {
   if (orderItem.status === 'CANCELLED') throw { status: 400, message: 'Item already cancelled' };
   if (orderItem.status === 'SERVED') throw { status: 400, message: 'Cannot cancel served item' };
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
 
     await tx.orderItemHistory.create({
       data: {
@@ -267,4 +276,7 @@ export const cancelItem = async (orderItemId, reason, userId) => {
 
     return updated;
   });
+
+  emitKotUpdated({ itemId: orderItemId, status: 'CANCELLED', kotId: orderItem.kotId });
+  return result;
 };

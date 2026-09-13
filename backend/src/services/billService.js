@@ -1,6 +1,7 @@
 import prisma from '../utils/prisma.js';
 import * as auditService from './auditService.js';
 import { settingsCache, tableCache } from '../utils/cache.js';
+import { emitBillCreated, emitBillUpdated, emitBillFinalized } from '../utils/socket.js';
 
 const getSettings = async () => {
   const cached = settingsCache.get();
@@ -66,8 +67,7 @@ export const create = async (orderId, discount = 0, customerName = null, custome
 
   const calculation = await calculateBill(orderId, discount);
 
-  // billNumber is now autoincrement in PostgreSQL — no manual generation needed
-  return prisma.bill.create({
+  const createdBill = await prisma.bill.create({
     data: {
       orderId,
       sessionId: order.sessionId || null,
@@ -85,6 +85,9 @@ export const create = async (orderId, discount = 0, customerName = null, custome
       status: 'DRAFT',
     },
   });
+
+  emitBillCreated(createdBill);
+  return createdBill;
 };
 
 export const getAll = async (filters) => {
@@ -224,6 +227,7 @@ export const finalize = async (billId, paymentMethod, customerName = null, custo
     tableCache.invalidate();
   }
 
+  emitBillFinalized(result);
   return result;
 };
 
@@ -231,7 +235,9 @@ export const cancel = async (billId) => {
   const bill = await prisma.bill.findUnique({ where: { id: billId } });
   if (!bill) throw { status: 404, message: 'Bill not found' };
   if (bill.status === 'FINALIZED') throw { status: 400, message: 'Cannot cancel a FINALIZED bill' };
-  return prisma.bill.update({ where: { id: billId }, data: { status: 'CANCELLED' } });
+  const updated = await prisma.bill.update({ where: { id: billId }, data: { status: 'CANCELLED' } });
+  emitBillUpdated(updated);
+  return updated;
 };
 
 export const getBillPrintData = async (billId) => {
@@ -349,6 +355,7 @@ export const amendBill = async (billId, changes, reason, userId, discount, custo
     return created;
   });
 
+  emitBillUpdated({ id: billId, ...amendment });
   return amendment;
 };
 
@@ -364,7 +371,7 @@ export const settleAmendment = async (amendmentId, paymentMethod) => {
   if (!amendment) throw { status: 404, message: 'Amendment not found' };
   if (amendment.paymentStatus === 'SETTLED') throw { status: 400, message: 'Already settled' };
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     await tx.billAmendment.update({
       where: { id: amendmentId },
       data: { paymentStatus: 'SETTLED' }
@@ -384,11 +391,14 @@ export const settleAmendment = async (amendmentId, paymentMethod) => {
 
     return { message: 'Amendment settled', difference: diff };
   });
+
+  emitBillUpdated({ id: amendment.billId, amendmentId, settled: true });
+  return result;
 };
 
 export const editDraft = async (billId, changes, discount, userId, customerName = null, customerPhone = null) => {
   // Wrap entire operation in a transaction for atomicity
-  return prisma.$transaction(async (tx) => {
+  const updatedBill = await prisma.$transaction(async (tx) => {
     const bill = await tx.bill.findUnique({
       where: { id: billId },
       include: { order: { include: { items: true } } }
@@ -455,4 +465,7 @@ export const editDraft = async (billId, changes, discount, userId, customerName 
       data: updateData,
     });
   });
+
+  emitBillUpdated(updatedBill);
+  return updatedBill;
 };
