@@ -26,20 +26,42 @@ const MENU_TYPE_MAP = {
   ZOMATO: 'ZOMATO',
 };
 
-export const create = async (sessionId, captainId) => {
-  const session = await prisma.tableSession.findUnique({
-    where: { id: sessionId },
-    include: { table: true },
-  });
+export const create = async (sessionOrData, captainId) => {
+  const sessionId = typeof sessionOrData === 'string' ? sessionOrData : sessionOrData?.sessionId;
+  const tableId = typeof sessionOrData === 'object' ? sessionOrData?.tableId : null;
+  const items = typeof sessionOrData === 'object' ? sessionOrData?.items : null;
+  const generateKot = typeof sessionOrData === 'object' && sessionOrData?.generateKot !== undefined
+    ? sessionOrData.generateKot
+    : true;
+
+  // If items are provided, route through consolidated atomic order + KOT creation
+  if (items && Array.isArray(items) && items.length > 0) {
+    return sendKotOrder({ sessionId, tableId, items, generateKot }, captainId);
+  }
+
+  // Otherwise, create an empty order for the session (backward compatibility)
+  let session = null;
+  if (sessionId) {
+    session = await prisma.tableSession.findUnique({
+      where: { id: sessionId },
+      include: { table: true },
+    });
+  } else if (tableId) {
+    session = await prisma.tableSession.findFirst({
+      where: { tableId, status: 'OPEN' },
+      include: { table: true },
+    });
+  }
+
   if (!session) {
-    throw { status: 404, message: 'Session not found' };
+    throw { status: 404, message: 'Active session not found' };
   }
   if (session.status !== 'OPEN') {
     throw { status: 400, message: 'Session is not open' };
   }
 
   const existingOrder = await prisma.order.findFirst({
-    where: { sessionId, status: 'ACTIVE' },
+    where: { sessionId: session.id, status: 'ACTIVE' },
   });
   if (existingOrder) {
     throw { status: 400, message: 'Active order already exists for this session' };
@@ -49,7 +71,7 @@ export const create = async (sessionId, captainId) => {
 
   return prisma.order.create({
     data: {
-      sessionId,
+      sessionId: session.id,
       tableId: session.tableId,
       captainId,
       status: 'ACTIVE',
@@ -296,7 +318,7 @@ export const getById = async (id) => {
   return order;
 };
 
-export const addItems = async (orderId, items) => {
+export const addItems = async (orderId, items, generateKot = true, captainId = null) => {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) {
     throw { status: 404, message: 'Order not found' };
@@ -315,10 +337,8 @@ export const addItems = async (orderId, items) => {
   // Determine expected menu type based on order source
   const expectedMenuType = MENU_TYPE_MAP[order.orderSource];
 
-  const orderItemsData = [];
   for (const item of items) {
     const menuItem = menuItemMap.get(item.menuItemId);
-
     if (!menuItem) {
       throw { status: 404, message: `Menu item not found: ${item.menuItemId}` };
     }
@@ -333,17 +353,82 @@ export const addItems = async (orderId, items) => {
         message: `Item "${menuItem.name}" belongs to ${menuItem.menuType} menu, but this order requires ${expectedMenuType} menu`,
       };
     }
+  }
 
-    orderItemsData.push({
+  // If generateKot is true (default), atomically create KOT and mark items as SENT
+  if (generateKot) {
+    return prisma.$transaction(async (tx) => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const count = await tx.kOT.count({
+        where: { createdAt: { gte: today } },
+      });
+      const kotNumber = count + 1;
+
+      const newKot = await tx.kOT.create({
+        data: {
+          kotNumber,
+          orderId: order.id,
+          sessionId: order.sessionId || null,
+          captainId: captainId || order.captainId,
+          status: 'NEW',
+        },
+      });
+
+      const orderItemsData = items.map((item) => {
+        const menuItem = menuItemMap.get(item.menuItemId);
+        const qty = parseInt(item.quantity, 10) || 1;
+        return {
+          orderId,
+          menuItemId: item.menuItemId,
+          itemNameSnapshot: menuItem.name,
+          priceSnapshot: menuItem.price,
+          quantity: qty,
+          originalQuantity: qty,
+          notes: item.notes || null,
+          kotId: newKot.id,
+          status: 'SENT',
+        };
+      });
+
+      await tx.orderItem.createMany({
+        data: orderItemsData,
+      });
+
+      const fullOrder = await tx.order.findUnique({
+        where: { id: orderId },
+        include: {
+          items: { include: { menuItem: true } },
+          kots: true,
+          bill: true,
+          table: true,
+          captain: { select: { id: true, name: true, role: true } },
+        },
+      });
+
+      return {
+        order: fullOrder,
+        kot: newKot,
+        itemsCount: orderItemsData.length,
+      };
+    });
+  }
+
+  // If generateKot is false, insert items as PENDING (legacy behavior)
+  const orderItemsData = items.map((item) => {
+    const menuItem = menuItemMap.get(item.menuItemId);
+    const qty = parseInt(item.quantity, 10) || 1;
+    return {
       orderId,
       menuItemId: item.menuItemId,
       itemNameSnapshot: menuItem.name,
-      priceSnapshot: menuItem.price, // DB price, never client price
-      quantity: item.quantity,
-      notes: item.notes,
+      priceSnapshot: menuItem.price,
+      quantity: qty,
+      originalQuantity: qty,
+      notes: item.notes || null,
       status: 'PENDING',
-    });
-  }
+    };
+  });
 
   await prisma.orderItem.createMany({
     data: orderItemsData,
@@ -375,7 +460,7 @@ export const cancel = async (id) => {
 };
 
 export const sendKotOrder = async (data, captainId) => {
-  const { sessionId, tableId, items } = data;
+  const { sessionId, tableId, items, generateKot = true } = data;
   if (!items || !Array.isArray(items) || items.length === 0) {
     throw { status: 400, message: 'At least one item is required' };
   }
@@ -434,25 +519,28 @@ export const sendKotOrder = async (data, captainId) => {
       });
     }
 
-    // Calculate kotNumber inside transaction
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const count = await tx.kOT.count({
-      where: { createdAt: { gte: today } },
-    });
-    const kotNumber = count + 1;
+    let newKot = null;
+    if (generateKot) {
+      // Calculate kotNumber inside transaction
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const count = await tx.kOT.count({
+        where: { createdAt: { gte: today } },
+      });
+      const kotNumber = count + 1;
 
-    const newKot = await tx.kOT.create({
-      data: {
-        kotNumber,
-        orderId: order.id,
-        sessionId: session.id,
-        captainId,
-        status: 'NEW',
-      },
-    });
+      newKot = await tx.kOT.create({
+        data: {
+          kotNumber,
+          orderId: order.id,
+          sessionId: session.id,
+          captainId,
+          status: 'NEW',
+        },
+      });
+    }
 
-    // Create OrderItems directly linked to this KOT with status 'SENT'
+    // Create OrderItems directly linked to this KOT with status 'SENT' (or 'PENDING' if no KOT)
     const orderItemsData = items.map((item) => {
       const menuItem = menuItemMap.get(item.menuItemId);
       const qty = parseInt(item.quantity, 10) || 1;
@@ -464,8 +552,8 @@ export const sendKotOrder = async (data, captainId) => {
         quantity: qty,
         originalQuantity: qty,
         notes: item.notes || null,
-        kotId: newKot.id,
-        status: 'SENT',
+        kotId: newKot ? newKot.id : null,
+        status: newKot ? 'SENT' : 'PENDING',
       };
     });
 
@@ -478,7 +566,7 @@ export const sendKotOrder = async (data, captainId) => {
       where: { id: order.id },
       include: {
         items: {
-          include: { menuItem: true, history: true },
+          include: { menuItem: true },
         },
         kots: true,
         bill: true,

@@ -35,10 +35,12 @@ export default function OrderPage() {
 
   const loadData = useCallback(async () => {
     try {
-      // Sequential calls to avoid Supabase connection pool exhaustion
-      const tabRes = await api.get(`/tables/${tableId}`);
-      const catRes = await api.get('/menu/categories');
-      const sessRes = await api.get('/table-sessions/active');
+      // Phase 1: Parallel fetch of table info, categories, and active sessions
+      const [tabRes, catRes, sessRes] = await Promise.all([
+        api.get(`/tables/${tableId}`),
+        api.get('/menu/categories'),
+        api.get('/table-sessions/active'),
+      ]);
       const tableData = tabRes.data;
       setTable(tableData);
       setCategories(Array.isArray(catRes.data) ? catRes.data : catRes.data.value || []);
@@ -49,25 +51,41 @@ export default function OrderPage() {
       } else if (user?.role === 'NON_AC_MASTER') {
         menuType = 'NON_AC';
       }
-      const itemRes = await api.get('/menu/items', { params: { menuType } });
-      setMenuItems(Array.isArray(itemRes.data) ? itemRes.data : itemRes.data.value || []);
 
       const sessions = Array.isArray(sessRes.data) ? sessRes.data : sessRes.data.value || [];
-      const sess = sessions.find(s => s.tableId === tableId);
+      const sess = sessions.find((s) => s.tableId === tableId);
       setSession(sess || null);
+
+      // Phase 2: Parallel fetch of menu items and active order (orders[0] already includes items)
+      const fetchOps = [
+        api.get('/menu/items', { params: { menuType } }),
+      ];
       if (sess) {
-        try {
-          const ordRes = await api.get('/orders', { params: { sessionId: sess.id, status: 'ACTIVE' } });
-          const orders = Array.isArray(ordRes.data) ? ordRes.data : ordRes.data.value || [];
-          if (orders.length > 0) {
-            const fullOrd = await api.get(`/orders/${orders[0].id}`);
-            setOrder(fullOrd.data);
-          }
-        } catch {}
+        fetchOps.push(
+          api.get('/orders', { params: { sessionId: sess.id, status: 'ACTIVE' } })
+            .catch(() => ({ data: [] }))
+        );
       }
-    } catch { toast.error('Failed to load data'); }
-    finally { setLoading(false); }
-  }, [tableId]);
+
+      const [itemRes, ordRes] = await Promise.all(fetchOps);
+      setMenuItems(Array.isArray(itemRes.data) ? itemRes.data : itemRes.data.value || []);
+
+      if (ordRes) {
+        const orders = Array.isArray(ordRes.data) ? ordRes.data : ordRes.data.value || [];
+        if (orders.length > 0) {
+          setOrder(orders[0]);
+        } else {
+          setOrder(null);
+        }
+      } else {
+        setOrder(null);
+      }
+    } catch {
+      toast.error('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  }, [tableId, user?.role]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

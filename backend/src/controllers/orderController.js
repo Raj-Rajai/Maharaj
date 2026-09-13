@@ -2,9 +2,9 @@ import * as orderService from '../services/orderService.js';
 
 export const create = async (req, res, next) => {
   try {
-    const { sessionId } = req.body;
+    const { sessionId, tableId, items, generateKot } = req.body;
     const captainId = req.user.id;
-    const result = await orderService.create(sessionId, captainId);
+    const result = await orderService.create({ sessionId, tableId, items, generateKot }, captainId);
     res.status(201).json(result);
   } catch (error) {
     next(error);
@@ -54,8 +54,9 @@ export const getById = async (req, res, next) => {
 
 export const addItems = async (req, res, next) => {
   try {
-    const { items } = req.body;
-    const result = await orderService.addItems(req.params.id, items);
+    const { items, generateKot } = req.body;
+    const captainId = req.user.id;
+    const result = await orderService.addItems(req.params.id, items, generateKot, captainId);
     res.json(result);
   } catch (error) {
     next(error);
