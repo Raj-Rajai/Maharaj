@@ -5,8 +5,8 @@ const globalForPrisma = globalThis;
 const basePrisma = globalForPrisma.prisma ?? new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   transactionOptions: {
-    maxWait: 15000,
-    timeout: 60000,
+    maxWait: 4000,
+    timeout: 15000,
   },
 });
 
@@ -15,8 +15,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Auto-retry wrapper for transient Prisma connection errors (Supabase PgBouncer)
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 800;
+// Kept fast (max 2 retries, 300ms backoff) to avoid hanging user requests for 1-2 minutes
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 300;
 const RETRYABLE_CODES = new Set(['P1017', 'P1001', 'P1002', 'P2024']);
 
 async function withRetry(fn, label) {

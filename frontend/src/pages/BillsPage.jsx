@@ -303,21 +303,21 @@ export default function BillsPage() {
   };
 
 
-  const fetchBills = async () => {
+  const fetchBills = async (opts = {}) => {
     try {
-      setLoading(true);
+      if (!opts.background) setLoading(true);
       const params = {};
       if (filter !== 'ALL') params.status = filter;
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
       if (!startDate && !endDate) params.all = true;
 
-      const res = await api.get('/bills', { params });
+      const res = await api.get('/bills', { params, skipCache: true });
       setBills(Array.isArray(res.data) ? res.data : res.data.value || []);
     } catch {
-      toast.error('Failed to load bills');
+      if (!opts.background) toast.error('Failed to load bills');
     } finally {
-      setLoading(false);
+      if (!opts.background) setLoading(false);
     }
   };
 
@@ -327,6 +327,11 @@ export default function BillsPage() {
 
   useEffect(() => {
     fetchBills();
+    // Auto-sync bills every 8 seconds so cashiers see new bills without manual page refresh
+    const iv = setInterval(() => {
+      fetchBills({ background: true });
+    }, 8000);
+    return () => clearInterval(iv);
   }, [filter, startDate, endDate]);
 
   useEffect(() => {

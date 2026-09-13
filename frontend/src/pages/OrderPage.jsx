@@ -103,21 +103,33 @@ export default function OrderPage() {
   const createOrderAndSend = async () => {
     if (!canOrder) { toast.error('You do not have permission to place orders'); return; }
     if (cart.length === 0) { toast.error('Add items first'); return; }
+    if (!session) { toast.error('No active session'); return; }
+
     setSending(true);
     try {
-      let orderId = order?.id;
-      if (!orderId) {
-        if (!session) { toast.error('No active session'); return; }
-        const res = await api.post('/orders', { sessionId: session.id });
-        orderId = res.data.id;
-      }
-      await api.post(`/orders/${orderId}/items`, { items: cart.map(c => ({ menuItemId: c.menuItemId, quantity: c.quantity, notes: c.notes || undefined })) });
-      await api.post('/kots', { orderId });
+      // Single atomic call: creates order (if needed), inserts items, generates KOT, and returns full order
+      const res = await api.post('/orders/send-kot', {
+        sessionId: session.id,
+        tableId,
+        items: cart.map(c => ({
+          menuItemId: c.menuItemId,
+          quantity: c.quantity,
+          notes: c.notes || undefined,
+        })),
+      });
+
       toast.success('KOT sent to kitchen!');
       setCart([]);
-      await loadData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed to send order'); }
-    finally { setSending(false); }
+      if (res.data?.order) {
+        setOrder(res.data.order);
+      } else {
+        await loadData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send order');
+    } finally {
+      setSending(false);
+    }
   };
 
   const openBillModal = async () => {

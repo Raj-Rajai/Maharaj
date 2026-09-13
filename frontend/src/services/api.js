@@ -192,11 +192,42 @@ const invalidateForMutation = (url) => {
   }
 };
 
+// Live operational endpoints must NEVER be served from stale client cache
+// This ensures all devices (captains, kitchen, cashiers) always see live state without F5
+const LIVE_OPERATIONAL_PATTERNS = [
+  '/tables',
+  '/table-sessions',
+  '/orders',
+  '/kots',
+  '/bills',
+  '/online-orders',
+];
+
+const isLiveOperationalEndpoint = (url) => {
+  const u = (url || '').toLowerCase();
+  return LIVE_OPERATIONAL_PATTERNS.some((pattern) => u.includes(pattern));
+};
+
+// Purge any legacy cached live data from sessionStorage on load
+try {
+  if (typeof sessionStorage !== 'undefined') {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(SESSION_CACHE_PREFIX)) {
+        if (isLiveOperationalEndpoint(k)) {
+          sessionStorage.removeItem(k);
+        }
+      }
+    }
+  }
+} catch {}
+
 // Wrap api.get with cache checking & deduplication
 const originalGet = api.get.bind(api);
 api.get = async (url, config = {}) => {
   const skipCache = config.skipCache || config.headers?.['x-skip-cache'] === 'true';
-  const shouldCache = !skipCache && !url.includes('/auth/');
+  const isLive = isLiveOperationalEndpoint(url);
+  const shouldCache = !skipCache && !isLive && !url.includes('/auth/');
 
   if (shouldCache) {
     const cacheKey = normalizeCacheKey(url, config.params);
@@ -230,8 +261,10 @@ api.get = async (url, config = {}) => {
     return requestPromise;
   }
 
+  // Live operational endpoint or explicit skipCache: always fetch directly from server
   const response = await originalGet(url, config);
-  if (!url.includes('/auth/')) {
+  // Only save to cache if it's NOT a live operational endpoint and NOT auth
+  if (!isLive && !url.includes('/auth/') && !skipCache) {
     const cacheKey = normalizeCacheKey(url, config.params);
     saveToCache(cacheKey, response.data, response.headers, config.ttl);
   }

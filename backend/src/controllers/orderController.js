@@ -70,3 +70,14 @@ export const cancel = async (req, res, next) => {
     next(error);
   }
 };
+
+export const sendKotOrder = async (req, res, next) => {
+  try {
+    const { sessionId, tableId, items } = req.body;
+    const captainId = req.user.id;
+    const result = await orderService.sendKotOrder({ sessionId, tableId, items }, captainId);
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+};

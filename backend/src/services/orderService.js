@@ -356,3 +356,124 @@ export const cancel = async (id) => {
     data: { status: 'CANCELLED' },
   });
 };
+
+export const sendKotOrder = async (data, captainId) => {
+  const { sessionId, tableId, items } = data;
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    throw { status: 400, message: 'At least one item is required' };
+  }
+  if (!sessionId && !tableId) {
+    throw { status: 400, message: 'Session ID or Table ID is required' };
+  }
+
+  // Batch fetch all menu items in one query
+  const menuItemIds = items.map((i) => i.menuItemId);
+  const dbMenuItems = await prisma.menuItem.findMany({
+    where: { id: { in: menuItemIds } },
+  });
+  const menuItemMap = new Map(dbMenuItems.map((m) => [m.id, m]));
+
+  for (const it of items) {
+    const m = menuItemMap.get(it.menuItemId);
+    if (!m) throw { status: 404, message: `Menu item not found: ${it.menuItemId}` };
+    if (!m.active) throw { status: 400, message: `Menu item inactive: ${m.name}` };
+  }
+
+  return prisma.$transaction(async (tx) => {
+    // Resolve session & table
+    let session = null;
+    if (sessionId) {
+      session = await tx.tableSession.findUnique({
+        where: { id: sessionId },
+        include: { table: true },
+      });
+    } else if (tableId) {
+      session = await tx.tableSession.findFirst({
+        where: { tableId, status: 'OPEN' },
+        include: { table: true },
+      });
+    }
+
+    if (!session) throw { status: 404, message: 'Active session not found' };
+    if (session.status !== 'OPEN') throw { status: 400, message: 'Session is not open' };
+
+    const resolvedTableId = session.tableId;
+    const orderSource = session.table?.type === 'AC' ? 'DINE_IN_AC' : 'DINE_IN_NON_AC';
+
+    // Find or create active order for this session
+    let order = await tx.order.findFirst({
+      where: { sessionId: session.id, status: 'ACTIVE' },
+    });
+
+    if (!order) {
+      order = await tx.order.create({
+        data: {
+          sessionId: session.id,
+          tableId: resolvedTableId,
+          captainId,
+          status: 'ACTIVE',
+          orderSource,
+        },
+      });
+    }
+
+    // Calculate kotNumber inside transaction
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const count = await tx.kOT.count({
+      where: { createdAt: { gte: today } },
+    });
+    const kotNumber = count + 1;
+
+    const newKot = await tx.kOT.create({
+      data: {
+        kotNumber,
+        orderId: order.id,
+        sessionId: session.id,
+        captainId,
+        status: 'NEW',
+      },
+    });
+
+    // Create OrderItems directly linked to this KOT with status 'SENT'
+    const orderItemsData = items.map((item) => {
+      const menuItem = menuItemMap.get(item.menuItemId);
+      const qty = parseInt(item.quantity, 10) || 1;
+      return {
+        orderId: order.id,
+        menuItemId: item.menuItemId,
+        itemNameSnapshot: menuItem.name,
+        priceSnapshot: menuItem.price,
+        quantity: qty,
+        originalQuantity: qty,
+        notes: item.notes || null,
+        kotId: newKot.id,
+        status: 'SENT',
+      };
+    });
+
+    await tx.orderItem.createMany({
+      data: orderItemsData,
+    });
+
+    // Return the fresh full order with items, table, captain, and bill
+    const fullOrder = await tx.order.findUnique({
+      where: { id: order.id },
+      include: {
+        items: {
+          include: { menuItem: true, history: true },
+        },
+        kots: true,
+        bill: true,
+        table: true,
+        captain: { select: { id: true, name: true, role: true } },
+      },
+    });
+
+    return {
+      order: fullOrder,
+      kot: newKot,
+      itemsCount: orderItemsData.length,
+    };
+  });
+};

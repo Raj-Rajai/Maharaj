@@ -22,16 +22,24 @@ export default function KitchenPage() {
   const [editReason, setEditReason] = useState('');
   const printRef = useRef();
 
-  const fetchKots = async () => {
+  const fetchKots = async (opts = {}) => {
     try {
-      const res = await api.get('/kots');
+      if (!opts.background) setLoading(true);
+      const res = await api.get('/kots', { skipCache: true });
       const data = Array.isArray(res.data) ? res.data : res.data.value || [];
       setKots(data);
-    } catch { toast.error('Failed to load KOTs'); }
-    finally { setLoading(false); }
+    } catch {
+      if (!opts.background) toast.error('Failed to load KOTs');
+    } finally {
+      if (!opts.background) setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchKots(); const iv = setInterval(fetchKots, 10000); return () => clearInterval(iv); }, []);
+  useEffect(() => {
+    fetchKots();
+    const iv = setInterval(() => fetchKots({ background: true }), 5000);
+    return () => clearInterval(iv);
+  }, []);
 
   const filtered = kots.filter(k => filter === 'ALL' || k.status === filter);
 

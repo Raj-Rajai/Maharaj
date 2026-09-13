@@ -9,6 +9,7 @@ const router = Router();
 router.use(authenticate);
 
 router.post('/', requirePermission('ORDER_CREATE'), validate(createOrderSchema), orderController.create);
+router.post('/send-kot', requirePermission('ORDER_CREATE'), orderController.sendKotOrder);
 router.post('/take-away', requirePermission('ONLINE_ORDER_CREATE', 'ORDER_CREATE'), validate(createTakeAwayOrderSchema), orderController.createTakeAway);
 router.get('/', orderController.getAll);
 router.get('/:id', orderController.getById);

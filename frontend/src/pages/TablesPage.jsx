@@ -25,15 +25,23 @@ export default function TablesPage() {
   const navigate = useNavigate();
   const { user, hasPermission } = useAuth();
 
-  const fetchTables = async () => {
+  const fetchTables = async (opts = {}) => {
     try {
-      const res = await api.get('/tables');
+      if (!opts.background) setLoading(true);
+      const res = await api.get('/tables', { skipCache: true });
       setTables(Array.isArray(res.data) ? res.data : res.data.value || []);
-    } catch { toast.error('Failed to load tables'); }
-    finally { setLoading(false); }
+    } catch {
+      if (!opts.background) toast.error('Failed to load tables');
+    } finally {
+      if (!opts.background) setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchTables(); const iv = setInterval(fetchTables, 30000); return () => clearInterval(iv); }, []);
+  useEffect(() => {
+    fetchTables();
+    const iv = setInterval(() => fetchTables({ background: true }), 8000);
+    return () => clearInterval(iv);
+  }, []);
 
   const filtered = tables.filter(t => {
 
