@@ -1,0 +1,36 @@
+version: 1
+
+runtime:
+  node: "20.0"
+
+install:
+  - npm --prefix backend install
+  - npx --prefix backend prisma generate
+  - cp .env backend/.env
+  - npm --prefix frontend install
+
+build:
+  - npx --prefix backend prisma db push
+  - node backend/prisma/seed.js
+  - npm --prefix frontend run build
+
+supervisor:
+  program: "maharaj_backend"
+  config: |
+    [program:maharaj_backend]
+    command=node {domainPath}/backend/src/index.js
+    directory={domainPath}/backend
+    autostart=true
+    autorestart=true
+    user=www-data
+    environment=NODE_ENV="production",PORT="5000"
+    stdout_logfile={domainPath}/logs/backend.out.log
+    stderr_logfile={domainPath}/logs/backend.err.log
+
+env:
+  PORT: "5000"
+  NODE_ENV: "production"
+  FRONTEND_URL: "https://maharaj.sudhirrajai.com"
+  JWT_SECRET: "maharaj_prod_jwt_secret_9283748291"
+  JWT_REFRESH_SECRET: "maharaj_prod_jwt_refresh_secret_18273645"
+  DATABASE_URL: "mysql://maharaj_user:%28w%28Q4P2Z%24%289K%40bsH@127.0.0.1:3306/maharaj"
