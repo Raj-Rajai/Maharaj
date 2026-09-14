@@ -267,7 +267,7 @@ async function runExport() {
   sqlOutput += `-- Tables: ${sortedTables.length}\n`;
   sqlOutput += `-- =====================================================================\n\n`;
 
-  sqlOutput += `SET NAMES utf8mb4;\n`;
+  sqlOutput += `SET NAMES utf8mb4 COLLATE utf8mb4_bin;\n`;
   sqlOutput += `SET FOREIGN_KEY_CHECKS = 0;\n`;
   sqlOutput += `SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";\n`;
   sqlOutput += `SET AUTOCOMMIT = 0;\n`;
@@ -349,7 +349,7 @@ async function runExport() {
     }
 
     sqlOutput += definitions.join(',\n');
-    sqlOutput += `\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;\n\n`;
+    sqlOutput += `\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;\n\n`;
 
     // Fetch data rows from Supabase
     const dataRes = await queryWithRetry(`SELECT * FROM "${tableName}"`);
@@ -378,7 +378,7 @@ async function runExport() {
         return `(${rowVals.join(', ')})`;
       });
 
-      sqlOutput += `INSERT INTO \`${tableName}\` (${colNamesList}) VALUES\n`;
+      sqlOutput += `INSERT IGNORE INTO \`${tableName}\` (${colNamesList}) VALUES\n`;
       sqlOutput += valuesList.join(',\n') + ';\n';
     }
     sqlOutput += `\n`;
@@ -394,10 +394,10 @@ async function runExport() {
   sqlOutput += `-- =====================================================================\n`;
 
   const rootFilePath = path.join(__dirname, '../../maharaj_mysql_dump.sql');
-  const backendFilePath = path.join(__dirname, '../maharaj_mysql_dump.sql');
+  const prismaFilePath = path.join(__dirname, '../prisma/maharaj_mysql_dump.sql');
 
   fs.writeFileSync(rootFilePath, sqlOutput, 'utf8');
-  fs.writeFileSync(backendFilePath, sqlOutput, 'utf8');
+  fs.writeFileSync(prismaFilePath, sqlOutput, 'utf8');
 
   console.log(`\n=====================================================================`);
   console.log(`SUCCESS: Full production-grade MySQL .sql file generated!`);
