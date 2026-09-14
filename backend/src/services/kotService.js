@@ -58,42 +58,84 @@ export const create = async (orderId, captainId) => {
 
 export const getAll = async (filters) => {
   const { status, startDate, endDate } = filters || {};
-  const where = {};
+  let whereClause = '';
+  const params = [];
+  let paramCount = 1;
 
-  if (status) where.status = status;
+  if (status) {
+    whereClause += ` WHERE k.status = $${paramCount}::"KotStatus"`;
+    params.push(status);
+    paramCount++;
+  }
 
   if (startDate || endDate) {
-    where.createdAt = {};
-    if (startDate) where.createdAt.gte = new Date(startDate);
-    if (endDate) where.createdAt.lte = new Date(endDate);
+    if (startDate) {
+      whereClause += whereClause ? ` AND ` : ` WHERE `;
+      whereClause += `k."createdAt" >= $${paramCount}`;
+      params.push(new Date(startDate));
+      paramCount++;
+    }
+    if (endDate) {
+      whereClause += whereClause ? ` AND ` : ` WHERE `;
+      whereClause += `k."createdAt" <= $${paramCount}`;
+      params.push(new Date(endDate));
+      paramCount++;
+    }
   } else if (!status) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    where.OR = [
-      { status: { in: ['NEW', 'PREPARING', 'READY'] } },
-      { createdAt: { gte: today } }
-    ];
+    whereClause += ` WHERE k.status IN ('NEW', 'PREPARING', 'READY') OR k."createdAt" >= $${paramCount}`;
+    params.push(today);
+    paramCount++;
   } else {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    where.createdAt = { gte: today };
+    whereClause += whereClause ? ` AND ` : ` WHERE `;
+    whereClause += `k."createdAt" >= $${paramCount}`;
+    params.push(today);
+    paramCount++;
   }
 
-  return prisma.kOT.findMany({
-    where,
-    include: {
-      items: true,
-      order: {
-        select: {
-          id: true,
-          orderSource: true,
-          tableId: true,
-          table: { select: { id: true, number: true, type: true } },
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const sql = `
+    SELECT k.id, k."kotNumber", k."orderId", k."sessionId", k."captainId", k.status, k."createdAt",
+           o.id as "order_id", o."orderSource", o."tableId",
+           t.id as "table_id", t.number as "table_number", t.type as "table_type",
+           COALESCE(json_agg(
+             json_build_object(
+               'id', oi.id, 'orderId', oi."orderId", 'menuItemId', oi."menuItemId",
+               'itemNameSnapshot', oi."itemNameSnapshot", 'priceSnapshot', oi."priceSnapshot",
+               'quantity', oi.quantity, 'originalQuantity', oi."originalQuantity",
+               'status', oi.status, 'notes', oi.notes, 'kotId', oi."kotId",
+               'createdAt', oi."createdAt"
+             )
+           ) FILTER (WHERE oi.id IS NOT NULL), '[]') as items
+    FROM "KOT" k
+    LEFT JOIN "Order" o ON o.id = k."orderId"
+    LEFT JOIN "Table" t ON t.id = o."tableId"
+    LEFT JOIN "OrderItem" oi ON oi."kotId" = k.id
+    ${whereClause}
+    GROUP BY k.id, o.id, o."orderSource", o."tableId", t.id, t.number, t.type
+    ORDER BY k."createdAt" DESC
+  `;
+
+  const rows = await prisma.$queryRawUnsafe(sql, ...params);
+
+  return rows.map(row => ({
+    id: row.id,
+    kotNumber: row.kotNumber,
+    orderId: row.orderId,
+    sessionId: row.sessionId,
+    captainId: row.captainId,
+    status: row.status,
+    createdAt: row.createdAt,
+    items: row.items,
+    order: {
+      id: row.order_id,
+      orderSource: row.orderSource,
+      tableId: row.tableId,
+      table: row.order_id ? { id: row.table_id, number: row.table_number, type: row.table_type } : null
+    }
+  }));
 };
 
 export const getById = async (id) => {
@@ -155,7 +197,7 @@ export const updateItemStatus = async (itemId, status) => {
   }
 
   // Wrap item update + KOT status sync in a single transaction
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const updatedItem = await tx.orderItem.update({
       where: { id: itemId },
       data: { status },
@@ -206,8 +248,7 @@ export const editItemQuantity = async (orderItemId, newQuantity, reason, userId)
   const oldQuantity = orderItem.quantity;
   if (oldQuantity === newQuantity) return orderItem;
 
-  return prisma.$transaction(async (tx) => {
-
+  const result = await prisma.$transaction(async (tx) => {
     await tx.orderItemHistory.create({
       data: {
         orderItemId,

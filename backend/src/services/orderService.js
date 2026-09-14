@@ -142,7 +142,7 @@ export const createTakeAwayOrder = async (data, userId) => {
   const finalTotal = Math.round(grandTotal);
   const roundOff = Number((finalTotal - grandTotal).toFixed(2));
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
 
     const newOrder = await tx.order.create({
       data: {
@@ -239,69 +239,114 @@ export const createTakeAwayOrder = async (data, userId) => {
 
 export const getAll = async (filters) => {
   const { sessionId, tableId, status, orderSource, startDate, endDate, from, to, limit, take, page } = filters || {};
-  const where = {};
-  if (sessionId) where.sessionId = sessionId;
-  if (tableId) where.tableId = tableId;
-  if (status && status !== 'ALL') where.status = status;
-  if (orderSource && orderSource !== 'ALL') where.orderSource = orderSource;
+  
+  const params = [];
+  const conditions = [];
+
+  if (sessionId) {
+    params.push(sessionId);
+    conditions.push(`o."sessionId" = $${params.length}`);
+  }
+  if (tableId) {
+    params.push(tableId);
+    conditions.push(`o."tableId" = $${params.length}`);
+  }
+  if (status && status !== 'ALL') {
+    params.push(status);
+    conditions.push(`o.status = $${params.length}::"OrderStatus"`);
+  }
+  if (orderSource && orderSource !== 'ALL') {
+    params.push(orderSource);
+    conditions.push(`o."orderSource" = $${params.length}::"OrderSource"`);
+  }
 
   // Support date range filtering
   const startParam = startDate || from;
   const endParam = endDate || to;
-  if (startParam || endParam) {
-    where.createdAt = {};
-    if (startParam) {
-      const s = new Date(startParam);
-      s.setHours(0, 0, 0, 0);
-      where.createdAt.gte = s;
-    }
-    if (endParam) {
-      const e = new Date(endParam);
-      e.setHours(23, 59, 59, 999);
-      where.createdAt.lte = e;
-    }
+  if (startParam) {
+    const s = new Date(startParam);
+    s.setHours(0, 0, 0, 0);
+    params.push(s);
+    conditions.push(`o."createdAt" >= $${params.length}`);
+  }
+  if (endParam) {
+    const e = new Date(endParam);
+    e.setHours(23, 59, 59, 999);
+    params.push(e);
+    conditions.push(`o."createdAt" <= $${params.length}`);
   }
 
-  const queryOptions = {
-    where,
-    include: {
-      items: {
-        select: {
-          id: true,
-          itemNameSnapshot: true,
-          priceSnapshot: true,
-          quantity: true,
-          originalQuantity: true,
-          status: true,
-          notes: true,
-          menuItemId: true,
-          kotId: true,
-          createdAt: true,
-        }
-      },
-      table: {
-        select: { id: true, number: true, type: true, status: true },
-      },
-      bill: {
-        select: { id: true, billNumber: true, total: true, status: true },
-      },
-      captain: { select: { id: true, name: true, role: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  };
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const limitParam = limit || take;
+  let limitValue = null;
   if (limitParam) {
-    queryOptions.take = Number(limitParam);
+    limitValue = Number(limitParam);
   } else if (!sessionId && !tableId && !status) {
     // If unbounded query without specific session/table/status, cap to recent 100
-    queryOptions.take = 100;
-  }
-  if (page && limitParam) {
-    queryOptions.skip = (Number(page) - 1) * Number(limitParam);
+    limitValue = 100;
   }
 
-  return prisma.order.findMany(queryOptions);
+  let offsetValue = 0;
+  if (page && limitParam) {
+    offsetValue = (Number(page) - 1) * Number(limitParam);
+  }
+
+  const limitClause = limitValue !== null ? `LIMIT ${limitValue}` : '';
+  const offsetClause = offsetValue > 0 ? `OFFSET ${offsetValue}` : '';
+
+  const sql = `
+    SELECT o.id, o."orderSource", o."sessionId", o."tableId", o."captainId", o.status, o."createdAt", o."updatedAt",
+           t.id as "table_id", t.number as "table_number", t.type as "table_type", t.status as "table_status",
+           bi.id as "bill_id", bi."billNumber" as "bill_number", bi.total as "bill_total", bi.status as "bill_status",
+           u.id as "captain_id", u.name as "captain_name", u.role as "captain_role"
+    FROM "Order" o
+    LEFT JOIN "Table" t ON t.id = o."tableId"
+    LEFT JOIN "Bill" bi ON bi."orderId" = o.id
+    LEFT JOIN "User" u ON u.id = o."captainId"
+    ${whereClause}
+    ORDER BY o."createdAt" DESC
+    ${limitClause}
+    ${offsetClause}
+  `;
+
+  const orders = await prisma.$queryRawUnsafe(sql, ...params);
+
+  if (!orders || orders.length === 0) return [];
+
+  const orderIds = orders.map(o => o.id);
+  const itemsParams = [...orderIds];
+  const itemsPlaceholders = orderIds.map((_, i) => `$${i + 1}`).join(', ');
+
+  const itemsSql = `
+    SELECT id, "orderId", "itemNameSnapshot", "priceSnapshot", quantity, "originalQuantity", status, notes, "menuItemId", "kotId", "createdAt"
+    FROM "OrderItem"
+    WHERE "orderId" IN (${itemsPlaceholders})
+  `;
+  const items = await prisma.$queryRawUnsafe(itemsSql, ...itemsParams);
+
+  const itemsByOrderId = {};
+  for (const item of items) {
+    if (!itemsByOrderId[item.orderId]) {
+      itemsByOrderId[item.orderId] = [];
+    }
+    itemsByOrderId[item.orderId].push(item);
+  }
+
+  return orders.map(row => ({
+    id: row.id,
+    orderSource: row.orderSource,
+    sessionId: row.sessionId,
+    tableId: row.tableId,
+    captainId: row.captainId,
+    status: row.status,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    table: row.table_id ? { id: row.table_id, number: row.table_number, type: row.table_type, status: row.table_status } : null,
+    bill: row.bill_id ? { id: row.bill_id, billNumber: row.bill_number, total: row.bill_total, status: row.bill_status } : null,
+    captain: row.captain_id ? { id: row.captain_id, name: row.captain_name, role: row.captain_role } : null,
+    items: itemsByOrderId[row.id] || [],
+  }));
 };
 
 export const getById = async (id) => {
@@ -364,7 +409,7 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
 
   // If generateKot is true (default), atomically create KOT and mark items as SENT
   if (generateKot) {
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const count = await tx.kOT.count({
@@ -497,7 +542,7 @@ export const sendKotOrder = async (data, captainId) => {
     if (!m.active) throw { status: 400, message: `Menu item inactive: ${m.name}` };
   }
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     // Resolve session & table
     let session = null;
     if (sessionId) {

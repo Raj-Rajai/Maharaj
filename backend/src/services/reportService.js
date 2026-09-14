@@ -651,36 +651,31 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     purchaseDateFilter.purchaseDate = { gte: s, lte: e };
   }
 
+  // Get date strings or defaults for SQL params
+  const sqlStartDate = startDate ? new Date(startDate) : new Date();
+  if (!startDate) sqlStartDate.setHours(0, 0, 0, 0);
+  const sqlEndDate = endDate ? new Date(endDate) : new Date();
+  if (!endDate) sqlEndDate.setHours(23, 59, 59, 999);
+
   // Run the 4 core queries in parallel ONCE
   const [bills, onlineOrders, allOrders, purchases] = await Promise.all([
-    prisma.bill.findMany({
-      where: { status: 'FINALIZED', ...dateFilter },
-      select: {
-        id: true,
-        orderId: true,
-        total: true,
-        sgstAmount: true,
-        cgstAmount: true,
-        createdAt: true,
-        tableId: true,
-        sessionId: true,
-        order: {
-          select: {
-            orderSource: true,
-            table: { select: { id: true, number: true, type: true } },
-          }
-        },
-        session: {
-          select: {
-            table: { select: { id: true, number: true, type: true } }
-          }
-        },
-        payment: {
-          select: { method: true, amount: true }
-        }
-      },
-      orderBy: { createdAt: 'asc' }
-    }),
+    prisma.$queryRawUnsafe(`
+      SELECT b.id, b."orderId", b.total, b."sgstAmount", b."cgstAmount", b."createdAt",
+             b."tableId", b."sessionId",
+             o."orderSource",
+             COALESCE(st.type, ot.type) as "tableType",
+             COALESCE(st.id, ot.id) as "resolvedTableId",
+             COALESCE(st.number, ot.number) as "resolvedTableNumber",
+             p.method as "payMethod", p.amount as "payAmount"
+      FROM "Bill" b
+      LEFT JOIN "Order" o ON o.id = b."orderId"
+      LEFT JOIN "Table" ot ON ot.id = o."tableId"
+      LEFT JOIN "TableSession" s ON s.id = b."sessionId"
+      LEFT JOIN "Table" st ON st.id = s."tableId"
+      LEFT JOIN "Payment" p ON p."billId" = b.id
+      WHERE b.status = 'FINALIZED' AND b."createdAt" >= $1 AND b."createdAt" <= $2
+      ORDER BY b."createdAt" ASC
+    `, sqlStartDate, sqlEndDate),
 
     prisma.onlineOrder.findMany({
       where: { ...dateFilter },
@@ -727,7 +722,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
 
   bills.forEach(b => {
     const total = Number(b.total);
-    const source = b.order?.orderSource;
+    const source = b.orderSource;
 
     if (source === 'DINE_IN_AC') {
       acSales += total;
@@ -740,7 +735,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     } else if (source === 'ZOMATO') {
       zomatoRevenue += total;
     } else {
-      if (b.session?.table?.type === 'AC' || b.order?.table?.type === 'AC') {
+      if (b.tableType === 'AC') {
         acSales += total;
       } else {
         nonAcSales += total;
@@ -806,7 +801,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
         };
       }
       const total = Number(b.total);
-      const source = b.order?.orderSource;
+      const source = b.orderSource;
       hourMap[h].orders += 1;
       hourMap[h].total += total;
 
@@ -826,7 +821,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
         hourMap[h].zomatoRevenue += total;
         hourMap[h].takeAway += total;
       } else {
-        if (b.session?.table?.type === 'AC' || b.order?.table?.type === 'AC') {
+        if (b.tableType === 'AC') {
           hourMap[h].acSales += total;
           hourMap[h].dineIn += total;
         } else {
@@ -881,7 +876,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
         };
       }
       const total = Number(b.total);
-      const source = b.order?.orderSource;
+      const source = b.orderSource;
       dateMap[key].orders += 1;
       dateMap[key].total += total;
 
@@ -901,7 +896,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
         dateMap[key].zomatoRevenue += total;
         dateMap[key].takeAway += total;
       } else {
-        if (b.session?.table?.type === 'AC' || b.order?.table?.type === 'AC') {
+        if (b.tableType === 'AC') {
           dateMap[key].acSales += total;
           dateMap[key].dineIn += total;
         } else {
@@ -1001,7 +996,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   // --- 3. PAYMENTS BREAKDOWN ---
   const payments = {};
   bills.forEach(bill => {
-    const method = bill.payment?.method || 'UNKNOWN';
+    const method = bill.payMethod || 'UNKNOWN';
     if (!payments[method]) payments[method] = { total: 0, count: 0 };
     payments[method].total += Number(bill.total);
     payments[method].count += 1;
@@ -1020,7 +1015,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   };
 
   bills.forEach(b => {
-    const source = b.order?.orderSource;
+    const source = b.orderSource;
     if (['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(source)) {
       const amount = Number(b.total);
       onlineOrderReport.totalTakeAwayRevenue += amount;
@@ -1067,14 +1062,14 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
 
   // --- 6. TABLES SUMMARY ---
   const tableSummaryMap = bills.reduce((acc, bill) => {
-    const table = bill.session?.table || bill.order?.table;
-    if (!table) return acc;
-    const tableNo = table.number;
+    const tableId = bill.resolvedTableId;
+    if (!tableId) return acc;
+    const tableNo = bill.resolvedTableNumber;
     if (!acc[tableNo]) {
       acc[tableNo] = {
-        tableId: table.id,
+        tableId: tableId,
         tableNumber: tableNo,
-        type: table.type,
+        type: bill.tableType,
         revenue: 0,
         ordersCount: 0
       };

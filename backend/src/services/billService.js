@@ -92,8 +92,14 @@ export const create = async (orderId, discount = 0, customerName = null, custome
 
 export const getAll = async (filters) => {
   const { status, startDate, endDate, from, to, all, limit, page } = filters || {};
-  const where = {};
-  if (status && status !== 'ALL') where.status = status;
+
+  const conditions = [];
+  const params = [];
+
+  if (status && status !== 'ALL') {
+    params.push(status);
+    conditions.push(`b.status = $${params.length}::"BillStatus"`);
+  }
 
   // Support startDate/endDate and from/to aliases
   const startParam = startDate || from;
@@ -102,16 +108,17 @@ export const getAll = async (filters) => {
   if (all === true || all === 'true' || startParam === 'ALL') {
     // Explicitly requested all bills across history (no date filter)
   } else if (startParam || endParam) {
-    where.createdAt = {};
     if (startParam) {
       const s = new Date(startParam);
       s.setHours(0, 0, 0, 0);
-      where.createdAt.gte = s;
+      params.push(s);
+      conditions.push(`b."createdAt" >= $${params.length}`);
     }
     if (endParam) {
       const e = new Date(endParam);
       e.setHours(23, 59, 59, 999);
-      where.createdAt.lte = e;
+      params.push(e);
+      conditions.push(`b."createdAt" <= $${params.length}`);
     }
   } else {
     // Default to today's bills if no date range is provided
@@ -119,34 +126,82 @@ export const getAll = async (filters) => {
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
-    where.createdAt = { gte: todayStart, lte: todayEnd };
+    params.push(todayStart, todayEnd);
+    conditions.push(`b."createdAt" >= $${params.length - 1} AND b."createdAt" <= $${params.length}`);
   }
 
-  const queryOptions = {
-    where,
-    include: {
-      order: {
-        select: {
-          id: true,
-          orderSource: true,
-          tableId: true,
-          table: { select: { id: true, number: true, type: true } },
-          captain: { select: { id: true, name: true, role: true } },
-        }
-      },
-      payment: {
-        select: { id: true, method: true, amount: true, status: true, paidAt: true }
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  };
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
+  let paginationClause = '';
   const take = limit ? Number(limit) : undefined;
   const skip = page && take ? (Number(page) - 1) * take : undefined;
-  if (take) queryOptions.take = take;
-  if (skip) queryOptions.skip = skip;
 
-  return prisma.bill.findMany(queryOptions);
+  if (take) {
+    params.push(take);
+    paginationClause += `LIMIT $${params.length} `;
+  }
+  if (skip) {
+    params.push(skip);
+    paginationClause += `OFFSET $${params.length} `;
+  }
+
+  const sql = `
+    SELECT b.id, b."billNumber", b."orderId", b."sessionId", b."tableId",
+           b."customerName", b."customerPhone",
+           b.subtotal, b."sgstPercent", b."cgstPercent", b."sgstAmount", b."cgstAmount",
+           b.discount, b.total, b."roundOff", b.version, b.status, b."createdAt", b."finalizedAt",
+           o.id as "order_id", o."orderSource", o."tableId" as "order_tableId",
+           t.id as "table_id", t.number as "table_number", t.type as "table_type",
+           u.id as "captain_id", u.name as "captain_name", u.role as "captain_role",
+           p.id as "pay_id", p.method as "pay_method", p.amount as "pay_amount",
+           p.status as "pay_status", p."paidAt" as "pay_paidAt"
+    FROM "Bill" b
+    LEFT JOIN "Order" o ON o.id = b."orderId"
+    LEFT JOIN "Table" t ON t.id = o."tableId"
+    LEFT JOIN "User" u ON u.id = o."captainId"
+    LEFT JOIN "Payment" p ON p."billId" = b.id
+    ${whereClause}
+    ORDER BY b."createdAt" DESC
+    ${paginationClause}
+  `;
+
+  const rows = await prisma.$queryRawUnsafe(sql, ...params);
+
+  return rows.map(row => ({
+    id: row.id,
+    billNumber: row.billNumber,
+    orderId: row.orderId,
+    sessionId: row.sessionId,
+    tableId: row.tableId,
+    customerName: row.customerName,
+    customerPhone: row.customerPhone,
+    subtotal: row.subtotal,
+    sgstPercent: row.sgstPercent,
+    cgstPercent: row.cgstPercent,
+    sgstAmount: row.sgstAmount,
+    cgstAmount: row.cgstAmount,
+    discount: row.discount,
+    total: row.total,
+    roundOff: row.roundOff,
+    version: row.version,
+    status: row.status,
+    createdAt: row.createdAt,
+    finalizedAt: row.finalizedAt,
+    order: row.order_id ? {
+      id: row.order_id,
+      orderSource: row.orderSource,
+      tableId: row.order_tableId,
+      table: row.table_id ? { id: row.table_id, number: row.table_number, type: row.table_type } : null,
+      captain: row.captain_id ? { id: row.captain_id, name: row.captain_name, role: row.captain_role } : null,
+    } : null,
+    payment: row.pay_id ? {
+      id: row.pay_id,
+      method: row.pay_method,
+      amount: row.pay_amount,
+      status: row.pay_status,
+      paidAt: row.pay_paidAt
+    } : null,
+  }));
 };
 
 export const getById = async (id) => {
