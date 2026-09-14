@@ -2,11 +2,11 @@
 -- Maharaj Veg Villa - Production MySQL Database Export
 -- Source: Live Supabase PostgreSQL Database
 -- Target: MySQL 8.0+ / MariaDB
--- Generated on: 2026-09-14T19:12:12.300Z
+-- Generated on: 2026-09-14T19:48:58.067Z
 -- Tables: 22
 -- =====================================================================
 
-SET NAMES utf8mb4;
+SET NAMES utf8mb4 COLLATE utf8mb4_bin;
 SET FOREIGN_KEY_CHECKS = 0;
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET AUTOCOMMIT = 0;
@@ -27,10 +27,10 @@ CREATE TABLE `User` (
   `updatedAt` DATETIME(3) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `User_username_key` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `User` (5 rows)
-INSERT INTO `User` (`id`, `username`, `password`, `name`, `role`, `active`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `User` (`id`, `username`, `password`, `name`, `role`, `active`, `createdAt`, `updatedAt`) VALUES
 ('eaf7089f-7712-4686-8338-940d70a83f4e', 'admin', '$2b$10$2ju2aqEZNdRQUITajbkae.mwzE1ngXQAl6dGu2ZPJ1vJUR4XyhLAa', 'Admin', 'ADMIN', 1, '2026-09-02 11:23:09.669', '2026-09-06 06:59:52.791'),
 ('db2e18de-1255-4781-b084-b9609bb8698a', 'nonacmaster', '$2b$10$2i0gcHQ7obDmo1ZFE8xDOOJdo2Gv5bhD7vZjqI7zaLe8BGN0oQYgq', 'Non AC Master', 'NON_AC_MASTER', 1, '2026-09-02 11:23:09.823', '2026-09-10 20:42:33.238'),
 ('51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'acmaster', '$2b$10$C/SocL2NLIUxMwdelOOmyufOtrdtaSHZ3hNkng9IgPOXuQSu6Kffu', 'AC Master', 'AC_MASTER', 1, '2026-09-02 11:23:09.745', '2026-09-11 07:12:22.049'),
@@ -50,10 +50,10 @@ CREATE TABLE `UserPermission` (
   UNIQUE KEY `UserPermission_userId_permission_key` (`userId`, `permission`),
   KEY `UserPermission_userId_idx` (`userId`),
   CONSTRAINT `UserPermission_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `UserPermission` (143 rows)
-INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES
+INSERT IGNORE INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES
 ('f523dffd-08fe-44d3-882e-f7e47cca4047', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'DASHBOARD_VIEW', '2026-09-06 06:59:52.957'),
 ('8727aeff-04d4-4366-835f-308dff712d8a', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'TABLE_VIEW', '2026-09-06 06:59:52.957'),
 ('b8a8e373-9c7a-4747-85a1-135f1220a42b', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'TABLE_CREATE', '2026-09-06 06:59:52.957'),
@@ -104,7 +104,7 @@ INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES
 ('e3ab0c6f-12a8-43a0-876e-b12eb8726b1d', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'USER_CREATE', '2026-09-06 06:59:52.957'),
 ('3cd3be2b-59c6-431a-8a30-de15b468df69', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'USER_EDIT', '2026-09-06 06:59:52.957'),
 ('4957acb2-df3e-41ab-b839-7156aa227388', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'USER_DELETE', '2026-09-06 06:59:52.957');
-INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES
+INSERT IGNORE INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES
 ('f8e18833-fc01-424b-8d6f-7600c644b9ed', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'SETTINGS_VIEW', '2026-09-06 06:59:52.957'),
 ('226a9f90-98e6-481b-8f00-8ba30d0947d6', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'SETTINGS_EDIT', '2026-09-06 06:59:52.957'),
 ('4b43a0b0-d81b-4336-a54d-4f9e417d72c8', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'ONLINE_ORDER_VIEW', '2026-09-06 06:59:52.957'),
@@ -155,7 +155,7 @@ INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES
 ('b93ae7e5-d7d2-47e6-ba3c-274dd7293fea', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'INVENTORY_ADJUST', '2026-09-06 06:59:52.967'),
 ('5a832a91-b998-4048-afa7-ab9aab47f6ae', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'REPORT_VIEW', '2026-09-06 06:59:52.967'),
 ('e4a8dbbd-28b4-4400-9dfc-f1dafc1e63ab', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'REPORT_PDF', '2026-09-06 06:59:52.967');
-INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES
+INSERT IGNORE INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES
 ('3f4e38d3-0a3b-4e22-a230-d697efd8e96b', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'REPORT_CSV', '2026-09-06 06:59:52.967'),
 ('e4b18297-a09f-46e4-9c04-9eee432e9cdf', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'USER_VIEW', '2026-09-06 06:59:52.967'),
 ('3885e523-1225-4c0e-8e62-2b94bd2b2bc0', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'SETTINGS_VIEW', '2026-09-06 06:59:52.967'),
@@ -215,10 +215,10 @@ CREATE TABLE `RefreshToken` (
   KEY `RefreshToken_expiresAt_idx` (`expiresAt`),
   KEY `RefreshToken_userId_idx` (`userId`),
   CONSTRAINT `RefreshToken_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `RefreshToken` (38 rows)
-INSERT INTO `RefreshToken` (`id`, `token`, `userId`, `expiresAt`, `createdAt`) VALUES
+INSERT IGNORE INTO `RefreshToken` (`id`, `token`, `userId`, `expiresAt`, `createdAt`) VALUES
 ('6cc86b8f-134d-450b-af47-909e794ca9f0', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc4NWRiZjZmLWU3YzYtNGUzNC05MGRlLWUzMGMxZjUyY2VkNyIsImlhdCI6MTc4OTA5NDc3OCwiZXhwIjoxNzg5Njk5NTc4fQ.FOGBArq83qNYS16iFc4g4cwCk2VQY_JObrlDMVJqsR8', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '2026-09-17 21:16:18.740', '2026-09-10 21:16:18.741'),
 ('49820a4a-6994-44ad-bf23-f7b18b9c8ed4', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImVhZjcwODlmLTc3MTItNDY4Ni04MzM4LTk0MGQ3MGE4M2Y0ZSIsImlhdCI6MTc4OTA5NDgyMSwiZXhwIjoxNzg5Njk5NjIxfQ.5W5QGyBaut5jbkTMn-Ey0mxEO0U4QsYVJcg3dJ5sU3g', 'eaf7089f-7712-4686-8338-940d70a83f4e', '2026-09-17 21:17:01.518', '2026-09-10 21:17:01.520'),
 ('66a8d863-ab3b-4d3b-8bdf-31c9b9602377', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjUxZDFhMDY2LWNhYTQtNGFjZS1iZjdkLWE5YWVlNWU0NzUzOSIsImlhdCI6MTc4OTA5NDgyMSwiZXhwIjoxNzg5Njk5NjIxfQ.7DVf01XX0j5xtO6ds92N8GleHguSoiUt_SV7Z9USzDA', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', '2026-09-17 21:17:01.866', '2026-09-10 21:17:01.867'),
@@ -274,10 +274,10 @@ CREATE TABLE `Table` (
   UNIQUE KEY `Table_number_key` (`number`),
   KEY `Table_status_idx` (`status`),
   KEY `Table_type_idx` (`type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `Table` (18 rows)
-INSERT INTO `Table` (`id`, `number`, `capacity`, `type`, `status`, `active`, `createdAt`) VALUES
+INSERT IGNORE INTO `Table` (`id`, `number`, `capacity`, `type`, `status`, `active`, `createdAt`) VALUES
 ('fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 1, 6, 'NON_AC', 'AVAILABLE', 1, '2026-09-02 11:23:09.866'),
 ('76c5cd38-2ccb-454c-8186-437797a863a3', 11, 4, 'AC', 'AVAILABLE', 1, '2026-09-10 21:34:10.747'),
 ('5e09688d-3751-446b-89b1-50b7ea61f21f', 12, 4, 'AC', 'AVAILABLE', 1, '2026-09-13 00:59:18.592'),
@@ -309,10 +309,10 @@ CREATE TABLE `Category` (
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `Category_name_key` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `Category` (22 rows)
-INSERT INTO `Category` (`id`, `name`, `displayOrder`, `active`, `createdAt`) VALUES
+INSERT IGNORE INTO `Category` (`id`, `name`, `displayOrder`, `active`, `createdAt`) VALUES
 ('294d7508-3800-47d0-8107-07536c5623d6', 'Starters', 1, 1, '2026-09-02 11:23:09.884'),
 ('a29cdebc-54c7-4059-85dc-7f9aab91722f', 'Breads', 4, 1, '2026-09-02 11:23:09.891'),
 ('d497faee-4a68-4b05-9d43-9173faf42afe', 'Desserts', 6, 1, '2026-09-02 11:23:09.903'),
@@ -358,10 +358,10 @@ CREATE TABLE `MenuItem` (
   KEY `MenuItem_menuType_active_idx` (`menuType`, `active`),
   KEY `MenuItem_menuType_idx` (`menuType`),
   CONSTRAINT `MenuItem_categoryId_fkey` FOREIGN KEY (`categoryId`) REFERENCES `Category` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `MenuItem` (485 rows)
-INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
 ('7ebcc0eb-fc0b-466d-9d52-a7f4695ee6a3', 'Hara Bhara Kebab', '294d7508-3800-47d0-8107-07536c5623d6', 'SWIGGY', '230.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:09.968', '2026-09-13 00:51:56.894'),
 ('cb081805-91a4-4d55-96ba-71c97f39c25d', 'Veg Manchurian', '294d7508-3800-47d0-8107-07536c5623d6', 'SWIGGY', '230.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:09.933', '2026-09-13 00:52:03.879'),
 ('f44f5a40-2aec-4921-b1d2-8c92c4c983d2', 'Malai Kofta', '83209621-268d-41ec-acfb-0471abe45028', 'SWIGGY', '290.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.069', '2026-09-13 00:52:10.086'),
@@ -412,7 +412,7 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
 ('9221200e-59b2-43cc-b232-f98f0bddc642', 'Paneer Butter Masala', '83209621-268d-41ec-acfb-0471abe45028', 'SWIGGY', '330.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:09.986', '2026-09-13 00:51:02.127'),
 ('0b11b121-dddb-4703-b2d9-bc903ec42a66', 'Shahi Paneer', '83209621-268d-41ec-acfb-0471abe45028', 'SWIGGY', '310.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.052', '2026-09-13 00:51:11.228'),
 ('dd220ba0-6212-403a-9739-d7dfeb15cc36', 'Butter Naan', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'SWIGGY', '100.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.087', '2026-09-13 00:51:18.232');
-INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
 ('0af328e7-e0dc-4e33-810e-5824c61f18b9', 'Chole Bhature', '83209621-268d-41ec-acfb-0471abe45028', 'SWIGGY', '210.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.035', '2026-09-13 00:51:25.649'),
 ('a7b2b03a-aa5c-474d-9bdf-d711b37baf1d', 'Jeera Rice', '8bdc8ded-d865-41e2-8dee-e8d84bf37633', 'SWIGGY', '200.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.155', '2026-09-13 00:52:16.979'),
 ('53ae7792-f1e7-4579-aa72-f3fddb52645c', 'Plain Rice', '8bdc8ded-d865-41e2-8dee-e8d84bf37633', 'SWIGGY', '140.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.190', '2026-09-13 00:52:23.306'),
@@ -463,7 +463,7 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
 ('77931058-91d5-4a9b-b6b6-4fc8fd7bd6cd', 'Sweet Lassi', '504fac14-ddb8-4398-a2b0-889f5e781270', 'NON_AC', '70.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.216', '2026-09-13 00:49:16.579'),
 ('6c7c98c2-8aaf-4f00-948b-a1d872a8ed85', 'Gulab Jamun', 'd497faee-4a68-4b05-9d43-9173faf42afe', 'NON_AC', '80.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.250', '2026-09-13 00:49:37.230'),
 ('5abdd825-50dc-41a5-9948-50ab13b87aee', 'Ice Cream', 'd497faee-4a68-4b05-9d43-9173faf42afe', 'NON_AC', '90.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.281', '2026-09-13 00:49:45.484');
-INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
 ('2ef82d25-1506-4c62-bea1-b0421a648c90', 'Rasgulla', 'd497faee-4a68-4b05-9d43-9173faf42afe', 'NON_AC', '70.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.265', '2026-09-13 00:49:52.568'),
 ('2e4060da-e2c5-4712-adaf-66b20089a2d4', 'Cake', 'd497faee-4a68-4b05-9d43-9173faf42afe', 'SWIGGY', '100.000000000000000000000000000000', 'chocolate cake', 0, '2026-09-10 21:35:47.399', '2026-09-13 00:51:32.924'),
 ('6819598d-2b68-47e2-907f-a6329a397511', 'Sweet Lassi', '504fac14-ddb8-4398-a2b0-889f5e781270', 'SWIGGY', '110.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.224', '2026-09-13 00:51:40.924'),
@@ -514,7 +514,7 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
 ('050f35cd-aa1a-4000-89ad-a992eb4ca169', 'PLAIN LACHHA PAROTHA', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'AC', '50.000000000000000000000000000000', NULL, 1, '2026-09-13 01:29:35.101', '2026-09-13 01:29:35.101'),
 ('98369935-7f9f-4e88-adc3-0736993fa523', 'PLAIN KHULCHA', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'AC', '60.000000000000000000000000000000', NULL, 1, '2026-09-13 01:30:55.134', '2026-09-13 01:30:55.134'),
 ('9a2f06d6-d32c-4703-9eeb-81a4947791fd', 'PLAIN KHULCHA', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'NON_AC', '50.000000000000000000000000000000', NULL, 1, '2026-09-13 01:30:56.528', '2026-09-13 01:30:56.528');
-INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
 ('2b098aa7-e9e4-4083-a4ba-7e1852b4024f', 'BUTTER KHULCHA', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'AC', '65.000000000000000000000000000000', NULL, 1, '2026-09-13 01:31:54.068', '2026-09-13 01:31:54.068'),
 ('5908b41c-1b01-4d1d-9f14-977320108413', 'BUTTER KHULCHA', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'NON_AC', '55.000000000000000000000000000000', NULL, 1, '2026-09-13 01:31:55.476', '2026-09-13 01:31:55.476'),
 ('f7a97f20-346c-451e-9c67-036f266ebcfb', 'CHEESE GARLIC KHULCHA', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'AC', '130.000000000000000000000000000000', NULL, 1, '2026-09-13 01:32:22.663', '2026-09-13 01:32:22.663'),
@@ -565,7 +565,7 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
 ('9946a36f-d8b4-4f04-b272-e9d3b70391dd', 'CHEESE KOFTA', 'f7d03d67-540b-4083-a7ff-70917b07f340', 'NON_AC', '200.000000000000000000000000000000', NULL, 1, '2026-09-13 01:46:46.530', '2026-09-13 01:46:46.530'),
 ('3affbfc0-89e1-4671-8505-2afe94d0fc50', 'PANEER KOFTA', 'f7d03d67-540b-4083-a7ff-70917b07f340', 'AC', '220.000000000000000000000000000000', NULL, 1, '2026-09-13 01:47:12.252', '2026-09-13 01:47:12.252'),
 ('cb9a26d7-0b81-4d80-919f-cc30be4536f3', 'PANEER KOFTA', 'f7d03d67-540b-4083-a7ff-70917b07f340', 'NON_AC', '190.000000000000000000000000000000', NULL, 1, '2026-09-13 01:47:13.646', '2026-09-13 01:47:13.646');
-INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
 ('05928b68-5ce9-4944-b930-ca36785e7439', 'JEERA ALOO', 'f7d03d67-540b-4083-a7ff-70917b07f340', 'AC', '150.000000000000000000000000000000', NULL, 1, '2026-09-13 01:47:30.793', '2026-09-13 01:47:30.793'),
 ('4698b023-e381-4ee5-bb72-56ea694c8ec3', 'JEERA ALOO', 'f7d03d67-540b-4083-a7ff-70917b07f340', 'NON_AC', '130.000000000000000000000000000000', NULL, 1, '2026-09-13 01:47:32.193', '2026-09-13 01:47:32.193'),
 ('20b612b3-9ca1-4c20-94ec-78dc0cb37831', 'ALOO MUTTER', 'f7d03d67-540b-4083-a7ff-70917b07f340', 'AC', '160.000000000000000000000000000000', NULL, 1, '2026-09-13 01:47:49.834', '2026-09-13 01:47:49.834'),
@@ -616,7 +616,7 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
 ('ef9c06b4-1cc7-4cb9-bdd3-b54f8ba9f1d3', 'PANEER TAWA MASALA', '637dcb4d-04d3-4358-99ac-27dbb37c83f8', 'NON_AC', '240.000000000000000000000000000000', NULL, 1, '2026-09-13 03:10:19.467', '2026-09-13 03:10:19.467'),
 ('511ccf99-83e0-4c9a-836e-f87397c83861', 'PANEER TOFANI', '637dcb4d-04d3-4358-99ac-27dbb37c83f8', 'AC', '270.000000000000000000000000000000', NULL, 1, '2026-09-13 03:10:45.234', '2026-09-13 03:10:45.234'),
 ('86a993f8-2722-456b-94bb-dc153ac7dd8f', 'PANEER TOFANI', '637dcb4d-04d3-4358-99ac-27dbb37c83f8', 'NON_AC', '230.000000000000000000000000000000', NULL, 1, '2026-09-13 03:10:46.630', '2026-09-13 03:10:46.630');
-INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
 ('b55ababe-8f3f-49ee-9ff3-fe630f5ed5be', 'PANEER ANGARA', '637dcb4d-04d3-4358-99ac-27dbb37c83f8', 'AC', '280.000000000000000000000000000000', NULL, 1, '2026-09-13 03:11:06.333', '2026-09-13 03:11:06.333'),
 ('bac90b65-85f6-410b-8401-73dd460b14c8', 'PANEER ANGARA', '637dcb4d-04d3-4358-99ac-27dbb37c83f8', 'NON_AC', '240.000000000000000000000000000000', NULL, 1, '2026-09-13 03:11:07.729', '2026-09-13 03:11:07.729'),
 ('b952e2d5-91d4-4f82-a04e-8fb0d9d099f0', 'PANEER PAHADI', '637dcb4d-04d3-4358-99ac-27dbb37c83f8', 'AC', '280.000000000000000000000000000000', NULL, 1, '2026-09-13 03:11:30.100', '2026-09-13 03:11:30.100'),
@@ -667,7 +667,7 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
 ('9aa1c4bb-6a60-4e84-9de9-3ec95d5ea99e', 'CHEESE GARLIC TAWA MASALA', 'dd30cd24-9b6a-49ce-9a3e-d1098f6081d9', 'NON_AC', '260.000000000000000000000000000000', NULL, 1, '2026-09-13 03:28:25.664', '2026-09-13 03:28:25.664'),
 ('75bb3be1-75c5-4616-b5c2-e86f01eafeea', 'CHAI', '40a97346-fa3f-4d50-8e58-1ccd1e3f09bf', 'AC', '20.000000000000000000000000000000', NULL, 1, '2026-09-13 03:39:04.080', '2026-09-13 03:39:04.080'),
 ('62dc403a-37b3-4aaa-9cc1-4f53c80cb3cc', 'CHAI', '40a97346-fa3f-4d50-8e58-1ccd1e3f09bf', 'NON_AC', '20.000000000000000000000000000000', NULL, 1, '2026-09-13 03:39:05.477', '2026-09-13 03:39:05.477');
-INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
 ('d076f0fb-63aa-469f-943b-9f45c50738b1', 'COFFEE', '40a97346-fa3f-4d50-8e58-1ccd1e3f09bf', 'AC', '30.000000000000000000000000000000', NULL, 1, '2026-09-13 03:39:25.905', '2026-09-13 03:39:25.905'),
 ('6ee53d14-acda-439d-9df6-03edc4813a26', 'COFFEE', '40a97346-fa3f-4d50-8e58-1ccd1e3f09bf', 'NON_AC', '30.000000000000000000000000000000', NULL, 1, '2026-09-13 03:39:27.296', '2026-09-13 03:39:27.296'),
 ('0ec4e09a-1740-405a-ac2e-2b52532db136', 'BUTTER MILK', '40a97346-fa3f-4d50-8e58-1ccd1e3f09bf', 'AC', '20.000000000000000000000000000000', NULL, 1, '2026-09-13 03:40:01.708', '2026-09-13 03:40:01.708'),
@@ -718,7 +718,7 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
 ('ad77ff87-f9e7-40e6-b2b1-a58caf07a7c8', 'VEG.FRIED RICE', '662c975b-c1ae-47f5-9f51-ba350d6f0593', 'NON_AC', '150.000000000000000000000000000000', NULL, 1, '2026-09-13 03:52:38.970', '2026-09-13 03:52:38.970'),
 ('4717d429-1d39-49a7-9914-0118901426a1', 'MANCHURIAN FRIED RICE', '662c975b-c1ae-47f5-9f51-ba350d6f0593', 'AC', '180.000000000000000000000000000000', NULL, 1, '2026-09-13 03:53:07.477', '2026-09-13 03:53:07.477'),
 ('eff1e258-abd6-4e53-bfdc-0a5ded75b34c', 'MANCHURIAN FRIED RICE', '662c975b-c1ae-47f5-9f51-ba350d6f0593', 'NON_AC', '160.000000000000000000000000000000', NULL, 1, '2026-09-13 03:53:08.878', '2026-09-13 03:53:08.878');
-INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
 ('1eb340a3-cc82-49e3-97d5-18b15a571306', 'VEG.SINGAPORI FRIED RICE', '662c975b-c1ae-47f5-9f51-ba350d6f0593', 'AC', '200.000000000000000000000000000000', NULL, 1, '2026-09-13 03:54:12.189', '2026-09-13 03:54:12.189'),
 ('8fb5f77a-3f13-40f4-983a-2e26f95bf9e8', 'VEG.SINGAPORI FRIED RICE', '662c975b-c1ae-47f5-9f51-ba350d6f0593', 'NON_AC', '180.000000000000000000000000000000', NULL, 1, '2026-09-13 03:54:13.592', '2026-09-13 03:54:13.592'),
 ('7eee9e23-b80e-4b72-b624-c1dc9ac8d7e2', 'PLAIN RICE', '31a551fc-0ef7-4b3e-ba2c-81fc30943856', 'NON_AC', '90.000000000000000000000000000000', NULL, 1, '2026-09-13 03:55:06.276', '2026-09-13 03:55:06.276'),
@@ -769,7 +769,7 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
 ('090ccfc5-1e46-4eb2-b317-2d9a19ed5038', 'GUJRATI DAL', '87beb51b-443e-4316-9dab-e92ee89019b9', 'NON_AC', '150.000000000000000000000000000000', NULL, 1, '2026-09-13 04:27:25.311', '2026-09-13 04:27:25.311'),
 ('4145155e-9e92-4bcb-800a-a1e47a3b76de', 'LASONIYA DAL', '87beb51b-443e-4316-9dab-e92ee89019b9', 'AC', '160.000000000000000000000000000000', NULL, 1, '2026-09-13 04:27:47.703', '2026-09-13 04:27:47.703'),
 ('5532e91a-fad0-48be-ada6-fbbcdbf9716b', 'LASONIYA DAL', '87beb51b-443e-4316-9dab-e92ee89019b9', 'NON_AC', '140.000000000000000000000000000000', NULL, 1, '2026-09-13 04:27:49.106', '2026-09-13 04:27:49.106');
-INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
 ('52089934-4af2-4957-a183-009bd736b822', 'ROSTED PAPAD', '02deb6a1-ea81-4e3d-9051-d33415ee532a', 'AC', '22.000000000000000000000000000000', NULL, 1, '2026-09-13 04:29:57.018', '2026-09-13 04:29:57.018'),
 ('8133213e-10e1-4964-9559-2a554e055174', 'ROSTED PAPAD', '02deb6a1-ea81-4e3d-9051-d33415ee532a', 'NON_AC', '18.000000000000000000000000000000', NULL, 1, '2026-09-13 04:29:58.422', '2026-09-13 04:29:58.422'),
 ('f2983171-0a8f-4f4b-aeab-6b36eed301eb', 'FRY PAPAD', '02deb6a1-ea81-4e3d-9051-d33415ee532a', 'AC', '25.000000000000000000000000000000', NULL, 1, '2026-09-13 04:30:21.072', '2026-09-13 04:30:21.072'),
@@ -820,7 +820,7 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
 ('69f35288-10d1-49d6-9995-69804f6d2f11', 'KAJU LASANIYA', '1a4b0d90-c910-415c-9927-48e9e5947372', 'AC', '280.000000000000000000000000000000', NULL, 1, '2026-09-13 04:48:52.697', '2026-09-13 04:48:52.697'),
 ('ed94b24d-5192-4c26-b45d-b1ed3b0c90ca', 'KAJU LASANIYA', '1a4b0d90-c910-415c-9927-48e9e5947372', 'NON_AC', '250.000000000000000000000000000000', NULL, 1, '2026-09-13 04:48:54.096', '2026-09-13 04:48:54.096'),
 ('da076185-5381-40f2-ad42-d04af0b77e2b', 'LASANIYA BATATA', '1a4b0d90-c910-415c-9927-48e9e5947372', 'AC', '180.000000000000000000000000000000', NULL, 1, '2026-09-13 05:01:24.383', '2026-09-13 05:01:24.383');
-INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
 ('ac1e8f2b-6ce6-4e38-8e83-4cb96bc1191f', 'LASANIYA BATATA', '1a4b0d90-c910-415c-9927-48e9e5947372', 'NON_AC', '160.000000000000000000000000000000', NULL, 1, '2026-09-13 05:01:25.794', '2026-09-13 05:01:25.794'),
 ('bfa372ea-2fb6-4a23-978e-4dee89dcce82', 'SEV LASANIYA', '1a4b0d90-c910-415c-9927-48e9e5947372', 'AC', '190.000000000000000000000000000000', NULL, 1, '2026-09-13 05:02:02.097', '2026-09-13 05:02:02.097'),
 ('51da7558-4495-4af4-b483-0a1c2d9f9db5', 'SEV LASANIYA', '1a4b0d90-c910-415c-9927-48e9e5947372', 'NON_AC', '170.000000000000000000000000000000', NULL, 1, '2026-09-13 05:02:03.508', '2026-09-13 05:02:03.508'),
@@ -877,10 +877,10 @@ CREATE TABLE `TableSession` (
   KEY `TableSession_tableId_status_idx` (`tableId`, `status`),
   CONSTRAINT `TableSession_captainId_fkey` FOREIGN KEY (`captainId`) REFERENCES `User` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `TableSession_tableId_fkey` FOREIGN KEY (`tableId`) REFERENCES `Table` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `TableSession` (24 rows)
-INSERT INTO `TableSession` (`id`, `tableId`, `captainId`, `guestCount`, `status`, `openedAt`, `closedAt`) VALUES
+INSERT IGNORE INTO `TableSession` (`id`, `tableId`, `captainId`, `guestCount`, `status`, `openedAt`, `closedAt`) VALUES
 ('2b5fa717-7893-45ba-b6bb-125c5971a588', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-02 12:04:52.970', '2026-09-02 12:06:12.007'),
 ('1199a584-f231-46f0-a926-9c651bc3b59c', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-02 12:17:10.851', '2026-09-02 12:18:59.738'),
 ('4c823d29-65bc-45cc-b88e-896e1df9f3cd', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 2, 'CLOSED', '2026-09-05 23:39:42.116', '2026-09-05 23:58:23.857'),
@@ -932,10 +932,10 @@ CREATE TABLE `Order` (
   CONSTRAINT `Order_captainId_fkey` FOREIGN KEY (`captainId`) REFERENCES `User` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `Order_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `TableSession` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `Order_tableId_fkey` FOREIGN KEY (`tableId`) REFERENCES `Table` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `Order` (66 rows)
-INSERT INTO `Order` (`id`, `orderSource`, `sessionId`, `tableId`, `captainId`, `status`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `Order` (`id`, `orderSource`, `sessionId`, `tableId`, `captainId`, `status`, `createdAt`, `updatedAt`) VALUES
 ('b36c890f-a12b-4ac4-bc87-3bb98ae8dd99', 'DINE_IN_NON_AC', '2b5fa717-7893-45ba-b6bb-125c5971a588', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:04:55.548', '2026-09-02 12:06:12.006'),
 ('9b879dc2-6f90-4187-8bee-dd7d78b9512f', 'DINE_IN_NON_AC', '1199a584-f231-46f0-a926-9c651bc3b59c', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:17:14.642', '2026-09-02 12:18:59.737'),
 ('6e848799-d857-4ef1-b684-a657eb167ff6', 'DINE_IN_NON_AC', '4c823d29-65bc-45cc-b88e-896e1df9f3cd', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-05 23:39:42.219', '2026-09-05 23:58:23.856'),
@@ -986,7 +986,7 @@ INSERT INTO `Order` (`id`, `orderSource`, `sessionId`, `tableId`, `captainId`, `
 ('64c91495-04eb-4375-becd-f35f38bbcf0b', 'DINE_IN_NON_AC', 'c7cee964-7257-4e32-9696-b522e1aaa59c', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 01:27:25.070', '2026-09-12 01:36:11.852'),
 ('3042706e-94fe-4856-b268-33cfebc2fb69', 'DINE_IN_NON_AC', 'be7e0f48-1bff-4588-9445-acb54c019ffb', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'db2e18de-1255-4781-b084-b9609bb8698a', 'COMPLETED', '2026-09-12 03:57:51.148', '2026-09-12 11:36:47.515'),
 ('9f2216a3-1073-4dcf-822e-11965ae3129b', 'DINE_IN_NON_AC', '79296c8a-e296-47d6-add1-b8f0b47ae55d', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 11:50:12.426', '2026-09-12 12:29:05.113');
-INSERT INTO `Order` (`id`, `orderSource`, `sessionId`, `tableId`, `captainId`, `status`, `createdAt`, `updatedAt`) VALUES
+INSERT IGNORE INTO `Order` (`id`, `orderSource`, `sessionId`, `tableId`, `captainId`, `status`, `createdAt`, `updatedAt`) VALUES
 ('6e0e5fd0-4096-402d-8000-dc96b38775cf', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-13 00:03:42.235', '2026-09-13 03:15:20.194'),
 ('8248195a-f736-49d3-81d6-6bfdcf1ddfa6', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 03:56:29.465', '2026-09-14 00:33:59.184'),
 ('0cefd6d9-03eb-4a17-9d0b-fc4232011da6', 'DINE_IN_AC', 'fa3bb691-2e06-4c8d-ae62-347c078910e6', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 07:03:21.468', '2026-09-13 08:54:28.077'),
@@ -1024,10 +1024,10 @@ CREATE TABLE `KOT` (
   KEY `KOT_status_idx` (`status`),
   CONSTRAINT `KOT_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `KOT_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `TableSession` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `KOT` (55 rows)
-INSERT INTO `KOT` (`id`, `kotNumber`, `orderId`, `sessionId`, `captainId`, `status`, `createdAt`) VALUES
+INSERT IGNORE INTO `KOT` (`id`, `kotNumber`, `orderId`, `sessionId`, `captainId`, `status`, `createdAt`) VALUES
 ('5f00b26c-6b57-4366-af02-a0cb6d8449e5', 1, 'b36c890f-a12b-4ac4-bc87-3bb98ae8dd99', '2b5fa717-7893-45ba-b6bb-125c5971a588', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:04:55.584'),
 ('1e65b9cd-d9a2-48cd-844e-921988a52b0a', 2, '9b879dc2-6f90-4187-8bee-dd7d78b9512f', '1199a584-f231-46f0-a926-9c651bc3b59c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:17:14.680'),
 ('5ce5ef7a-6e32-44e2-9275-8254af53eebb', 1, '6e848799-d857-4ef1-b684-a657eb167ff6', '4c823d29-65bc-45cc-b88e-896e1df9f3cd', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-05 23:39:42.870'),
@@ -1078,7 +1078,7 @@ INSERT INTO `KOT` (`id`, `kotNumber`, `orderId`, `sessionId`, `captainId`, `stat
 ('1113ebcb-efb2-43be-9c45-56a105de4776', 16, '68781e5a-c057-446a-a28b-728cb490364a', 'b775b41a-50f2-442e-9949-d0dee94ecb8d', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 11:27:46.491'),
 ('77eebc95-9a5e-4b87-a03a-d6f55b9fc1db', 3, '6fe5525c-8acf-453e-abc8-97b0da2167b2', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:46:07.691'),
 ('d91e5838-ac3d-450b-8344-8502c3246a26', 12, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:43:58.931');
-INSERT INTO `KOT` (`id`, `kotNumber`, `orderId`, `sessionId`, `captainId`, `status`, `createdAt`) VALUES
+INSERT IGNORE INTO `KOT` (`id`, `kotNumber`, `orderId`, `sessionId`, `captainId`, `status`, `createdAt`) VALUES
 ('b6b0aa0a-ec4b-49d3-8a64-d62a0c42867d', 5, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:08:53.211'),
 ('1a59e8da-261c-44ac-837f-274573a4750a', 6, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:18:12.620'),
 ('e5f520c8-dc49-46c1-a1b7-da564f669893', 8, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:29:51.763'),
@@ -1111,10 +1111,10 @@ CREATE TABLE `OrderItem` (
   CONSTRAINT `OrderItem_kotId_fkey` FOREIGN KEY (`kotId`) REFERENCES `KOT` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `OrderItem_menuItemId_fkey` FOREIGN KEY (`menuItemId`) REFERENCES `MenuItem` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `OrderItem_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `OrderItem` (131 rows)
-INSERT INTO `OrderItem` (`id`, `orderId`, `menuItemId`, `itemNameSnapshot`, `priceSnapshot`, `quantity`, `originalQuantity`, `notes`, `kotId`, `status`, `createdAt`) VALUES
+INSERT IGNORE INTO `OrderItem` (`id`, `orderId`, `menuItemId`, `itemNameSnapshot`, `priceSnapshot`, `quantity`, `originalQuantity`, `notes`, `kotId`, `status`, `createdAt`) VALUES
 ('745aec54-b07c-425e-a38e-30b5b289ac8b', 'b36c890f-a12b-4ac4-bc87-3bb98ae8dd99', '1610501f-ea8c-40d5-b44d-a16a1d2e6746', 'Paneer Tikka', '250.000000000000000000000000000000', 4, NULL, NULL, '5f00b26c-6b57-4366-af02-a0cb6d8449e5', 'SERVED', '2026-09-02 12:04:55.564'),
 ('63c02340-89c9-4009-88c6-d6fd9811fd94', '9b879dc2-6f90-4187-8bee-dd7d78b9512f', '1610501f-ea8c-40d5-b44d-a16a1d2e6746', 'Paneer Tikka', '250.000000000000000000000000000000', 1, NULL, NULL, '1e65b9cd-d9a2-48cd-844e-921988a52b0a', 'SERVED', '2026-09-02 12:17:14.663'),
 ('c44f5e79-666e-4030-99f4-5d51b0749146', '9b879dc2-6f90-4187-8bee-dd7d78b9512f', 'c6cca9a0-35ed-4dd8-8be0-e6e99527f1f8', 'Spring Roll', '190.000000000000000000000000000000', 1, NULL, NULL, '1e65b9cd-d9a2-48cd-844e-921988a52b0a', 'SERVED', '2026-09-02 12:17:14.663'),
@@ -1165,7 +1165,7 @@ INSERT INTO `OrderItem` (`id`, `orderId`, `menuItemId`, `itemNameSnapshot`, `pri
 ('fa245cbc-f38b-4fdf-9f6c-7296547b3a81', 'c46ef776-90c4-4ef5-aaba-afd67b878e5b', '3bcec912-815d-4396-802e-04cb9e6e6165', 'Plain Rice', '100.000000000000000000000000000000', 3, NULL, NULL, 'd9e47833-0855-4f22-b3d9-a1fe1761ae44', 'SERVED', '2026-09-06 22:22:18.444'),
 ('a6725287-8bf4-49a6-906e-ce39b2d4f61b', 'c46ef776-90c4-4ef5-aaba-afd67b878e5b', 'a7588a20-9e2a-4d33-9d38-e2084adf1321', 'Shahi Paneer', '260.000000000000000000000000000000', 6, NULL, NULL, 'd9e47833-0855-4f22-b3d9-a1fe1761ae44', 'SERVED', '2026-09-06 22:22:18.444'),
 ('0ce885bd-b32c-43d5-b29c-c53682bb8929', 'c46ef776-90c4-4ef5-aaba-afd67b878e5b', '6cc269ba-1aef-4021-b739-dd8ea3137445', 'Jeera Rice', '150.000000000000000000000000000000', 2, NULL, NULL, 'd9e47833-0855-4f22-b3d9-a1fe1761ae44', 'SERVED', '2026-09-06 22:22:18.444');
-INSERT INTO `OrderItem` (`id`, `orderId`, `menuItemId`, `itemNameSnapshot`, `priceSnapshot`, `quantity`, `originalQuantity`, `notes`, `kotId`, `status`, `createdAt`) VALUES
+INSERT IGNORE INTO `OrderItem` (`id`, `orderId`, `menuItemId`, `itemNameSnapshot`, `priceSnapshot`, `quantity`, `originalQuantity`, `notes`, `kotId`, `status`, `createdAt`) VALUES
 ('4fc3ad04-a071-4144-98a6-b499dba4756d', 'fd6f8f01-839c-45b6-a0f0-c197e4bc42e2', 'cfcc6d92-1b29-44df-9a91-4556e141d2a6', 'Garlic Naan', '60.000000000000000000000000000000', 1, NULL, NULL, '2b64b0b0-e000-4b98-8a1b-8386158bc3b3', 'SERVED', '2026-09-07 00:51:19.119'),
 ('3f4c0f6b-902b-4bcc-8015-6efeee97e3b1', 'fd6f8f01-839c-45b6-a0f0-c197e4bc42e2', '18876dda-90ec-4727-a191-470751cd0bda', 'Veg Biryani', '220.000000000000000000000000000000', 2, NULL, NULL, '2b64b0b0-e000-4b98-8a1b-8386158bc3b3', 'SERVED', '2026-09-07 00:51:19.119'),
 ('ef3510b0-4d28-466e-ad24-be20bdb3b7b4', '3732fbab-486c-49e1-9477-16cc1dff41e2', 'a7588a20-9e2a-4d33-9d38-e2084adf1321', 'Shahi Paneer', '260.000000000000000000000000000000', 3, NULL, NULL, '4863a477-2178-49c9-81d9-a80402e056d3', 'SERVED', '2026-09-07 01:59:46.466'),
@@ -1216,7 +1216,7 @@ INSERT INTO `OrderItem` (`id`, `orderId`, `menuItemId`, `itemNameSnapshot`, `pri
 ('b120a065-7158-4b18-b918-8ce1ec5824d7', '3042706e-94fe-4856-b268-33cfebc2fb69', 'f9a33272-92a0-4d62-8cfd-266648147fa3', 'Hara Bhara Kebab', '180.000000000000000000000000000000', 1, 1, NULL, '8d3127ab-bfc3-43c2-b02c-31bb4c1ab326', 'CANCELLED', '2026-09-12 03:57:55.261'),
 ('10712480-68e4-40bf-99ea-9288aca5c2dc', '3042706e-94fe-4856-b268-33cfebc2fb69', '6dc22e8e-eac6-472f-bb44-80399947a46a', 'Paneer Tikka', '220.000000000000000000000000000000', 1, 1, NULL, '8d3127ab-bfc3-43c2-b02c-31bb4c1ab326', 'CANCELLED', '2026-09-12 03:57:55.261'),
 ('91e935ee-cd72-45e0-9d3d-a89ffc3d6ed0', '68781e5a-c057-446a-a28b-728cb490364a', 'f561e438-1505-40bc-b86d-9e7699436335', 'PANEER TIKKA DRY', '260.000000000000000000000000000000', 1, 1, NULL, '1113ebcb-efb2-43be-9c45-56a105de4776', 'SERVED', '2026-09-14 11:27:46.957');
-INSERT INTO `OrderItem` (`id`, `orderId`, `menuItemId`, `itemNameSnapshot`, `priceSnapshot`, `quantity`, `originalQuantity`, `notes`, `kotId`, `status`, `createdAt`) VALUES
+INSERT IGNORE INTO `OrderItem` (`id`, `orderId`, `menuItemId`, `itemNameSnapshot`, `priceSnapshot`, `quantity`, `originalQuantity`, `notes`, `kotId`, `status`, `createdAt`) VALUES
 ('5c82420b-1e88-41af-842c-c41efb33b0ed', '9f2216a3-1073-4dcf-822e-11965ae3129b', 'f9a33272-92a0-4d62-8cfd-266648147fa3', 'Hara Bhara Kebab', '180.000000000000000000000000000000', 1, NULL, NULL, '2b2c7577-0b88-4245-8362-a13c64267e9d', 'SERVED', '2026-09-12 11:50:16.955'),
 ('3a7989c1-d028-4280-bec1-645bbdc51277', '9f2216a3-1073-4dcf-822e-11965ae3129b', '69199396-a852-4aae-9f5a-6f1a2a7ac9d3', 'Chole Bhature', '160.000000000000000000000000000000', 1, NULL, NULL, '2b2c7577-0b88-4245-8362-a13c64267e9d', 'SERVED', '2026-09-12 11:50:16.955'),
 ('555b765b-22db-4e77-9a3d-da01382b1b42', '6e0e5fd0-4096-402d-8000-dc96b38775cf', '6dc22e8e-eac6-472f-bb44-80399947a46a', 'Paneer Tikka', '220.000000000000000000000000000000', 1, NULL, NULL, '57a4ebf5-ffd8-4b43-a671-ddcfec4fd2d7', 'SERVED', '2026-09-13 00:03:42.716'),
@@ -1265,10 +1265,10 @@ CREATE TABLE `OrderItemHistory` (
   PRIMARY KEY (`id`),
   KEY `OrderItemHistory_orderItemId_idx` (`orderItemId`),
   CONSTRAINT `OrderItemHistory_orderItemId_fkey` FOREIGN KEY (`orderItemId`) REFERENCES `OrderItem` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `OrderItemHistory` (2 rows)
-INSERT INTO `OrderItemHistory` (`id`, `orderItemId`, `changeType`, `oldQuantity`, `newQuantity`, `reason`, `changedBy`, `createdAt`) VALUES
+INSERT IGNORE INTO `OrderItemHistory` (`id`, `orderItemId`, `changeType`, `oldQuantity`, `newQuantity`, `reason`, `changedBy`, `createdAt`) VALUES
 ('a49fc3df-833b-45ef-ac97-22a7472c9b46', 'b120a065-7158-4b18-b918-8ce1ec5824d7', 'CANCELLED', 1, 0, 'OTHER ', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '2026-09-12 11:34:23.497'),
 ('56725699-0e01-4e52-8404-a241ffcc5b9c', '10712480-68e4-40bf-99ea-9288aca5c2dc', 'CANCELLED', 1, 0, 'OTHER', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '2026-09-12 11:34:29.256');
 
@@ -1308,10 +1308,10 @@ CREATE TABLE `Bill` (
   KEY `Bill_tableId_status_idx` (`tableId`, `status`),
   CONSTRAINT `Bill_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `Bill_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `TableSession` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `Bill` (64 rows)
-INSERT INTO `Bill` (`id`, `billNumber`, `orderId`, `sessionId`, `tableId`, `customerName`, `customerPhone`, `subtotal`, `sgstPercent`, `cgstPercent`, `sgstAmount`, `cgstAmount`, `discount`, `total`, `roundOff`, `version`, `status`, `createdAt`, `finalizedAt`) VALUES
+INSERT IGNORE INTO `Bill` (`id`, `billNumber`, `orderId`, `sessionId`, `tableId`, `customerName`, `customerPhone`, `subtotal`, `sgstPercent`, `cgstPercent`, `sgstAmount`, `cgstAmount`, `discount`, `total`, `roundOff`, `version`, `status`, `createdAt`, `finalizedAt`) VALUES
 ('4e8185c7-91e6-49f9-bc50-f0c4785b8c6a', 1, 'b36c890f-a12b-4ac4-bc87-3bb98ae8dd99', '2b5fa717-7893-45ba-b6bb-125c5971a588', '95da293c-3a74-47db-894d-2cc63506f20c', NULL, NULL, '1000.000000000000000000000000000000', '2.500000000000000000000000000000', '2.500000000000000000000000000000', '25.000000000000000000000000000000', '25.000000000000000000000000000000', '0.000000000000000000000000000000', '1050.000000000000000000000000000000', '0.000000000000000000000000000000', 1, 'FINALIZED', '2026-09-02 12:05:11.992', '2026-09-02 12:06:12.001'),
 ('b41dbca1-bc28-4f8a-93d8-61354eae23ed', 2, '9b879dc2-6f90-4187-8bee-dd7d78b9512f', '1199a584-f231-46f0-a926-9c651bc3b59c', '95da293c-3a74-47db-894d-2cc63506f20c', NULL, NULL, '1320.000000000000000000000000000000', '2.500000000000000000000000000000', '2.500000000000000000000000000000', '33.000000000000000000000000000000', '33.000000000000000000000000000000', '0.000000000000000000000000000000', '1386.000000000000000000000000000000', '0.000000000000000000000000000000', 3, 'FINALIZED', '2026-09-02 12:17:26.179', '2026-09-02 12:18:59.734'),
 ('27f32a50-3851-4aee-9945-17005a9a922a', 3, '6e848799-d857-4ef1-b684-a657eb167ff6', '4c823d29-65bc-45cc-b88e-896e1df9f3cd', '95da293c-3a74-47db-894d-2cc63506f20c', NULL, NULL, '630.000000000000000000000000000000', '2.500000000000000000000000000000', '2.500000000000000000000000000000', '15.250000000000000000000000000000', '15.250000000000000000000000000000', '20.000000000000000000000000000000', '641.000000000000000000000000000000', '0.500000000000000000000000000000', 1, 'FINALIZED', '2026-09-05 23:39:42.975', '2026-09-05 23:58:23.849'),
@@ -1362,7 +1362,7 @@ INSERT INTO `Bill` (`id`, `billNumber`, `orderId`, `sessionId`, `tableId`, `cust
 ('8b858ad0-ac36-4f25-88eb-dff465c3cd15', 53, '3042706e-94fe-4856-b268-33cfebc2fb69', 'be7e0f48-1bff-4588-9445-acb54c019ffb', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', NULL, NULL, '0.000000000000000000000000000000', '2.500000000000000000000000000000', '2.500000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', 1, 'FINALIZED', '2026-09-12 11:35:31.566', '2026-09-12 11:36:46.577'),
 ('dc67aafa-a6ff-4e41-a116-a8eff6d58389', 54, '9f2216a3-1073-4dcf-822e-11965ae3129b', '79296c8a-e296-47d6-add1-b8f0b47ae55d', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', NULL, NULL, '340.000000000000000000000000000000', '2.500000000000000000000000000000', '2.500000000000000000000000000000', '8.500000000000000000000000000000', '8.500000000000000000000000000000', '0.000000000000000000000000000000', '357.000000000000000000000000000000', '0.000000000000000000000000000000', 1, 'FINALIZED', '2026-09-12 12:21:47.644', '2026-09-12 12:29:04.167'),
 ('79533b47-3785-4807-befc-d0a7ae7e6664', 55, '6e0e5fd0-4096-402d-8000-dc96b38775cf', NULL, NULL, NULL, NULL, '220.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '22.000000000000000000000000000000', '198.000000000000000000000000000000', '0.000000000000000000000000000000', 1, 'FINALIZED', '2026-09-13 00:03:44.593', '2026-09-13 03:15:19.251');
-INSERT INTO `Bill` (`id`, `billNumber`, `orderId`, `sessionId`, `tableId`, `customerName`, `customerPhone`, `subtotal`, `sgstPercent`, `cgstPercent`, `sgstAmount`, `cgstAmount`, `discount`, `total`, `roundOff`, `version`, `status`, `createdAt`, `finalizedAt`) VALUES
+INSERT IGNORE INTO `Bill` (`id`, `billNumber`, `orderId`, `sessionId`, `tableId`, `customerName`, `customerPhone`, `subtotal`, `sgstPercent`, `cgstPercent`, `sgstAmount`, `cgstAmount`, `discount`, `total`, `roundOff`, `version`, `status`, `createdAt`, `finalizedAt`) VALUES
 ('6d0ec78a-eeb2-4673-8afa-c6bf55bae04b', 61, '8f8ce3cb-6411-47ea-a30c-fd3d36733a59', 'f43fd688-862d-400b-8185-ed4ce2df6cf5', '184a22a8-b018-4646-82a1-b1e41b4d7782', NULL, NULL, '695.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '695.000000000000000000000000000000', '0.000000000000000000000000000000', 1, 'FINALIZED', '2026-09-13 09:09:48.134', '2026-09-13 09:11:17.479'),
 ('8e385187-d551-4718-8e57-88fd27401be1', 67, 'baf4674a-14f0-4514-a430-911bcb1f16f0', '7a70439f-7722-436f-88a4-77418f406291', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', NULL, NULL, '380.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '380.000000000000000000000000000000', '0.000000000000000000000000000000', 1, 'FINALIZED', '2026-09-13 17:20:21.080', '2026-09-14 00:08:13.867'),
 ('491f1560-e570-4b7c-bf47-6af83901a0f6', 52, '8248195a-f736-49d3-81d6-6bfdcf1ddfa6', NULL, NULL, NULL, NULL, '740.000000000000000000000000000000', '2.500000000000000000000000000000', '2.500000000000000000000000000000', '18.500000000000000000000000000000', '18.500000000000000000000000000000', '0.000000000000000000000000000000', '777.000000000000000000000000000000', '0.000000000000000000000000000000', 1, 'FINALIZED', '2026-09-12 03:56:30.418', '2026-09-14 00:33:58.242'),
@@ -1401,10 +1401,10 @@ CREATE TABLE `BillAmendment` (
   PRIMARY KEY (`id`),
   KEY `BillAmendment_billId_idx` (`billId`),
   CONSTRAINT `BillAmendment_billId_fkey` FOREIGN KEY (`billId`) REFERENCES `Bill` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `BillAmendment` (3 rows)
-INSERT INTO `BillAmendment` (`id`, `billId`, `version`, `changes`, `reason`, `modifiedBy`, `originalTotal`, `newSubtotal`, `newSgstAmount`, `newCgstAmount`, `newDiscount`, `newTotal`, `difference`, `paymentStatus`, `createdAt`) VALUES
+INSERT IGNORE INTO `BillAmendment` (`id`, `billId`, `version`, `changes`, `reason`, `modifiedBy`, `originalTotal`, `newSubtotal`, `newSgstAmount`, `newCgstAmount`, `newDiscount`, `newTotal`, `difference`, `paymentStatus`, `createdAt`) VALUES
 ('fc2a7644-2691-4a2c-9510-1aaf28f72902', 'b41dbca1-bc28-4f8a-93d8-61354eae23ed', 2, '[{\"newQty\":2,\"oldQty\":1,\"itemName\":\"Paneer Tikka\"}]', 'Customer correction', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '1386.000000000000000000000000000000', '1570.000000000000000000000000000000', '39.250000000000000000000000000000', '39.250000000000000000000000000000', '0.000000000000000000000000000000', '1649.000000000000000000000000000000', '263.000000000000000000000000000000', 'PENDING', '2026-09-05 23:39:03.449'),
 ('c20505c4-5607-461b-8e9c-d9fd10879cc7', 'b41dbca1-bc28-4f8a-93d8-61354eae23ed', 3, '[{\"newQty\":3,\"oldQty\":2,\"itemName\":\"Paneer Tikka\"}]', 'Customer added 1 more', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '1386.000000000000000000000000000000', '1820.000000000000000000000000000000', '45.500000000000000000000000000000', '45.500000000000000000000000000000', '0.000000000000000000000000000000', '1911.000000000000000000000000000000', '525.000000000000000000000000000000', 'PENDING', '2026-09-05 23:43:09.660'),
 ('af08192b-78e0-4824-9dfe-d676543ea2a1', '5ffc4da1-4855-4d8f-9b41-66f5b12ed115', 2, '[{\"newQty\":2,\"oldQty\":4,\"itemName\":\"Spring Roll\"}]', 'Captain entered wrong quantity', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '1680.000000000000000000000000000000', '1290.000000000000000000000000000000', '29.750000000000000000000000000000', '29.750000000000000000000000000000', '100.000000000000000000000000000000', '1250.000000000000000000000000000000', '-430.000000000000000000000000000000', 'PENDING', '2026-09-07 09:33:56.815');
@@ -1426,10 +1426,10 @@ CREATE TABLE `Payment` (
   KEY `Payment_paidAt_idx` (`paidAt`),
   KEY `Payment_status_paidAt_idx` (`status`, `paidAt`),
   CONSTRAINT `Payment_billId_fkey` FOREIGN KEY (`billId`) REFERENCES `Bill` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `Payment` (64 rows)
-INSERT INTO `Payment` (`id`, `billId`, `method`, `amount`, `status`, `paidAt`) VALUES
+INSERT IGNORE INTO `Payment` (`id`, `billId`, `method`, `amount`, `status`, `paidAt`) VALUES
 ('06a65762-012a-453a-a2a7-bde2bdeedb74', '4e8185c7-91e6-49f9-bc50-f0c4785b8c6a', 'CASH', '1050.000000000000000000000000000000', 'PAID', '2026-09-02 12:06:12.004'),
 ('138cff2e-5711-418b-905b-c3fd8e288f1b', 'b41dbca1-bc28-4f8a-93d8-61354eae23ed', 'CASH', '1386.000000000000000000000000000000', 'PAID', '2026-09-02 12:18:59.735'),
 ('47473b03-0f8c-4c89-ae81-c46d0e8bf5cf', '27f32a50-3851-4aee-9945-17005a9a922a', 'CASH', '641.000000000000000000000000000000', 'PAID', '2026-09-05 23:58:23.853'),
@@ -1480,7 +1480,7 @@ INSERT INTO `Payment` (`id`, `billId`, `method`, `amount`, `status`, `paidAt`) V
 ('c2a325de-0e7e-4af6-b33d-a81e4c84a0cb', 'dc67aafa-a6ff-4e41-a116-a8eff6d58389', 'CASH', '357.000000000000000000000000000000', 'PAID', '2026-09-12 12:29:04.167'),
 ('49de3057-289d-4765-921b-a1a1008cb426', '79533b47-3785-4807-befc-d0a7ae7e6664', 'CASH', '198.000000000000000000000000000000', 'PAID', '2026-09-13 03:15:19.251'),
 ('0d58d970-d2ab-4516-a681-b468bdfe86d0', '8bc142da-7c89-43a0-8cb6-63111a19e499', 'CASH', '180.000000000000000000000000000000', 'PAID', '2026-09-13 08:54:27.118');
-INSERT INTO `Payment` (`id`, `billId`, `method`, `amount`, `status`, `paidAt`) VALUES
+INSERT IGNORE INTO `Payment` (`id`, `billId`, `method`, `amount`, `status`, `paidAt`) VALUES
 ('b9f44078-e458-45cd-88ba-5d934d21f8da', '6d0ec78a-eeb2-4673-8afa-c6bf55bae04b', 'CASH', '695.000000000000000000000000000000', 'PAID', '2026-09-13 09:11:17.479'),
 ('6609ee89-95ab-4f3d-addd-e8ee97abf078', '8e385187-d551-4718-8e57-88fd27401be1', 'CASH', '380.000000000000000000000000000000', 'PAID', '2026-09-14 00:08:13.867'),
 ('06c3cb4a-d870-44a7-b5b7-c637e03667dc', '491f1560-e570-4b7c-bf47-6af83901a0f6', 'CASH', '777.000000000000000000000000000000', 'PAID', '2026-09-14 00:33:58.242'),
@@ -1508,10 +1508,10 @@ CREATE TABLE `Supplier` (
   `active` TINYINT(1) NOT NULL DEFAULT 1,
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `Supplier` (11 rows)
-INSERT INTO `Supplier` (`id`, `name`, `phone`, `address`, `active`, `createdAt`) VALUES
+INSERT IGNORE INTO `Supplier` (`id`, `name`, `phone`, `address`, `active`, `createdAt`) VALUES
 ('4192a2bb-c0bb-41ee-852d-55474b42f6fd', 'Fruits & Vegetables', NULL, NULL, 1, '2026-09-06 12:57:37.321'),
 ('4ed515f0-9f2a-4793-8ea1-578f3d6ff0ea', 'Groceries & Staples', NULL, NULL, 1, '2026-09-06 12:57:37.331'),
 ('8a6066ae-4b57-447e-8acf-d51b90f4f8f7', 'Spices & Masalas', NULL, NULL, 1, '2026-09-06 12:57:37.339'),
@@ -1544,10 +1544,10 @@ CREATE TABLE `PurchaseEntry` (
   KEY `PurchaseEntry_supplierId_idx` (`supplierId`),
   KEY `PurchaseEntry_supplierId_purchaseDate_idx` (`supplierId`, `purchaseDate`),
   CONSTRAINT `PurchaseEntry_supplierId_fkey` FOREIGN KEY (`supplierId`) REFERENCES `Supplier` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `PurchaseEntry` (5 rows)
-INSERT INTO `PurchaseEntry` (`id`, `supplierId`, `purchaseNumber`, `totalAmount`, `purchaseDate`, `addToInventory`, `status`, `createdAt`) VALUES
+INSERT IGNORE INTO `PurchaseEntry` (`id`, `supplierId`, `purchaseNumber`, `totalAmount`, `purchaseDate`, `addToInventory`, `status`, `createdAt`) VALUES
 ('83ce4182-6b46-4185-8234-a0e8212353d8', '4ed515f0-9f2a-4793-8ea1-578f3d6ff0ea', 'PO-002', '3300.000000000000000000000000000000', '2026-09-05 18:30:00.000', 1, 'ACTIVE', '2026-09-05 23:39:03.375'),
 ('de7104cf-7e8c-451a-9ce5-3a90dafbb03b', '4ed515f0-9f2a-4793-8ea1-578f3d6ff0ea', 'PO-VERIFY', '2375.000000000000000000000000000000', '2026-09-05 18:30:00.000', 1, 'ACTIVE', '2026-09-05 23:43:09.588'),
 ('72f8bc06-bf9f-40af-b561-d87e3f697183', '4192a2bb-c0bb-41ee-852d-55474b42f6fd', NULL, '1700.000000000000000000000000000000', '2026-09-05 18:30:00.000', 1, 'ACTIVE', '2026-09-06 00:00:02.260'),
@@ -1569,10 +1569,10 @@ CREATE TABLE `PurchaseItem` (
   PRIMARY KEY (`id`),
   KEY `PurchaseItem_purchaseId_idx` (`purchaseId`),
   CONSTRAINT `PurchaseItem_purchaseId_fkey` FOREIGN KEY (`purchaseId`) REFERENCES `PurchaseEntry` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `PurchaseItem` (5 rows)
-INSERT INTO `PurchaseItem` (`id`, `purchaseId`, `name`, `quantity`, `unit`, `rate`, `amount`) VALUES
+INSERT IGNORE INTO `PurchaseItem` (`id`, `purchaseId`, `name`, `quantity`, `unit`, `rate`, `amount`) VALUES
 ('47ef04a7-d2de-4d58-a5c8-bd671c6f89a2', '83ce4182-6b46-4185-8234-a0e8212353d8', 'Fresh Paneer', '15.000000000000000000000000000000', 'kg', '220.000000000000000000000000000000', '3300.000000000000000000000000000000'),
 ('29055a7c-191e-494f-b780-62285686c4db', 'de7104cf-7e8c-451a-9ce5-3a90dafbb03b', 'Basmati Rice', '25.000000000000000000000000000000', 'kg', '95.000000000000000000000000000000', '2375.000000000000000000000000000000'),
 ('0427772c-7883-461d-b369-cef861613bee', '72f8bc06-bf9f-40af-b561-d87e3f697183', 'potato', '50.000000000000000000000000000000', 'kg', '34.000000000000000000000000000000', '1700.000000000000000000000000000000'),
@@ -1592,10 +1592,10 @@ CREATE TABLE `InventoryItem` (
   `updatedAt` DATETIME(3) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `InventoryItem_name_key` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `InventoryItem` (5 rows)
-INSERT INTO `InventoryItem` (`id`, `name`, `currentStock`, `unit`, `lowStockThreshold`, `updatedAt`) VALUES
+INSERT IGNORE INTO `InventoryItem` (`id`, `name`, `currentStock`, `unit`, `lowStockThreshold`, `updatedAt`) VALUES
 ('0b24da2f-40d0-43ce-a2b3-bb8a823f271d', 'Fresh Paneer', '12.000000000000000000000000000000', 'kg', '0.000000000000000000000000000000', '2026-09-05 23:39:03.430'),
 ('d88e51db-1e4d-4dc9-a112-3013abbf7d3c', 'Basmati Rice', '30.000000000000000000000000000000', 'kg', '0.000000000000000000000000000000', '2026-09-05 23:43:09.641'),
 ('c119bb97-498b-4d93-ae23-bddd9589a8e5', 'potato', '150.000000000000000000000000000000', 'kg', '10.000000000000000000000000000000', '2026-09-07 05:45:02.112'),
@@ -1620,10 +1620,10 @@ CREATE TABLE `InventoryTransaction` (
   KEY `InventoryTransaction_inventoryItemId_idx` (`inventoryItemId`),
   KEY `InventoryTransaction_type_idx` (`type`),
   CONSTRAINT `InventoryTransaction_inventoryItemId_fkey` FOREIGN KEY (`inventoryItemId`) REFERENCES `InventoryItem` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `InventoryTransaction` (14 rows)
-INSERT INTO `InventoryTransaction` (`id`, `inventoryItemId`, `type`, `quantity`, `referenceId`, `notes`, `createdAt`) VALUES
+INSERT IGNORE INTO `InventoryTransaction` (`id`, `inventoryItemId`, `type`, `quantity`, `referenceId`, `notes`, `createdAt`) VALUES
 ('d5cf6fe6-f36e-47fa-87dd-21d64fe6a5b5', '0b24da2f-40d0-43ce-a2b3-bb8a823f271d', 'PURCHASE', '15.000000000000000000000000000000', '83ce4182-6b46-4185-8234-a0e8212353d8', 'Purchase PO-002', '2026-09-05 23:39:03.381'),
 ('a817835e-7325-4ae2-8391-37a86679bd3b', '0b24da2f-40d0-43ce-a2b3-bb8a823f271d', 'MANUAL_ADJUSTMENT', '-3.000000000000000000000000000000', NULL, '[Used] 3kg used in kitchen', '2026-09-05 23:39:03.432'),
 ('4dd676a6-f94a-4b76-997b-4b45a81438fb', 'd88e51db-1e4d-4dc9-a112-3013abbf7d3c', 'PURCHASE', '25.000000000000000000000000000000', 'de7104cf-7e8c-451a-9ce5-3a90dafbb03b', 'Purchase PO-VERIFY', '2026-09-05 23:43:09.592'),
@@ -1664,7 +1664,7 @@ CREATE TABLE `OnlineOrder` (
   KEY `OnlineOrder_platform_status_idx` (`platform`, `status`),
   KEY `OnlineOrder_status_createdAt_idx` (`status`, `createdAt`),
   KEY `OnlineOrder_status_idx` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `OnlineOrder` (0 rows)
 -- (0 rows)
@@ -1684,10 +1684,10 @@ CREATE TABLE `Settings` (
   `includePurchasesInReports` TINYINT(1) NOT NULL DEFAULT 0,
   `updatedAt` DATETIME(3) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `Settings` (1 rows)
-INSERT INTO `Settings` (`id`, `restaurantName`, `address`, `phone`, `gstin`, `sgstPercent`, `cgstPercent`, `includePurchasesInReports`, `updatedAt`) VALUES
+INSERT IGNORE INTO `Settings` (`id`, `restaurantName`, `address`, `phone`, `gstin`, `sgstPercent`, `cgstPercent`, `includePurchasesInReports`, `updatedAt`) VALUES
 ('dad25155-2a70-42cd-b12f-e99b6bd2a89f', 'Maharaj Veg Villa', 'Paravdi bypass Triveni square, opp. Hotel maroon, Godhra', NULL, NULL, '0.000000000000000000000000000000', '0.000000000000000000000000000000', 1, '2026-09-13 08:51:31.131');
 
 -- ---------------------------------------------------------------------
@@ -1708,10 +1708,10 @@ CREATE TABLE `AuditLog` (
   KEY `AuditLog_createdAt_idx` (`createdAt`),
   KEY `AuditLog_entity_idx` (`entity`),
   KEY `AuditLog_userId_idx` (`userId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- Data for table `AuditLog` (22 rows)
-INSERT INTO `AuditLog` (`id`, `userId`, `action`, `entity`, `entityId`, `before`, `after`, `reason`, `createdAt`) VALUES
+INSERT IGNORE INTO `AuditLog` (`id`, `userId`, `action`, `entity`, `entityId`, `before`, `after`, `reason`, `createdAt`) VALUES
 ('2253ac0f-ca54-419f-929b-99022393b2fc', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'CREATE', 'INVENTORY', '51180ca9-1982-428b-8500-4baa0213a1a7', NULL, '{\"name\":\"aloo\",\"unit\":\"kg\",\"stock\":50}', NULL, '2026-09-02 12:03:37.803'),
 ('ddaf3836-ef23-4798-b1da-496a8d5714db', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'UPDATE', 'INVENTORY', '51180ca9-1982-428b-8500-4baa0213a1a7', '{\"name\":\"aloo\",\"unit\":\"kg\",\"threshold\":5}', '{\"name\":\"aloo\",\"unit\":\"kg\",\"threshold\":5}', NULL, '2026-09-05 18:53:06.064'),
 ('c178045c-7f0a-4fcc-ae3c-3809cacbba66', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'CREATE', 'PURCHASE', '83ce4182-6b46-4185-8234-a0e8212353d8', NULL, '{\"itemCount\":1,\"supplierId\":\"9239394f-c201-4c2f-811c-cb3932039026\",\"totalAmount\":3300,\"addToInventory\":true}', NULL, '2026-09-05 23:39:03.382'),
