@@ -4,14 +4,21 @@ runtime:
   node: "20.0"
 
 install:
-  - npm --prefix backend install
-  - npx --prefix backend prisma generate
+  # 1. Copy the generated .env into backend folder first
   - cp .env backend/.env
+  # 2. Install backend dependencies
+  - npm --prefix backend install
+  # 3. Generate Prisma client with explicit schema path
+  - npx --prefix backend prisma generate --schema=backend/prisma/schema.prisma
+  # 4. Install frontend dependencies
   - npm --prefix frontend install
 
 build:
-  - npx --prefix backend prisma db push
+  # 1. Push schema to MySQL database
+  - npx --prefix backend prisma db push --schema=backend/prisma/schema.prisma
+  # 2. Seed initial admin & roles
   - node backend/prisma/seed.js
+  # 3. Compile frontend React app
   - npm --prefix frontend run build
 
 supervisor:
