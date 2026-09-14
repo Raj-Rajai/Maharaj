@@ -1,0 +1,159 @@
+From cc228888dd8d790b5e3dae97b7a71b212ff26cb6 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 14 Sep 2026 12:07:59 +0000
+Subject: [PATCH] diag: add request-vs-db timing instrumentation
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Logs total request time alongside cumulative Prisma query time for every
+write (and any request over 500ms), so we can tell whether slow writes
+are caused by the database itself or by something else (host CPU,
+network, middleware). Also flags any single query over 150ms.
+
+Additive and safe to revert — see comments in requestTiming.js.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01GEL1Ys6SnzUAqMHzPVhBk9
+---
+ backend/src/index.js                    |  6 ++++
+ backend/src/middleware/requestTiming.js | 43 +++++++++++++++++++++++++
+ backend/src/utils/prisma.js             | 35 ++++++++++++++++----
+ 3 files changed, 78 insertions(+), 6 deletions(-)
+ create mode 100644 backend/src/middleware/requestTiming.js
+
+diff --git a/backend/src/index.js b/backend/src/index.js
+index 7f283ad..daa63a1 100644
+--- a/backend/src/index.js
++++ b/backend/src/index.js
+@@ -5,6 +5,7 @@ import helmet from 'helmet';
+ import compression from 'compression';
+ import dotenv from 'dotenv';
+ import { initSocket } from './utils/socket.js';
++import { requestTiming } from './middleware/requestTiming.js';
+ 
+ import authRoutes from './routes/authRoutes.js';
+ import userRoutes from './routes/userRoutes.js';
+@@ -30,6 +31,11 @@ dotenv.config();
+ const app = express();
+ const PORT = process.env.PORT || 3000;
+ 
++// DIAGNOSTIC: logs total request time vs. time spent waiting on the database,
++// to tell apart "the database is slow" from "the host/CPU is slow".
++// Placed first so it wraps every other middleware. Safe to remove later.
++app.use(requestTiming);
++
+ // Middleware
+ app.use(helmet());
+ app.use(
+diff --git a/backend/src/middleware/requestTiming.js b/backend/src/middleware/requestTiming.js
+new file mode 100644
+index 0000000..42f2866
+--- /dev/null
++++ b/backend/src/middleware/requestTiming.js
+@@ -0,0 +1,43 @@
++import { AsyncLocalStorage } from 'node:async_hooks';
++
++/**
++ * Diagnostic timing middleware.
++ *
++ * Tracks how much of each request's total time was spent waiting on the
++ * database vs. everything else (auth, JSON parsing, business logic, the
++ * Node event loop itself). Logs one line per write request (and any slow
++ * request) so we can tell, from real production traffic, whether slow
++ * writes are a database problem or a host/CPU problem.
++ *
++ * Safe to leave on temporarily — logging is gated to writes and slow
++ * requests only, to keep log volume reasonable. Remove this file and its
++ * two call sites (here + prisma.js) once the diagnosis is done.
++ */
++export const requestTimingStorage = new AsyncLocalStorage();
++
++const SLOW_REQUEST_MS = 500;
++
++export const requestTiming = (req, res, next) => {
++  const start = process.hrtime.bigint();
++  const store = { dbTimeMs: 0, dbQueryCount: 0 };
++
++  res.on('finish', () => {
++    const totalMs = Number(process.hrtime.bigint() - start) / 1e6;
++    const { dbTimeMs, dbQueryCount } = store;
++    const otherMs = Math.max(0, totalMs - dbTimeMs);
++    const dbShare = totalMs > 0 ? ((dbTimeMs / totalMs) * 100).toFixed(1) : '0.0';
++    const isWrite = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
++
++    if (isWrite || totalMs > SLOW_REQUEST_MS) {
++      const tag = totalMs > SLOW_REQUEST_MS ? 'SLOW' : 'OK';
++      console.log(
++        `[Timing:${tag}] ${req.method} ${req.originalUrl} -> ` +
++        `total=${totalMs.toFixed(1)}ms db=${dbTimeMs.toFixed(1)}ms ` +
++        `(${dbQueryCount} queries, ${dbShare}% of total) ` +
++        `other=${otherMs.toFixed(1)}ms status=${res.statusCode}`
++      );
++    }
++  });
++
++  requestTimingStorage.run(store, next);
++};
+diff --git a/backend/src/utils/prisma.js b/backend/src/utils/prisma.js
+index c903bb5..fac19ac 100644
+--- a/backend/src/utils/prisma.js
++++ b/backend/src/utils/prisma.js
+@@ -1,11 +1,16 @@
+ import { PrismaClient } from '@prisma/client';
+ import { AsyncLocalStorage } from 'node:async_hooks';
++import { requestTimingStorage } from '../middleware/requestTiming.js';
+ 
+ const globalForPrisma = globalThis;
+ 
+ // Transaction context to distinguish standalone queries from interactive transactions
+ const txStorage = new AsyncLocalStorage();
+ 
++// DIAGNOSTIC: log any single DB query slower than this, regardless of request.
++// Helps tell "the database itself is slow" apart from "the host is slow".
++const SLOW_QUERY_MS = 150;
++
+ // Check for PgBouncer transaction mode warning if port 6543 is configured without pgbouncer=true
+ const dbUrl = process.env.DATABASE_URL || '';
+ if (dbUrl.includes(':6543') && !dbUrl.includes('pgbouncer=true')) {
+@@ -107,13 +112,31 @@ const prisma = basePrisma.$extends({
+     $allModels: {
+       async $allOperations({ model, operation, args, query }) {
+         const inTx = txStorage.getStore()?.inTransaction;
+-        // If inside an interactive transaction, do NOT perform single-query retry.
+-        // Let the error bubble up to $transaction so the entire transaction can retry cleanly.
+-        if (inTx) {
+-          return query(args);
++        const label = `${model}.${operation}`;
++        const start = process.hrtime.bigint();
++        try {
++          // If inside an interactive transaction, do NOT perform single-query retry.
++          // Let the error bubble up to $transaction so the entire transaction can retry cleanly.
++          if (inTx) {
++            return await query(args);
++          }
++          // Standalone query: retry on transient connection drops
++          return await withRetry(() => query(args), label);
++        } finally {
++          // DIAGNOSTIC TIMING — attribute this query's duration to the in-flight
++          // HTTP request (if any) so requestTiming.js can report db-time vs total-time,
++          // and flag any individually slow query for direct comparison against Supabase's
++          // own dashboard timings.
++          const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
++          const reqStore = requestTimingStorage.getStore();
++          if (reqStore) {
++            reqStore.dbTimeMs += durationMs;
++            reqStore.dbQueryCount += 1;
++          }
++          if (durationMs > SLOW_QUERY_MS) {
++            console.log(`[DB Timing] ${label} took ${durationMs.toFixed(1)}ms`);
++          }
+         }
+-        // Standalone query: retry on transient connection drops
+-        return withRetry(() => query(args), `${model}.${operation}`);
+       },
+     },
+   },
+-- 
+2.43.0
+
