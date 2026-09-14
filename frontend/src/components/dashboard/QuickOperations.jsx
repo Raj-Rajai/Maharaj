@@ -707,7 +707,7 @@ export default function QuickOperations() {
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
                     placeholder="e.g. Daily Reports"
-                    className="w-full px-3 py-2 text-xs border border-border rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 min-h-[42px] text-base sm:text-xs border border-border rounded-lg focus:outline-none focus:border-primary"
                   />
                 </div>
 
@@ -720,7 +720,7 @@ export default function QuickOperations() {
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
                     placeholder="e.g. Sales breakdown & print"
-                    className="w-full px-3 py-2 text-xs border border-border rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 min-h-[42px] text-base sm:text-xs border border-border rounded-lg focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
@@ -732,7 +732,7 @@ export default function QuickOperations() {
                 <select
                   value={formPath}
                   onChange={(e) => setFormPath(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-border rounded-lg focus:outline-none focus:border-primary bg-white"
+                  className="w-full px-3 py-2 min-h-[42px] text-base sm:text-xs border border-border rounded-lg focus:outline-none focus:border-primary bg-white dark:bg-slate-800"
                 >
                   <option value="/tables">🍽️ Dine-In Tables (/tables)</option>
                   <option value="/take-away">🛍️ Take Away Counter (/take-away)</option>
@@ -832,7 +832,7 @@ export default function QuickOperations() {
               required
               value={formTitle}
               onChange={(e) => setFormTitle(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-border rounded-lg focus:outline-none focus:border-primary"
+              className="w-full px-3 py-2 min-h-[42px] text-base sm:text-xs border border-border rounded-lg focus:outline-none focus:border-primary"
             />
           </div>
 
@@ -844,7 +844,7 @@ export default function QuickOperations() {
               type="text"
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-border rounded-lg focus:outline-none focus:border-primary"
+              className="w-full px-3 py-2 min-h-[42px] text-base sm:text-xs border border-border rounded-lg focus:outline-none focus:border-primary"
             />
           </div>
 
@@ -855,7 +855,7 @@ export default function QuickOperations() {
             <select
               value={formPath}
               onChange={(e) => setFormPath(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-border rounded-lg focus:outline-none focus:border-primary bg-white"
+              className="w-full px-3 py-2 min-h-[42px] text-base sm:text-xs border border-border rounded-lg focus:outline-none focus:border-primary bg-white dark:bg-slate-800"
             >
               <option value="/tables">🍽️ Dine-In Tables (/tables)</option>
               <option value="/take-away">🛍️ Take Away Counter (/take-away)</option>

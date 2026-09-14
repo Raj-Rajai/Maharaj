@@ -1,4 +1,4 @@
-export default function Card({ children, className = '', hover = false, onClick, padding = 'p-6' }) {
+export default function Card({ children, className = '', hover = false, onClick, padding = 'p-3.5 sm:p-5 md:p-6' }) {
   return (
     <div
       className={`

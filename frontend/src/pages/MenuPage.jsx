@@ -295,21 +295,21 @@ export default function MenuPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-xl font-bold text-text dark:text-white flex items-center gap-2.5">
-            <img src={menuBlue} alt="Menu" className="w-6 h-6 object-contain dark:brightness-0 dark:invert" />
+          <h1 className="text-lg sm:text-xl font-bold text-text dark:text-white flex items-center gap-2.5">
+            <img src={menuBlue} alt="Menu" className="w-5 sm:w-6 h-5 sm:h-6 object-contain dark:brightness-0 dark:invert" />
             Menu & Catalog Management
           </h1>
           <p className="text-xs text-text-secondary dark:text-slate-400 mt-0.5">Centralized item catalog and pricing across Dine-In (AC / Non-AC) and Delivery (Swiggy / Zomato)</p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
           {hasPermission('MENU_BULK_ADD') && (
             <button
               type="button"
               onClick={openBulkModal}
-              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-light active:bg-primary-dark text-white rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary-light active:scale-[0.99] text-white rounded-lg text-xs sm:text-sm font-semibold shadow-xs transition-all cursor-pointer min-h-[40px]"
             >
               <CopyPlus size={16} />
               <span>Bulk Add Item</span>
@@ -318,19 +318,19 @@ export default function MenuPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap bg-slate-200/80 dark:bg-slate-800/80 p-1 rounded-xl border border-border dark:border-slate-700 gap-1">
+      <div className="flex bg-slate-200/80 dark:bg-slate-800/80 p-1 rounded-xl border border-border dark:border-slate-700 gap-1 overflow-x-auto no-scrollbar">
         {availableTabs.map(t => (
           <button
             key={t.id}
             onClick={() => handleMenuTypeChange(t.id)}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+            className={`min-w-[120px] sm:min-w-0 flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
               menuType === t.id ? 'bg-primary text-white shadow-xs' : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-700/60'
             }`}
           >
-            <img src={t.logo} alt={t.label} className={`w-4 h-4 object-contain shrink-0 ${(t.id === 'AC' || t.id === 'NON_AC') ? 'dark:brightness-0 dark:invert' : ''}`} />
+            <img src={t.logo} alt={t.label} className={`w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain shrink-0 ${(t.id === 'AC' || t.id === 'NON_AC') ? 'dark:brightness-0 dark:invert' : ''}`} />
             <span>{t.label}</span>
             {menuType === t.id && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-white/20 text-white font-mono font-medium">
+              <span className="text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full bg-white/20 text-white font-mono font-medium">
                 {items.length}
               </span>
             )}
@@ -338,19 +338,19 @@ export default function MenuPage() {
         ))}
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-4 shadow-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-3 sm:p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-text dark:text-slate-100">Categories</h2>
+          <h2 className="text-xs sm:text-sm font-semibold text-text dark:text-slate-100">Categories</h2>
           {canCreateCategory && (
             <button onClick={() => { setCatForm({ name: '', displayOrder: categories.length }); setCatModal('new'); }}
-              className="flex items-center gap-1 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary-light cursor-pointer">
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary-light cursor-pointer shadow-xs">
               <Plus size={14} /> Add Category
             </button>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {categories.map(c => (
-            <div key={c.id} className="flex items-center gap-2 px-3 py-1.5 bg-surface dark:bg-slate-800/80 rounded-lg border border-border dark:border-slate-700 text-xs">
+            <div key={c.id} className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-surface dark:bg-slate-800/80 rounded-lg border border-border dark:border-slate-700 text-xs">
               <span className="font-medium text-text dark:text-slate-200">{c.name}</span>
               <span className="text-text-secondary dark:text-slate-400 font-mono">({c._count?.menuItems ?? 0})</span>
               {(canEditCategory || canDeleteCategory) && (
@@ -369,19 +369,19 @@ export default function MenuPage() {
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-border dark:border-slate-800 bg-surface/50 dark:bg-slate-800/50">
-          <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => setSelectedCat('ALL')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${selectedCat === 'ALL' ? 'bg-primary text-white' : 'bg-white dark:bg-slate-800 text-text-secondary dark:text-slate-300 border border-border dark:border-slate-700 hover:bg-surface dark:hover:bg-slate-700'}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border-b border-border dark:border-slate-800 bg-surface/50 dark:bg-slate-800/50">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <button onClick={() => setSelectedCat('ALL')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${selectedCat === 'ALL' ? 'bg-primary text-white' : 'bg-white dark:bg-slate-800 text-text-secondary dark:text-slate-300 border border-border dark:border-slate-700 hover:bg-surface dark:hover:bg-slate-700'}`}>
               All Items ({items.length})
             </button>
             {categories.map((c) => (
-              <button key={c.id} onClick={() => setSelectedCat(c.id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${selectedCat === c.id ? 'bg-primary text-white' : 'bg-white dark:bg-slate-800 text-text-secondary dark:text-slate-300 border border-border dark:border-slate-700 hover:bg-surface dark:hover:bg-slate-700'}`}>
+              <button key={c.id} onClick={() => setSelectedCat(c.id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${selectedCat === c.id ? 'bg-primary text-white' : 'bg-white dark:bg-slate-800 text-text-secondary dark:text-slate-300 border border-border dark:border-slate-700 hover:bg-surface dark:hover:bg-slate-700'}`}>
                 {c.name}
               </button>
             ))}
           </div>
           {canCreateCurrent && (
-            <button onClick={openAddItemModal} className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary-light whitespace-nowrap cursor-pointer">
+            <button onClick={openAddItemModal} className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary-light whitespace-nowrap cursor-pointer shadow-xs min-h-[36px]">
               <Plus size={14} /> Add {availableTabs.find(t=>t.id===menuType)?.label?.split(' ')[1] || 'Item'}
             </button>
           )}
@@ -391,7 +391,7 @@ export default function MenuPage() {
           <div className="flex items-center justify-center py-16"><Spinner size="md" /></div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[540px]">
               <thead className="bg-surface dark:bg-slate-800/80 border-b border-border dark:border-slate-800">
                 <tr className="text-left text-text-secondary dark:text-slate-400 text-xs">
                   <th className="px-4 py-3 font-semibold">Item Name</th><th className="px-4 py-3 font-semibold">Category</th><th className="px-4 py-3 font-semibold">Price (₹)</th><th className="px-4 py-3 font-semibold">Status</th>
@@ -435,9 +435,9 @@ export default function MenuPage() {
 
       <Modal isOpen={!!catModal} onClose={() => setCatModal(null)} title={catModal === 'new' ? 'Add Category' : 'Edit Category'} size="sm">
         <div className="space-y-4">
-          <div><label className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Category Name</label><input type="text" value={catForm.name} onChange={e => setCatForm(f => ({...f, name: e.target.value}))} className="w-full px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-lg text-sm" /></div>
-          <div><label className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Display Order</label><input type="number" value={catForm.displayOrder} onChange={e => setCatForm(f => ({...f, displayOrder: parseInt(e.target.value)||0}))} className="w-full px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-lg text-sm" /></div>
-          <button onClick={saveCat} className="w-full py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light">Save</button>
+          <div><label className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Category Name</label><input type="text" value={catForm.name} onChange={e => setCatForm(f => ({...f, name: e.target.value}))} className="w-full px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px]" /></div>
+          <div><label className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Display Order</label><input type="number" value={catForm.displayOrder} onChange={e => setCatForm(f => ({...f, displayOrder: parseInt(e.target.value)||0}))} className="w-full px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px]" /></div>
+          <button onClick={saveCat} className="w-full min-h-[42px] py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light active:scale-[0.99] cursor-pointer shadow-xs">Save Category</button>
         </div>
       </Modal>
 

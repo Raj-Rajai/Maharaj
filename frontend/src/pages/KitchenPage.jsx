@@ -131,109 +131,110 @@ export default function KitchenPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-text dark:text-white flex items-center gap-2.5">
-          <img src={kitchenBlue} alt="Kitchen" className="w-6 h-6 object-contain dark:brightness-0 dark:invert" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+        <h1 className="text-lg sm:text-xl font-bold text-text dark:text-white flex items-center gap-2.5">
+          <img src={kitchenBlue} alt="Kitchen" className="w-5 sm:w-6 h-5 sm:h-6 object-contain dark:brightness-0 dark:invert" />
           Kitchen Display
         </h1>
-        <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1">
+        <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 overflow-x-auto no-scrollbar w-full sm:w-auto">
           {['ALL', 'NEW', 'PREPARING', 'READY', 'COMPLETED'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${filter === f ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'}`}>
+              className={`flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${filter === f ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'}`}>
               {f}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {filtered.map(kot => (
           <div key={kot.id} className={`bg-white dark:bg-slate-900 rounded-xl border-2 overflow-hidden ${
             kot.status === 'NEW' ? 'border-warning/40 dark:border-amber-500/40' : kot.status === 'PREPARING' ? 'border-primary/40 dark:border-blue-500/40' : kot.status === 'READY' ? 'border-success/40 dark:border-emerald-500/40' : 'border-border dark:border-slate-800'
           }`}>
-            <div className="flex items-center justify-between px-4 py-3 bg-surface dark:bg-slate-800 border-b border-border dark:border-slate-700">
+            <div className="flex items-center justify-between px-3.5 sm:px-4 py-2.5 sm:py-3 bg-surface dark:bg-slate-800 border-b border-border dark:border-slate-700">
               <div className="flex items-center flex-wrap gap-1.5">
-                <span className="font-bold text-text dark:text-slate-100 font-mono">KOT #{kot.kotNumber}</span>
+                <span className="font-bold text-text dark:text-slate-100 font-mono text-sm sm:text-base">KOT #{kot.kotNumber}</span>
                 {kot.order?.orderSource === 'SELF_PICKUP' ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                     <img src={takeAwayBlue} alt="Self Pickup" className="w-3.5 h-3.5 object-contain dark:brightness-0 dark:invert" />
                     Self Pickup
                   </span>
                 ) : kot.order?.orderSource === 'SWIGGY' ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
                     <img src={swiggyIcon} alt="Swiggy" className="w-3.5 h-3.5 object-contain" />
                     Swiggy
                   </span>
                 ) : kot.order?.orderSource === 'ZOMATO' ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
                     <img src={zomatoIcon} alt="Zomato" className="w-3.5 h-3.5 object-contain" />
                     Zomato
                   </span>
                 ) : kot.order?.table?.number ? (
-                  <span className="text-xs font-semibold text-text dark:text-slate-100 bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-border dark:border-slate-600">
+                  <span className="text-[11px] font-semibold text-text dark:text-slate-100 bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-border dark:border-slate-600">
                     Table {kot.order.table.number} ({kot.order.table.type})
                   </span>
                 ) : (
-                  <span className="text-xs text-text-secondary dark:text-slate-400">Take Away</span>
+                  <span className="text-[11px] text-text-secondary dark:text-slate-400">Take Away</span>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <Badge variant={kot.status === 'NEW' ? 'warning' : kot.status === 'PREPARING' ? 'info' : kot.status === 'READY' ? 'success' : 'neutral'}>{kot.status}</Badge>
                 {hasPermission('KOT_PRINT') && (
-                  <button onClick={() => printKot(kot)} className="p-1 rounded hover:bg-border dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 cursor-pointer" title="Print KOT"><Printer size={16} /></button>
+                  <button onClick={() => printKot(kot)} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded hover:bg-border dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 cursor-pointer" title="Print KOT"><Printer size={15} /></button>
                 )}
               </div>
             </div>
-            <div className="p-3 space-y-2">
+            <div className="p-2.5 sm:p-3 space-y-2">
               {kot.items?.map(item => (
                 <div key={item.id} className={`flex items-center justify-between p-2 rounded-lg ${item.status === 'CANCELLED' ? 'bg-red-50/70 dark:bg-red-950/30 opacity-60' : 'bg-surface dark:bg-slate-800/80'}`}>
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${item.status === 'CANCELLED' ? 'line-through text-text-secondary dark:text-slate-400' : 'text-text dark:text-slate-100'}`}>{item.itemNameSnapshot}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs font-mono text-text dark:text-slate-200">x{item.quantity}</span>
+                  <div className="flex-1 min-w-0 mr-2">
+                    <p className={`text-xs sm:text-sm font-medium truncate ${item.status === 'CANCELLED' ? 'line-through text-text-secondary dark:text-slate-400' : 'text-text dark:text-slate-100'}`}>{item.itemNameSnapshot}</p>
+                    <div className="flex items-center flex-wrap gap-1.5 mt-1">
+                      <span className="text-xs font-mono font-bold text-text dark:text-slate-200">x{item.quantity}</span>
                       <Badge variant={statusColors[item.status]}>{item.status}</Badge>
-                      {item.originalQuantity && item.status !== 'CANCELLED' && <span className="text-xs text-warning font-medium">EDITED: {item.originalQuantity}→{item.quantity}</span>}
-                      {item.status === 'CANCELLED' && <span className="text-xs text-danger font-medium">CANCELLED</span>}
+                      {item.originalQuantity && item.status !== 'CANCELLED' && <span className="text-[10px] text-warning font-medium">EDITED: {item.originalQuantity}→{item.quantity}</span>}
+                      {item.status === 'CANCELLED' && <span className="text-[10px] text-danger font-medium">CANCELLED</span>}
                     </div>
-                    {item.notes && <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">{item.notes}</p>}
+                    {item.notes && <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">{item.notes}</p>}
                   </div>
                   {item.status !== 'CANCELLED' && item.status !== 'SERVED' && (
-                    <div className="flex items-center gap-1 ml-2">
+                    <div className="flex items-center gap-1 shrink-0">
                       {hasPermission('KOT_EDIT') && nextStatus[item.status] && (
                         <button onClick={() => advanceItem(item.id, nextStatus[item.status])}
-                          className="px-2 py-1 text-xs bg-primary text-white rounded hover:bg-primary-light cursor-pointer" title={`→ ${nextStatus[item.status]}`}>
-                          <Check size={12} />
+                          className="min-h-[32px] min-w-[32px] sm:min-h-[28px] sm:min-w-[28px] px-2 py-1 text-xs bg-primary text-white rounded-lg hover:bg-primary-light active:scale-95 flex items-center justify-center gap-1 cursor-pointer shadow-xs" title={`Advance to ${nextStatus[item.status]}`}>
+                          <Check size={14} />
+                          <span className="text-[10px] hidden sm:inline">{nextStatus[item.status]}</span>
                         </button>
                       )}
                       {hasPermission('KOT_EDIT') && (
-                        <button onClick={() => openEdit(item)} className="p-1 rounded hover:bg-border dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 cursor-pointer" title="Edit qty"><Edit2 size={14} /></button>
+                        <button onClick={() => openEdit(item)} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-border dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 cursor-pointer" title="Edit qty"><Edit2 size={14} /></button>
                       )}
                       {hasPermission('ORDER_CANCEL') && (
-                        <button onClick={() => cancelItem(item)} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-950/50 text-text-secondary dark:text-slate-400 hover:text-danger dark:hover:text-red-400 cursor-pointer" title="Cancel"><X size={14} /></button>
+                        <button onClick={() => cancelItem(item)} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-950/50 text-text-secondary dark:text-slate-400 hover:text-danger dark:hover:text-red-400 cursor-pointer" title="Cancel"><X size={14} /></button>
                       )}
                     </div>
                   )}
                 </div>
               ))}
             </div>
-            <div className="px-4 py-2 border-t border-border dark:border-slate-800 text-xs text-text-secondary dark:text-slate-400 flex items-center gap-1">
+            <div className="px-3.5 sm:px-4 py-2 border-t border-border dark:border-slate-800 text-[11px] sm:text-xs text-text-secondary dark:text-slate-400 flex items-center gap-1">
               <Clock size={12} /> {new Date(kot.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
         ))}
-        {filtered.length === 0 && <p className="col-span-3 text-center text-text-secondary dark:text-slate-400 py-12">No KOTs</p>}
+        {filtered.length === 0 && <p className="col-span-full text-center text-text-secondary dark:text-slate-400 py-12">No KOTs</p>}
       </div>
 
       <Modal isOpen={!!editModal} onClose={() => setEditModal(null)} title="Edit Item Quantity" size="sm">
         <div className="space-y-3">
-          <p className="text-sm text-text dark:text-slate-200">{editModal?.itemNameSnapshot} (current: {editModal?.quantity})</p>
-          <div><label className="block text-sm font-medium text-text dark:text-slate-200 mb-1">New Quantity</label>
+          <p className="text-xs sm:text-sm text-text dark:text-slate-200">{editModal?.itemNameSnapshot} (current: {editModal?.quantity})</p>
+          <div><label className="block text-xs sm:text-sm font-medium text-text dark:text-slate-200 mb-1">New Quantity</label>
             <input type="number" value={editQty} onChange={e => setEditQty(e.target.value)} min="1"
-              className="w-full px-3 py-2 border border-border dark:border-slate-700 bg-white dark:bg-slate-800 text-text dark:text-slate-100 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/20" /></div>
-          <div><label className="block text-sm font-medium text-text dark:text-slate-200 mb-1">Reason (optional)</label>
+              className="w-full px-3 py-2 border border-border dark:border-slate-700 bg-white dark:bg-slate-800 text-text dark:text-slate-100 rounded-lg text-base sm:text-sm min-h-[42px] font-mono focus:outline-none focus:ring-2 focus:ring-primary/20" /></div>
+          <div><label className="block text-xs sm:text-sm font-medium text-text dark:text-slate-200 mb-1">Reason (optional)</label>
             <input type="text" value={editReason} onChange={e => setEditReason(e.target.value)}
-              className="w-full px-3 py-2 border border-border dark:border-slate-700 bg-white dark:bg-slate-800 text-text dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="Customer requested change" /></div>
-          <button onClick={saveEdit} className="w-full py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light cursor-pointer">Update Quantity</button>
+              className="w-full px-3 py-2 border border-border dark:border-slate-700 bg-white dark:bg-slate-800 text-text dark:text-slate-100 rounded-lg text-base sm:text-sm min-h-[42px] focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="Customer requested change" /></div>
+          <button onClick={saveEdit} className="w-full min-h-[42px] py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light active:scale-[0.99] cursor-pointer shadow-xs mt-2">Update Quantity</button>
         </div>
       </Modal>
     </div>

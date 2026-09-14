@@ -366,43 +366,43 @@ export default function PurchasesPage() {
   return (
     <div className="flex flex-col h-full gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <img src={purchasesBlue} alt="Purchases" className="w-6 h-6 object-contain dark:brightness-0 dark:invert" />
           Purchases
         </h1>
         {hasPermission('PURCHASE_CREATE') && (
           <button
             onClick={() => handleOpenModal()}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer w-full sm:w-auto min-h-[42px] shadow-xs"
           >
             <Plus size={18} /> Add Inventory / Purchase
           </button>
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-2">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-2">
         <div className="flex-1 flex items-center">
           <input
             type="date"
             value={filterDate}
             onChange={(e) => setFilterDate(e.target.value)}
-            className="px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-gray-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 [color-scheme:light] dark:[color-scheme:dark]"
+            className="w-full sm:w-auto px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-gray-300 dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] focus:outline-none focus:ring-2 focus:ring-indigo-500 [color-scheme:light] dark:[color-scheme:dark]"
           />
           {filterDate && (
             <button
               onClick={() => setFilterDate('')}
-              className="ml-2 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer"
+              className="ml-2 px-2.5 py-1.5 min-h-[36px] text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer font-medium"
             >
               Clear
             </button>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           {['ALL', 'ACTIVE', 'CANCELLED'].map(status => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer shrink-0 min-h-[38px] ${
                 filterStatus === status
                   ? 'bg-gray-800 dark:bg-indigo-600 text-white'
                   : 'bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'
@@ -474,7 +474,7 @@ export default function PurchasesPage() {
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden flex-1">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          <table className="w-full text-sm text-left min-w-[680px]">
             <thead className="bg-gray-50 dark:bg-slate-800/80 text-gray-600 dark:text-slate-400 border-b border-gray-200 dark:border-slate-800">
               <tr>
                 {PURCHASE_COLUMNS.map((col) => {
@@ -492,7 +492,7 @@ export default function PurchasesPage() {
                           className={`p-1 rounded transition-all duration-150 cursor-pointer ${
                             isFiltered || isSorted
                               ? 'opacity-100 text-primary dark:text-blue-400 bg-primary/15 dark:bg-blue-950/60 border border-primary/30 dark:border-blue-800 shadow-xs'
-                              : 'opacity-0 group-hover/th:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200'
+                              : 'opacity-60 sm:opacity-0 sm:group-hover/th:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200'
                           }`}
                           title={`Master Filter: ${col.label}`}
                         >
@@ -520,7 +520,7 @@ export default function PurchasesPage() {
                               e.stopPropagation();
                               openFilterForCell('purchaseDate', 'Date', e.currentTarget, row.purchaseDate, 'date');
                             }}
-                            className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
+                            className="opacity-40 sm:opacity-0 sm:group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
                             title={`Master filter: ${row.purchaseDate}`}
                           >
                             <Filter size={11} />
@@ -536,7 +536,7 @@ export default function PurchasesPage() {
                               e.stopPropagation();
                               openFilterForCell('supplierName', 'Type of Purchase', e.currentTarget, row.supplierName, 'text');
                             }}
-                            className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
+                            className="opacity-40 sm:opacity-0 sm:group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
                             title={`Master filter: ${row.supplierName}`}
                           >
                             <Filter size={11} />
@@ -559,7 +559,7 @@ export default function PurchasesPage() {
                               e.stopPropagation();
                               openFilterForCell('itemsCount', 'Items', e.currentTarget, row.itemsCount, 'number');
                             }}
-                            className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
+                            className="opacity-40 sm:opacity-0 sm:group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
                             title={`Master filter: ${row.itemsCount}`}
                           >
                             <Filter size={11} />
@@ -575,7 +575,7 @@ export default function PurchasesPage() {
                               e.stopPropagation();
                               openFilterForCell('totalAmount', 'Total Amount', e.currentTarget, row.totalAmountFormatted, 'number');
                             }}
-                            className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
+                            className="opacity-40 sm:opacity-0 sm:group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
                             title={`Master filter: ${row.totalAmountFormatted}`}
                           >
                             <Filter size={11} />
@@ -595,7 +595,7 @@ export default function PurchasesPage() {
                               e.stopPropagation();
                               openFilterForCell('status', 'Status', e.currentTarget, row.status, 'text');
                             }}
-                            className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
+                            className="opacity-40 sm:opacity-0 sm:group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
                             title={`Master filter: ${row.status}`}
                           >
                             <Filter size={11} />
@@ -604,23 +604,23 @@ export default function PurchasesPage() {
                       </td>
 
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-3">
+                        <div className="flex items-center justify-end gap-1.5">
                           {hasPermission('PURCHASE_EDIT') && (
                             <button
                               onClick={() => handleOpenModal(p)}
-                              className="text-gray-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                              className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-gray-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                               title="Edit"
                             >
-                              <Edit size={18} />
+                              <Edit size={16} />
                             </button>
                           )}
                           {hasPermission('PURCHASE_DELETE') && p.status !== 'CANCELLED' && (
                             <button
                               onClick={() => handleCancel(p.id)}
-                              className="text-gray-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                              className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-gray-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                               title="Cancel Purchase"
                             >
-                              <Trash2 size={18} />
+                              <Trash2 size={16} />
                             </button>
                           )}
                         </div>
@@ -690,7 +690,7 @@ export default function PurchasesPage() {
                 required
                 value={form.supplierId}
                 onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer"
               >
                 <option value="" disabled>Select Type of Purchase</option>
                 {sortedPurchaseTypes.map(s => (
@@ -706,29 +706,29 @@ export default function PurchasesPage() {
                 required
                 value={form.purchaseDate}
                 onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 [color-scheme:light] dark:[color-scheme:dark]"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 [color-scheme:light] dark:[color-scheme:dark]"
               />
             </div>
 
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Purchase Number (Optional)</label>
               <input
                 type="text"
                 placeholder="INV-12345"
                 value={form.purchaseNumber}
                 onChange={(e) => setForm({ ...form, purchaseNumber: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 p-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-lg">
+          <div className="flex items-center gap-2.5 p-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-lg min-h-[44px]">
             <input
               type="checkbox"
               id="addToInventory"
               checked={form.addToInventory}
               onChange={(e) => setForm({ ...form, addToInventory: e.target.checked })}
-              className="w-4 h-4 text-indigo-600 border-gray-300 dark:border-slate-600 rounded focus:ring-indigo-500 bg-white dark:bg-slate-800"
+              className="w-4 h-4 text-indigo-600 border-gray-300 dark:border-slate-600 rounded focus:ring-indigo-500 bg-white dark:bg-slate-800 cursor-pointer"
             />
             <label htmlFor="addToInventory" className="text-sm font-medium text-indigo-900 dark:text-indigo-200 select-none cursor-pointer flex items-center gap-2">
               <Package size={16} /> Add items to inventory stock automatically
@@ -741,7 +741,7 @@ export default function PurchasesPage() {
               <button
                 type="button"
                 onClick={addItem}
-                className="text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1"
+                className="text-sm text-indigo-600 dark:text-indigo-400 font-semibold hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] rounded-lg bg-indigo-50 dark:bg-indigo-950/40 cursor-pointer"
               >
                 <Plus size={16} /> Add Row
               </button>
@@ -751,79 +751,83 @@ export default function PurchasesPage() {
               {form.items.map((item, index) => {
                 const rowTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.rate) || 0);
                 return (
-                  <div key={index} className="flex flex-wrap sm:flex-nowrap gap-2 items-start bg-gray-50 dark:bg-slate-900/70 p-2 rounded-lg border border-gray-200 dark:border-slate-800">
-                    <div className="flex-1 min-w-[150px]">
+                  <div key={index} className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-start bg-gray-50 dark:bg-slate-900/70 p-3 sm:p-2.5 rounded-lg border border-gray-200 dark:border-slate-800">
+                    <div className="flex-1 min-w-[140px]">
                       <input
                         placeholder="Item name"
                         value={item.name}
                         onChange={(e) => updateItem(index, 'name', e.target.value)}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                       />
                     </div>
 
-                    <div className="w-24">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Qty"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', e.target.value)}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
+                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+                      <div className="w-full sm:w-20">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Qty"
+                          value={item.quantity}
+                          onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                        />
+                      </div>
 
-                    <div className="w-24">
-                      <select
-                        value={item.unit}
-                        onChange={(e) => updateItem(index, 'unit', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                      >
-                        <option value="kg">kg</option>
-                        <option value="g">g</option>
-                        <option value="L">L</option>
-                        <option value="ml">ml</option>
-                        <option value="pcs">pcs</option>
-                        <option value="dozen">dozen</option>
-                        <option value="box">box</option>
-                      </select>
-                    </div>
+                      <div className="w-full sm:w-20">
+                        <select
+                          value={item.unit}
+                          onChange={(e) => updateItem(index, 'unit', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer"
+                        >
+                          <option value="kg">kg</option>
+                          <option value="g">g</option>
+                          <option value="L">L</option>
+                          <option value="ml">ml</option>
+                          <option value="pcs">pcs</option>
+                          <option value="dozen">dozen</option>
+                          <option value="box">box</option>
+                        </select>
+                      </div>
 
-                    <div className="w-28">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Rate"
-                        value={item.rate}
-                        onChange={(e) => updateItem(index, 'rate', e.target.value)}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
+                      <div className="w-full sm:w-24">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Rate"
+                          value={item.rate}
+                          onChange={(e) => updateItem(index, 'rate', e.target.value)}
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                        />
+                      </div>
 
-                    <div className="w-24 px-3 py-2 text-sm font-mono font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 rounded-lg border border-transparent flex items-center justify-end">
-                      ₹{rowTotal.toFixed(2)}
-                    </div>
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="flex-1 sm:w-24 px-3 py-2 text-base sm:text-sm min-h-[42px] font-mono font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 rounded-lg border border-transparent flex items-center justify-end">
+                          ₹{rowTotal.toFixed(2)}
+                        </div>
 
-                    {form.items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeItem(index)}
-                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors mt-0.5"
-                      >
-                        <X size={18} />
-                      </button>
-                    )}
+                        {form.items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeItem(index)}
+                            className="p-2.5 min-h-[42px] min-w-[42px] inline-flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <X size={18} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 );
               })}
             </div>
 
             <div className="mt-4 flex justify-end">
-              <div className="bg-indigo-50 dark:bg-indigo-950/40 px-4 py-3 rounded-lg border border-indigo-100 dark:border-indigo-900/50 flex items-center gap-4">
+              <div className="w-full sm:w-auto bg-indigo-50 dark:bg-indigo-950/40 px-4 py-3 rounded-lg border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between sm:justify-start gap-4">
                 <span className="text-sm font-medium text-indigo-900 dark:text-indigo-200">Total Amount:</span>
                 <span className="text-xl font-bold font-mono text-indigo-700 dark:text-indigo-300">
                   ₹{calculateTotal().toFixed(2)}
@@ -832,17 +836,17 @@ export default function PurchasesPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-slate-800">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 pt-4 border-t border-gray-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              className="w-full sm:w-auto px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors min-h-[42px] flex items-center justify-center cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-sm min-h-[42px] cursor-pointer"
             >
               <Check size={18} /> {editId ? 'Update Purchase' : 'Save Purchase'}
             </button>

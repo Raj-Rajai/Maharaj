@@ -72,6 +72,7 @@ export default function TakeAwayPage() {
   // Channel & view states
   const [selectedChannel, setSelectedChannel] = useState('SELF_PICKUP');
   const [activeView, setActiveView] = useState('pos'); // 'pos' | 'history'
+  const [mobilePosTab, setMobilePosTab] = useState('menu'); // 'menu' | 'cart' on mobile
 
   useEffect(() => {
     if (visibleChannels.length > 0 && !visibleChannels.some(c => c.id === selectedChannel)) {
@@ -297,26 +298,26 @@ export default function TakeAwayPage() {
   return (
     <div className="h-full flex flex-col space-y-4">
       {/* Top Header & Channel Switcher */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-4 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-3 sm:p-4 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 dark:bg-slate-800 border border-transparent dark:border-slate-700/60 rounded-xl flex items-center justify-center">
-              <img src={takeAwayBlue} alt="Take Away" className="w-6 h-6 object-contain dark:brightness-0 dark:invert" />
+            <div className="p-2 bg-primary/10 dark:bg-slate-800 border border-transparent dark:border-slate-700/60 rounded-xl flex items-center justify-center shrink-0">
+              <img src={takeAwayBlue} alt="Take Away" className="w-5 sm:w-6 h-5 sm:h-6 object-contain dark:brightness-0 dark:invert" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-text dark:text-white flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-bold text-text dark:text-white flex items-center gap-2">
                 Take Away & Parcels
               </h1>
-              <p className="text-xs text-text-secondary dark:text-slate-400 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-text-secondary dark:text-slate-400 mt-0.5">
                 Self Pickup, Swiggy, and Zomato order management with dual billing flows
               </p>
             </div>
           </div>
 
           {/* Channels Selector & View Switcher */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
             {/* Channel Tabs */}
-            <div className="flex gap-1.5 bg-surface dark:bg-slate-800 p-1 rounded-xl border border-border dark:border-slate-700">
+            <div className="flex gap-1 sm:gap-1.5 bg-surface dark:bg-slate-800 p-1 rounded-xl border border-border dark:border-slate-700 overflow-x-auto no-scrollbar w-full sm:w-auto">
               {visibleChannels.map(ch => {
                 const Icon = ch.icon;
                 const isActive = selectedChannel === ch.id;
@@ -325,14 +326,14 @@ export default function TakeAwayPage() {
                     key={ch.id}
                     type="button"
                     onClick={() => handleChannelChange(ch.id)}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                       isActive ? ch.activeTabClass : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-700'
                     }`}
                   >
                     {ch.logo ? (
-                      <img src={ch.logo} alt={ch.shortName} className={`w-4 h-4 object-contain shrink-0 ${ch.id === 'SELF_PICKUP' ? 'dark:brightness-0 dark:invert' : ''}`} />
+                      <img src={ch.logo} alt={ch.shortName} className={`w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain shrink-0 ${ch.id === 'SELF_PICKUP' ? 'dark:brightness-0 dark:invert' : ''}`} />
                     ) : (
-                      <Icon size={15} />
+                      <Icon size={14} className="shrink-0" />
                     )}
                     <span>{ch.name}</span>
                   </button>
@@ -341,11 +342,11 @@ export default function TakeAwayPage() {
             </div>
 
             {/* View Mode Switcher */}
-            <div className="flex gap-1 bg-surface dark:bg-slate-800 p-1 rounded-xl border border-border dark:border-slate-700">
+            <div className="flex gap-1 bg-surface dark:bg-slate-800 p-1 rounded-xl border border-border dark:border-slate-700 w-full sm:w-auto justify-between sm:justify-start">
               <button
                 type="button"
                 onClick={() => setActiveView('pos')}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                className={`flex-1 sm:flex-initial text-center px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                   activeView === 'pos' ? 'bg-white dark:bg-slate-700 text-primary dark:text-blue-300 shadow-xs' : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100'
                 }`}
               >
@@ -354,7 +355,7 @@ export default function TakeAwayPage() {
               <button
                 type="button"
                 onClick={() => setActiveView('history')}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                className={`flex-1 sm:flex-initial text-center px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                   activeView === 'history' ? 'bg-white dark:bg-slate-700 text-primary dark:text-blue-300 shadow-xs' : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100'
                 }`}
               >
@@ -418,157 +419,225 @@ export default function TakeAwayPage() {
 
       {/* POS View */}
       {activeView === 'pos' && (
-        <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
-          {/* Left: Menu & Food Selector */}
-          <div className="flex-[3] flex flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden">
-            {/* Active Channel Info Banner */}
-            <div className="px-4 py-2.5 bg-surface dark:bg-slate-800 border-b border-border dark:border-slate-700 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-text dark:text-slate-200">Selected Channel:</span>
-                <div className="flex items-center gap-1.5">
-                  {activeChannelConfig.logo && (
-                    <img src={activeChannelConfig.logo} alt={activeChannelConfig.shortName} className="w-4 h-4 object-contain" />
-                  )}
-                  <Badge variant={activeChannelConfig.badgeVariant}>{activeChannelConfig.name}</Badge>
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* Mobile View Switcher (Menu vs Cart) */}
+          <div className="flex lg:hidden w-full bg-surface dark:bg-slate-800 p-1 rounded-lg border border-border dark:border-slate-700 mb-2.5">
+            <button
+              type="button"
+              onClick={() => setMobilePosTab('menu')}
+              className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                mobilePosTab === 'menu'
+                  ? 'bg-primary text-white shadow-xs'
+                  : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-white'
+              }`}
+            >
+              Menu Items
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobilePosTab('cart')}
+              className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                mobilePosTab === 'cart'
+                  ? 'bg-primary text-white shadow-xs'
+                  : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-white'
+              }`}
+            >
+              <span>Order Cart</span>
+              {cart.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  mobilePosTab === 'cart' ? 'bg-white text-primary' : 'bg-primary text-white'
+                }`}>
+                  {cart.reduce((s, i) => s + i.quantity, 0)}
+                </span>
+              )}
+            </button>
+          </div>
+
+          <div className="flex-1 flex flex-col lg:flex-row gap-3 sm:gap-4 min-h-0 overflow-hidden relative">
+            {/* Left: Menu & Food Selector */}
+            <div className={`flex-[3] flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden ${
+              mobilePosTab === 'menu' ? 'flex flex-1 min-h-[55vh]' : 'hidden lg:flex'
+            }`}>
+              {/* Active Channel Info Banner */}
+              <div className="px-3 sm:px-4 py-2 bg-surface dark:bg-slate-800 border-b border-border dark:border-slate-700 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <span className="text-[11px] sm:text-xs font-semibold text-text dark:text-slate-200">Channel:</span>
+                  <div className="flex items-center gap-1">
+                    {activeChannelConfig.logo && (
+                      <img src={activeChannelConfig.logo} alt={activeChannelConfig.shortName} className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" />
+                    )}
+                    <Badge variant={activeChannelConfig.badgeVariant}>{activeChannelConfig.name}</Badge>
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-text-secondary dark:text-slate-300 bg-white dark:bg-slate-700 px-1.5 py-0.5 rounded border border-border dark:border-slate-600 font-medium">
+                    {activeChannelConfig.badgeText}
+                  </span>
                 </div>
-                <span className="text-xs text-text-secondary dark:text-slate-300 bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-border dark:border-slate-600 font-medium">
-                  {activeChannelConfig.badgeText}
+                <span className="text-[11px] sm:text-xs text-text-secondary dark:text-slate-400">
+                  {filteredItems.length} items
                 </span>
               </div>
-              <span className="text-xs text-text-secondary dark:text-slate-400">
-                {filteredItems.length} items available
-              </span>
-            </div>
 
-            {/* Category Pills */}
-            <div className="flex gap-1.5 p-3 border-b border-border dark:border-slate-800 overflow-x-auto">
-              <button
-                type="button"
-                onClick={() => setSelectedCat('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                  selectedCat === 'ALL'
-                    ? 'bg-primary text-white shadow-xs'
-                    : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 border border-border/60 dark:border-slate-700'
-                }`}
-              >
-                All Categories
-              </button>
-              {categories.map(c => (
+              {/* Category Pills */}
+              <div className="flex gap-1.5 p-2 sm:p-3 border-b border-border dark:border-slate-800 overflow-x-auto no-scrollbar">
                 <button
-                  key={c.id}
                   type="button"
-                  onClick={() => setSelectedCat(c.id)}
+                  onClick={() => setSelectedCat('ALL')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    selectedCat === c.id
+                    selectedCat === 'ALL'
                       ? 'bg-primary text-white shadow-xs'
                       : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 border border-border/60 dark:border-slate-700'
                   }`}
                 >
-                  {c.name}
+                  All Categories
                 </button>
-              ))}
-            </div>
-
-            {/* Search Bar */}
-            <div className="p-3 border-b border-border dark:border-slate-800">
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary dark:text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQ}
-                  onChange={e => setSearchQ(e.target.value)}
-                  placeholder={`Search ${activeChannelConfig.shortName} food items...`}
-                  className="w-full pl-9 pr-4 py-2 bg-surface/50 dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-sm text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
+                {categories.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setSelectedCat(c.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                      selectedCat === c.id
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 border border-border/60 dark:border-slate-700'
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
               </div>
+
+              {/* Search Bar */}
+              <div className="p-2 sm:p-3 border-b border-border dark:border-slate-800">
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary dark:text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQ}
+                    onChange={e => setSearchQ(e.target.value)}
+                    placeholder={`Search ${activeChannelConfig.shortName} food items...`}
+                    className="w-full pl-9 pr-4 py-2 bg-surface/50 dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-base sm:text-sm text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Menu Items Grid */}
+              <div className="flex-1 overflow-auto p-2.5 sm:p-4">
+                {loadingMenu ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Spinner size="lg" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+                    {filteredItems.map(item => {
+                      const cartItem = cart.find(c => c.menuItemId === item.id);
+                      const isSelected = !!cartItem;
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => canOrder && addToCart(item)}
+                          className={`p-2.5 sm:p-3 rounded-xl border transition-all flex flex-col justify-between ${
+                            !canOrder
+                              ? 'border-border dark:border-slate-700/60 bg-white dark:bg-slate-800/40 opacity-60 cursor-not-allowed'
+                              : isSelected
+                              ? 'border-primary dark:border-blue-500 bg-primary/5 dark:bg-blue-950/40 shadow-xs ring-1 ring-primary/30 dark:ring-blue-500/30 cursor-pointer active:scale-[0.98]'
+                              : 'border-border dark:border-slate-700/60 bg-white dark:bg-slate-800/60 hover:border-primary/40 dark:hover:border-blue-500/50 hover:bg-surface/60 dark:hover:bg-slate-800 cursor-pointer active:scale-[0.98]'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-start justify-between gap-1">
+                              <h3 className="text-xs sm:text-sm font-semibold text-text dark:text-slate-100 leading-tight line-clamp-2">
+                                {item.name}
+                              </h3>
+                              {isSelected && (
+                                <span className="shrink-0 w-5 h-5 rounded-full bg-primary dark:bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center">
+                                  {cartItem.quantity}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-text-secondary dark:text-slate-400 uppercase tracking-wider block mt-0.5">
+                              {item.category?.name || 'Item'}
+                            </span>
+                          </div>
+                          <div className="mt-2.5 flex items-center justify-between pt-1.5 border-t border-border/40 dark:border-slate-700/50">
+                            <span className="font-mono text-xs sm:text-base font-bold text-primary dark:text-blue-400">
+                              ₹{Number(item.price).toFixed(2)}
+                            </span>
+                            <span className="text-[10px] sm:text-[11px] font-medium text-primary dark:text-blue-400 flex items-center gap-0.5">
+                              <Plus size={13} /> Add
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {filteredItems.length === 0 && (
+                      <div className="col-span-full text-center py-16 text-text-secondary dark:text-slate-400 text-sm">
+                        No food items found matching your criteria.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Floating Cart Pill on Mobile when in Menu tab */}
+              {cart.length > 0 && (
+                <div className="lg:hidden p-2.5 bg-primary/10 dark:bg-blue-950/40 border-t border-primary/20 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-primary dark:text-blue-400">
+                      {cart.reduce((s, i) => s + i.quantity, 0)} item(s) in Cart
+                    </span>
+                    <span className="text-xs font-mono font-bold text-text dark:text-white ml-2">
+                      ₹{finalTotal.toFixed(2)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMobilePosTab('cart')}
+                    className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold cursor-pointer"
+                  >
+                    Review Cart &rarr;
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Menu Items Grid */}
-            <div className="flex-1 overflow-auto p-4">
-              {loadingMenu ? (
-                <div className="flex items-center justify-center h-64">
-                  <Spinner size="lg" />
+            {/* Right: Cart & Dual Billing Flows */}
+            <div className={`flex-[2] flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden ${
+              mobilePosTab === 'cart' ? 'flex flex-1 min-h-[55vh]' : 'hidden lg:flex'
+            }`}>
+              {/* Cart Header */}
+              <div className="p-3 sm:p-4 border-b border-border dark:border-slate-800 bg-surface/50 dark:bg-slate-800/80 flex items-center justify-between">
+                <div>
+                  <h2 className="font-bold text-text dark:text-slate-100 text-sm sm:text-base flex items-center gap-2">
+                    Order Cart
+                    <Badge variant={activeChannelConfig.badgeVariant}>{activeChannelConfig.shortName}</Badge>
+                  </h2>
+                  <p className="text-xs text-text-secondary dark:text-slate-400 mt-0.5">
+                    {cart.length} item types ({cart.reduce((s, i) => s + i.quantity, 0)} total pcs)
+                  </p>
                 </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {filteredItems.map(item => {
-                    const cartItem = cart.find(c => c.menuItemId === item.id);
-                    const isSelected = !!cartItem;
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => canOrder && addToCart(item)}
-                        className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${
-                          !canOrder
-                            ? 'border-border dark:border-slate-700/60 bg-white dark:bg-slate-800/40 opacity-60 cursor-not-allowed'
-                            : isSelected
-                            ? 'border-primary dark:border-blue-500 bg-primary/5 dark:bg-blue-950/40 shadow-xs ring-1 ring-primary/30 dark:ring-blue-500/30 cursor-pointer'
-                            : 'border-border dark:border-slate-700/60 bg-white dark:bg-slate-800/60 hover:border-primary/40 dark:hover:border-blue-500/50 hover:bg-surface/60 dark:hover:bg-slate-800 cursor-pointer'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-start justify-between gap-1">
-                            <h3 className="text-sm font-semibold text-text dark:text-slate-100 leading-tight line-clamp-2">
-                              {item.name}
-                            </h3>
-                            {isSelected && (
-                              <span className="shrink-0 w-5 h-5 rounded-full bg-primary dark:bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center">
-                                {cartItem.quantity}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] text-text-secondary dark:text-slate-400 uppercase tracking-wider block mt-1">
-                            {item.category?.name || 'Item'}
-                          </span>
-                        </div>
-                        <div className="mt-3 flex items-center justify-between pt-2 border-t border-border/40 dark:border-slate-700/50">
-                          <span className="font-mono text-base font-bold text-primary dark:text-blue-400">
-                            ₹{Number(item.price).toFixed(2)}
-                          </span>
-                          <span className="text-[11px] font-medium text-primary dark:text-blue-400 hover:underline flex items-center gap-0.5">
-                            <Plus size={13} /> Add
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {filteredItems.length === 0 && (
-                    <div className="col-span-full text-center py-16 text-text-secondary dark:text-slate-400 text-sm">
-                      No food items found matching your criteria.
-                    </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMobilePosTab('menu')}
+                    className="lg:hidden text-xs text-primary dark:text-blue-400 font-semibold hover:underline"
+                  >
+                    + Add Items
+                  </button>
+                  {cart.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearCart}
+                      className="text-xs text-danger hover:underline cursor-pointer ml-1"
+                    >
+                      Clear All
+                    </button>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right: Cart & Dual Billing Flows */}
-          <div className="flex-[2] flex flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden">
-            {/* Cart Header */}
-            <div className="p-4 border-b border-border dark:border-slate-800 bg-surface/50 dark:bg-slate-800/80 flex items-center justify-between">
-              <div>
-                <h2 className="font-bold text-text dark:text-slate-100 text-base flex items-center gap-2">
-                  Order Cart
-                  <Badge variant={activeChannelConfig.badgeVariant}>{activeChannelConfig.shortName}</Badge>
-                </h2>
-                <p className="text-xs text-text-secondary dark:text-slate-400 mt-0.5">
-                  {cart.length} item types ({cart.reduce((s, i) => s + i.quantity, 0)} total pcs)
-                </p>
               </div>
-              {cart.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearCart}
-                  className="text-xs text-danger hover:underline cursor-pointer"
-                >
-                  Clear All
-                </button>
-              )}
-            </div>
 
             {/* Optional Order Details for Delivery/Notes */}
             <div className="p-3 bg-surface/30 dark:bg-slate-800/50 border-b border-border dark:border-slate-800 space-y-2">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[11px] font-semibold text-text-secondary dark:text-slate-400 mb-1">
                     Customer Name (Optional)
@@ -578,7 +647,7 @@ export default function TakeAwayPage() {
                     value={customerName}
                     onChange={e => setCustomerName(e.target.value)}
                     placeholder="e.g. Rahul Sharma"
-                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full px-2.5 py-1.5 min-h-[36px] text-base sm:text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -590,7 +659,7 @@ export default function TakeAwayPage() {
                     value={customerPhone}
                     onChange={e => setCustomerPhone(e.target.value)}
                     placeholder="e.g. 9876543210"
-                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full px-2.5 py-1.5 min-h-[36px] text-base sm:text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -604,7 +673,7 @@ export default function TakeAwayPage() {
                     value={externalOrderId}
                     onChange={e => setExternalOrderId(e.target.value)}
                     placeholder={`e.g. ${selectedChannel === 'SWIGGY' ? 'SWG-94821' : 'ZOM-19402'}`}
-                    className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full px-3 py-1.5 min-h-[36px] text-base sm:text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               )}
@@ -617,7 +686,7 @@ export default function TakeAwayPage() {
                   value={customerNotes}
                   onChange={e => setCustomerNotes(e.target.value)}
                   placeholder="e.g. Extra chutney, less spicy, parcel bag"
-                  className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full px-3 py-1.5 min-h-[36px] text-base sm:text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             </div>
@@ -625,10 +694,10 @@ export default function TakeAwayPage() {
             {/* Cart Items List */}
             <div className="flex-1 overflow-auto divide-y divide-border dark:divide-slate-800">
               {cart.map(item => (
-                <div key={item.menuItemId} className="p-3 space-y-1.5 hover:bg-surface/30 dark:hover:bg-slate-800/30 transition-colors">
+                <div key={item.menuItemId} className="p-2.5 sm:p-3 space-y-1.5 hover:bg-surface/30 dark:hover:bg-slate-800/30 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 mr-2">
-                      <p className="text-sm font-semibold text-text dark:text-slate-100 leading-tight">{item.name}</p>
+                      <p className="text-xs sm:text-sm font-semibold text-text dark:text-slate-100 leading-tight">{item.name}</p>
                       <p className="text-xs font-mono text-text-secondary dark:text-slate-400 mt-0.5">
                         ₹{item.price.toFixed(2)} × {item.quantity} = <strong className="text-text dark:text-slate-100">₹{(item.price * item.quantity).toFixed(2)}</strong>
                       </p>
@@ -637,22 +706,22 @@ export default function TakeAwayPage() {
                       <button
                         type="button"
                         onClick={() => updateCartQty(item.menuItemId, -1)}
-                        className="w-6 h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-300 hover:bg-border/60 dark:hover:bg-slate-700 cursor-pointer"
+                        className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-300 hover:bg-border/60 dark:hover:bg-slate-700 cursor-pointer active:scale-95"
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="text-xs font-bold font-mono text-text dark:text-slate-100 w-6 text-center">{item.quantity}</span>
+                      <span className="text-xs sm:text-sm font-bold font-mono text-text dark:text-slate-100 w-5 text-center">{item.quantity}</span>
                       <button
                         type="button"
                         onClick={() => updateCartQty(item.menuItemId, 1)}
-                        className="w-6 h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-300 hover:bg-border/60 dark:hover:bg-slate-700 cursor-pointer"
+                        className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-300 hover:bg-border/60 dark:hover:bg-slate-700 cursor-pointer active:scale-95"
                       >
                         <Plus size={12} />
                       </button>
                       <button
                         type="button"
                         onClick={() => removeFromCart(item.menuItemId)}
-                        className="w-6 h-6 flex items-center justify-center text-danger hover:bg-red-50 dark:hover:bg-red-950/40 rounded ml-1 cursor-pointer"
+                        className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center text-danger hover:bg-red-50 dark:hover:bg-red-950/40 rounded ml-1 cursor-pointer"
                         title="Remove"
                       >
                         <Trash2 size={13} />
@@ -664,7 +733,7 @@ export default function TakeAwayPage() {
                     value={item.notes}
                     onChange={e => updateItemNotes(item.menuItemId, e.target.value)}
                     placeholder="Item note (e.g. crispy)"
-                    className="w-full text-[11px] px-2 py-1 bg-surface/50 dark:bg-slate-800/60 border border-border/80 dark:border-slate-700 rounded text-text dark:text-slate-100 placeholder:text-text-secondary/70 dark:placeholder:text-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-800"
+                    className="w-full text-base sm:text-[11px] px-2 py-1 min-h-[32px] sm:min-h-0 bg-surface/50 dark:bg-slate-800/60 border border-border/80 dark:border-slate-700 rounded text-text dark:text-slate-100 placeholder:text-text-secondary/70 dark:placeholder:text-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-800"
                   />
                 </div>
               ))}
@@ -739,7 +808,8 @@ export default function TakeAwayPage() {
             </div>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* History / Active Orders View */}
       {activeView === 'history' && (
@@ -757,7 +827,7 @@ export default function TakeAwayPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[600px]">
               <thead className="bg-surface dark:bg-slate-800 border-b border-border dark:border-slate-700">
                 <tr className="text-left text-text-secondary dark:text-slate-400 text-xs">
                   <th className="px-4 py-3 font-semibold">Order ID</th>

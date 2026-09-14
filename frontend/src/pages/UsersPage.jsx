@@ -354,7 +354,7 @@ export default function UsersPage() {
         {canCreate && (
           <button
             onClick={openAddModal}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light transition-colors shadow-xs cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light transition-colors shadow-xs cursor-pointer w-full sm:w-auto min-h-[42px]"
           >
             <Plus size={16} /> Add User
           </button>
@@ -363,7 +363,7 @@ export default function UsersPage() {
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[680px]">
             <thead className="bg-surface dark:bg-slate-800/80 border-b border-border dark:border-slate-700">
               <tr className="text-left text-text-secondary dark:text-slate-400 text-xs">
                 <th className="px-5 py-3.5 font-semibold">User</th>
@@ -533,7 +533,7 @@ export default function UsersPage() {
                       value={form.name}
                       onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                       placeholder="e.g. Rahul Sharma"
-                      className="w-full px-3 py-2 text-sm bg-surface dark:bg-slate-800 rounded-lg border border-border dark:border-slate-700 focus:outline-none focus:border-primary focus:bg-white dark:focus:bg-slate-800 text-text dark:text-slate-100 font-medium transition-colors"
+                      className="w-full px-3 py-2 text-base sm:text-sm min-h-[42px] bg-surface dark:bg-slate-800 rounded-lg border border-border dark:border-slate-700 focus:outline-none focus:border-primary focus:bg-white dark:focus:bg-slate-800 text-text dark:text-slate-100 font-medium transition-colors"
                     />
                   </div>
                 </div>
@@ -557,7 +557,7 @@ export default function UsersPage() {
                         }))
                       }
                       placeholder="e.g. rahul_s"
-                      className={`w-full px-3 py-2 text-sm rounded-lg border transition-colors ${
+                      className={`w-full px-3 py-2 text-base sm:text-sm min-h-[42px] rounded-lg border transition-colors ${
                         modal === 'new'
                           ? 'bg-surface dark:bg-slate-800 border-border dark:border-slate-700 text-text dark:text-slate-100 font-mono focus:outline-none focus:border-primary'
                           : 'bg-slate-100 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-text-secondary dark:text-slate-400 font-mono cursor-not-allowed opacity-90'
@@ -573,7 +573,7 @@ export default function UsersPage() {
                   <select
                     value={form.role}
                     onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm bg-surface dark:bg-slate-800 rounded-lg border border-border dark:border-slate-700 focus:outline-none focus:border-primary focus:bg-white dark:focus:bg-slate-800 text-text dark:text-slate-100 font-medium transition-colors cursor-pointer"
+                    className="w-full px-3 py-2 text-base sm:text-sm min-h-[42px] bg-surface dark:bg-slate-800 rounded-lg border border-border dark:border-slate-700 focus:outline-none focus:border-primary focus:bg-white dark:focus:bg-slate-800 text-text dark:text-slate-100 font-medium transition-colors cursor-pointer"
                   >
                     {Object.entries(ROLE_NAMES).map(([key, name]) => (
                       <option key={key} value={key}>
@@ -601,15 +601,15 @@ export default function UsersPage() {
                       value={form.password}
                       onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                       placeholder={modal === 'new' ? 'Enter initial password' : 'Enter new password'}
-                      className="w-full pl-3 pr-10 py-2 text-sm bg-surface dark:bg-slate-800 rounded-lg border border-border dark:border-slate-700 focus:outline-none focus:border-primary focus:bg-white dark:focus:bg-slate-800 text-text dark:text-slate-100 transition-colors"
+                      className="w-full pl-3 pr-10 py-2 text-base sm:text-sm min-h-[42px] bg-surface dark:bg-slate-800 rounded-lg border border-border dark:border-slate-700 focus:outline-none focus:border-primary focus:bg-white dark:focus:bg-slate-800 text-text dark:text-slate-100 transition-colors"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200 transition-colors cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200 transition-colors cursor-pointer p-1"
                       title={showPassword ? 'Hide password' : 'Show password'}
                     >
-                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
@@ -631,38 +631,38 @@ export default function UsersPage() {
                 </div>
 
                 {form.role !== 'SUPER_ADMIN' && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="relative min-w-[200px]">
-                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary dark:text-slate-400" />
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <div className="relative w-full sm:w-auto flex-1 sm:flex-initial sm:min-w-[200px]">
+                      <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary dark:text-slate-400" />
                       <input
                         type="text"
                         placeholder="Search permissions..."
                         value={permSearch}
                         onChange={(e) => setPermSearch(e.target.value)}
-                        className="w-full pl-7 pr-7 py-1 text-xs bg-surface dark:bg-slate-800 rounded-lg border border-border dark:border-slate-700 focus:outline-none focus:border-primary text-text dark:text-slate-100"
+                        className="w-full pl-8 pr-8 py-1.5 text-base sm:text-xs min-h-[38px] sm:min-h-[32px] bg-surface dark:bg-slate-800 rounded-lg border border-border dark:border-slate-700 focus:outline-none focus:border-primary text-text dark:text-slate-100"
                       />
                       {permSearch && (
                         <button
                           onClick={() => setPermSearch('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200 p-1"
                         >
-                          <X size={12} />
+                          <X size={13} />
                         </button>
                       )}
                     </div>
                     <button
                       type="button"
                       onClick={handleSelectAll}
-                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors"
+                      className="inline-flex items-center justify-center gap-1 text-xs px-3 py-1.5 min-h-[36px] bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors"
                     >
-                      <CheckCheck size={12} /> Select All
+                      <CheckCheck size={13} /> Select All
                     </button>
                     <button
                       type="button"
                       onClick={handleDeselectAll}
-                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text-secondary dark:text-slate-400 hover:text-danger hover:bg-red-50 dark:hover:bg-red-950/30 font-medium transition-colors"
+                      className="inline-flex items-center justify-center gap-1 text-xs px-3 py-1.5 min-h-[36px] bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text-secondary dark:text-slate-400 hover:text-danger hover:bg-red-50 dark:hover:bg-red-950/30 font-medium transition-colors"
                     >
-                      <RotateCcw size={12} /> Clear
+                      <RotateCcw size={13} /> Clear
                     </button>
                   </div>
                 )}
@@ -759,11 +759,11 @@ export default function UsersPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border dark:border-slate-800">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-border dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setModal(null)}
-                className="px-4 py-2 rounded-lg border border-border dark:border-slate-700 text-text dark:text-slate-300 hover:bg-surface dark:hover:bg-slate-800 text-sm font-medium transition-colors"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-lg border border-border dark:border-slate-700 text-text dark:text-slate-300 hover:bg-surface dark:hover:bg-slate-800 text-sm font-medium transition-colors min-h-[42px] flex items-center justify-center cursor-pointer"
               >
                 Cancel
               </button>
@@ -771,7 +771,7 @@ export default function UsersPage() {
                 type="button"
                 onClick={save}
                 disabled={saving}
-                className="flex items-center gap-1.5 px-5 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light disabled:opacity-50 shadow-xs transition-colors"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light disabled:opacity-50 shadow-xs transition-colors min-h-[42px] cursor-pointer"
               >
                 {saving ? (
                   <>

@@ -736,20 +736,20 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       {/* Header & Date Controls */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-xl font-bold text-text dark:text-white flex items-center gap-2.5">
-            <img src={reportsBlue} alt="Reports" className="w-6 h-6 object-contain dark:brightness-0 dark:invert" />
+          <h1 className="text-lg sm:text-xl font-bold text-text dark:text-white flex items-center gap-2.5">
+            <img src={reportsBlue} alt="Reports" className="w-5 sm:w-6 h-5 sm:h-6 object-contain dark:brightness-0 dark:invert" />
             Reports & Analytics
           </h1>
-          <p className="text-sm text-text-secondary dark:text-slate-400 mt-0.5">
+          <p className="text-xs sm:text-sm text-text-secondary dark:text-slate-400 mt-0.5">
             Interactive sales performance, visual trends, and multi-channel metrics
           </p>
         </div>
 
         {/* Date Filter Presets & Date Picker */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex flex-wrap gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full lg:w-auto">
+          <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 shadow-xs overflow-x-auto no-scrollbar w-full sm:w-auto">
             {[
               { label: 'Today', key: 'today' },
               { label: 'Yesterday', key: 'yesterday' },
@@ -761,7 +761,7 @@ export default function ReportsPage() {
                 key={p.key}
                 type="button"
                 onClick={() => setPreset(p.key)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                   activePreset === p.key
                     ? 'bg-primary text-white shadow-xs'
                     : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
@@ -772,8 +772,8 @@ export default function ReportsPage() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-border dark:border-slate-800 rounded-lg px-3 py-1.5 shadow-xs">
-            <Calendar size={16} className="text-text-secondary dark:text-slate-400" />
+          <div className="flex items-center justify-between sm:justify-start gap-2 bg-white dark:bg-slate-900 border border-border dark:border-slate-800 rounded-lg px-3 py-1.5 shadow-xs w-full sm:w-auto">
+            <Calendar size={14} className="text-text-secondary dark:text-slate-400 shrink-0" />
             <input
               type="date"
               value={startDate}

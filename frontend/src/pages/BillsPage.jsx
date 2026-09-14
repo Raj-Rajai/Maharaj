@@ -913,11 +913,11 @@ export default function BillsPage() {
   return (
     <div className="space-y-6">
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold text-text dark:text-white flex items-center gap-2.5">
-              <img src={billBlue} alt="Bills" className="w-6 h-6 object-contain dark:brightness-0 dark:invert" />
+            <h1 className="text-lg sm:text-xl font-bold text-text dark:text-white flex items-center gap-2.5">
+              <img src={billBlue} alt="Bills" className="w-5 sm:w-6 h-5 sm:h-6 object-contain dark:brightness-0 dark:invert" />
               Bills
             </h1>
             <span
@@ -938,11 +938,11 @@ export default function BillsPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 text-xs">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 text-xs overflow-x-auto no-scrollbar w-full sm:w-auto">
             <button
               onClick={() => setDatePreset('today')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                 isPresetActive('today') ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
               }`}
             >
@@ -950,7 +950,7 @@ export default function BillsPage() {
             </button>
             <button
               onClick={() => setDatePreset('yesterday')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                 isPresetActive('yesterday') ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
               }`}
             >
@@ -958,7 +958,7 @@ export default function BillsPage() {
             </button>
             <button
               onClick={() => setDatePreset('7days')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                 isPresetActive('7days') ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
               }`}
             >
@@ -966,7 +966,7 @@ export default function BillsPage() {
             </button>
             <button
               onClick={() => setDatePreset('month')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                 isPresetActive('month') ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
               }`}
             >
@@ -974,7 +974,7 @@ export default function BillsPage() {
             </button>
             <button
               onClick={() => setDatePreset('all')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                 isPresetActive('all') ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
               }`}
             >
@@ -982,40 +982,44 @@ export default function BillsPage() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 px-3 py-1.5 text-xs text-text dark:text-slate-100">
-            <Calendar size={14} className="text-text-secondary dark:text-slate-400" />
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="bg-transparent focus:outline-none text-xs text-text dark:text-slate-100"
-              title="Start Date"
-            />
+          <div className="flex items-center justify-between sm:justify-start gap-2 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 px-3 py-1.5 text-xs text-text dark:text-slate-100 w-full sm:w-auto">
+            <div className="flex items-center gap-1.5">
+              <Calendar size={14} className="text-text-secondary dark:text-slate-400 shrink-0" />
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent focus:outline-none text-xs text-text dark:text-slate-100"
+                title="Start Date"
+              />
+            </div>
             <span className="text-text-secondary dark:text-slate-400">to</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="bg-transparent focus:outline-none text-xs text-text dark:text-slate-100"
-              title="End Date"
-            />
-            {(startDate || endDate) && (
-              <button
-                onClick={clearDates}
-                className="text-text-secondary dark:text-slate-400 hover:text-danger ml-1 p-0.5 cursor-pointer"
-                title="Clear date filter"
-              >
-                <X size={14} />
-              </button>
-            )}
+            <div className="flex items-center gap-1">
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent focus:outline-none text-xs text-text dark:text-slate-100"
+                title="End Date"
+              />
+              {(startDate || endDate) && (
+                <button
+                  onClick={clearDates}
+                  className="text-text-secondary dark:text-slate-400 hover:text-danger ml-1 p-0.5 cursor-pointer"
+                  title="Clear date filter"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1">
+          <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 overflow-x-auto no-scrollbar w-full sm:w-auto">
             {['ALL', hasPermission('BILL_VIEW_DRAFT') ? 'DRAFT' : null, 'FINALIZED', 'CANCELLED'].filter(Boolean).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                className={`flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                   filter === f ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
                 }`}
               >
@@ -1024,24 +1028,26 @@ export default function BillsPage() {
             ))}
           </div>
 
-          <button
-            onClick={() => fetchBills({ background: true })}
-            disabled={isSyncing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-surface dark:hover:bg-slate-800 text-text dark:text-slate-100 text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-60"
-            title="Refresh bills now"
-          >
-            <RefreshCw size={13} className={`text-text-secondary dark:text-slate-400 ${isSyncing ? 'animate-spin text-primary' : ''}`} />
-            <span>{isSyncing ? 'Syncing...' : 'Refresh'}</span>
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => fetchBills({ background: true })}
+              disabled={isSyncing}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-surface dark:hover:bg-slate-800 text-text dark:text-slate-100 text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-60"
+              title="Refresh bills now"
+            >
+              <RefreshCw size={13} className={`text-text-secondary dark:text-slate-400 ${isSyncing ? 'animate-spin text-primary' : ''}`} />
+              <span>{isSyncing ? 'Syncing...' : 'Refresh'}</span>
+            </button>
 
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-surface dark:hover:bg-slate-800 text-text dark:text-slate-100 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-            title="Export bills to CSV"
-          >
-            <Download size={14} className="text-primary dark:text-blue-400" />
-            <span>Export CSV</span>
-          </button>
+            <button
+              onClick={handleExportCSV}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-surface dark:hover:bg-slate-800 text-text dark:text-slate-100 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+              title="Export bills to CSV"
+            >
+              <Download size={14} className="text-primary dark:text-blue-400" />
+              <span>Export CSV</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1110,7 +1116,7 @@ export default function BillsPage() {
       ) : (
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[720px]">
               <thead className="bg-surface dark:bg-slate-800 border-b border-border dark:border-slate-700">
                 <tr className="text-left text-text-secondary dark:text-slate-400 text-xs">
                   {TABLE_COLUMNS.map((col) => {
@@ -1128,7 +1134,7 @@ export default function BillsPage() {
                             className={`p-1 rounded transition-all duration-150 cursor-pointer ${
                               isFiltered || isSorted
                                 ? 'opacity-100 text-primary dark:text-blue-400 bg-primary/15 dark:bg-primary/25 border border-primary/30 dark:border-blue-500/40 shadow-xs'
-                                : 'opacity-0 group-hover/th:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100'
+                                : 'opacity-60 sm:opacity-0 sm:group-hover/th:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100'
                             }`}
                             title={`Filter or Sort by ${col.label}`}
                           >

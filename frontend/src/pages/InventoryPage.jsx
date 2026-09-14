@@ -306,8 +306,8 @@ export default function InventoryPage() {
   return (
     <div className="space-y-6">
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-white flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-text dark:text-white flex items-center gap-2">
           <img src={inventoryBlue} alt="Inventory" className="w-6 h-6 object-contain dark:brightness-0 dark:invert" />
           Inventory Management
         </h1>
@@ -317,7 +317,7 @@ export default function InventoryPage() {
               setAddForm({ name: '', currentStock: '', unit: 'kg', lowStockThreshold: '0' });
               setAddModalOpen(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light transition-colors w-full sm:w-auto min-h-[42px] cursor-pointer shadow-xs"
           >
             <Plus size={18} /> Add Item
           </button>
@@ -384,7 +384,7 @@ export default function InventoryPage() {
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[650px]">
             <thead className="bg-surface dark:bg-slate-800/80 border-b border-border dark:border-slate-700">
               <tr className="text-left text-text-secondary dark:text-slate-400">
                 {INVENTORY_COLUMNS.map((col) => {
@@ -399,10 +399,10 @@ export default function InventoryPage() {
                             e.stopPropagation();
                             openFilterForHeader(col.key, col.label, e.currentTarget, col.sortType);
                           }}
-                          className={`p-1 rounded transition-all duration-150 ${
+                          className={`p-1 rounded transition-all duration-150 cursor-pointer ${
                             isFiltered || isSorted
                               ? 'opacity-100 text-primary bg-primary/15 border border-primary/30 shadow-xs'
-                              : 'opacity-0 group-hover/th:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200'
+                              : 'opacity-60 sm:opacity-0 sm:group-hover/th:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200'
                           }`}
                           title={`Master Filter: ${col.label}`}
                         >
@@ -434,7 +434,7 @@ export default function InventoryPage() {
                               e.stopPropagation();
                               openFilterForCell('name', 'Item Name', e.currentTarget, row.name, 'text');
                             }}
-                            className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-indigo-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs"
+                            className="opacity-40 sm:opacity-0 sm:group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-indigo-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
                             title={`Master filter: ${row.name}`}
                           >
                             <Filter size={11} />
@@ -450,7 +450,7 @@ export default function InventoryPage() {
                               e.stopPropagation();
                               openFilterForCell('currentStock', 'Current Stock', e.currentTarget, row.currentStock, 'number');
                             }}
-                            className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-indigo-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs"
+                            className="opacity-40 sm:opacity-0 sm:group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-indigo-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
                             title={`Master filter: ${row.currentStock}`}
                           >
                             <Filter size={11} />
@@ -466,7 +466,7 @@ export default function InventoryPage() {
                               e.stopPropagation();
                               openFilterForCell('unit', 'Unit', e.currentTarget, row.unit, 'text');
                             }}
-                            className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-indigo-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs"
+                            className="opacity-40 sm:opacity-0 sm:group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-indigo-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
                             title={`Master filter: ${row.unit}`}
                           >
                             <Filter size={11} />
@@ -482,7 +482,7 @@ export default function InventoryPage() {
                               e.stopPropagation();
                               openFilterForCell('lowStockThreshold', 'Threshold', e.currentTarget, row.lowStockThreshold, 'number');
                             }}
-                            className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-indigo-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs"
+                            className="opacity-40 sm:opacity-0 sm:group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-indigo-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
                             title={`Master filter: ${row.lowStockThreshold}`}
                           >
                             <Filter size={11} />
@@ -504,7 +504,7 @@ export default function InventoryPage() {
                               e.stopPropagation();
                               openFilterForCell('status', 'Status', e.currentTarget, row.status, 'text');
                             }}
-                            className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-indigo-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs"
+                            className="opacity-40 sm:opacity-0 sm:group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-indigo-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
                             title={`Master filter: ${row.status}`}
                           >
                             <Filter size={11} />
@@ -512,45 +512,47 @@ export default function InventoryPage() {
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 text-right space-x-2">
-                        <button
-                          onClick={() => openHistory(item)}
-                          className="inline-flex items-center justify-center p-1.5 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                          title="View History"
-                        >
-                          <History size={16} />
-                        </button>
-                        {hasPermission('INVENTORY_ADJUST') && (
+                      <td className="px-5 py-4 text-right">
+                        <div className="inline-flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => {
-                              setAdjustItem(item);
-                              setAdjustDirection('reduce');
-                              setAdjustForm({ quantity: '', reason: 'Used', notes: '' });
-                            }}
-                            className="inline-flex items-center justify-center p-1.5 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 rounded-md hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
-                            title="Adjust Stock"
+                            onClick={() => openHistory(item)}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors cursor-pointer"
+                            title="View History"
                           >
-                            <BarChart3 size={16} />
+                            <History size={16} />
                           </button>
-                        )}
-                        {hasPermission('INVENTORY_EDIT') && (
-                          <>
+                          {hasPermission('INVENTORY_ADJUST') && (
                             <button
-                              onClick={() => openEdit(item)}
-                              className="inline-flex items-center justify-center p-1.5 text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 rounded-md hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors"
-                              title="Edit Item"
+                              onClick={() => {
+                                setAdjustItem(item);
+                                setAdjustDirection('reduce');
+                                setAdjustForm({ quantity: '', reason: 'Used', notes: '' });
+                              }}
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors cursor-pointer"
+                              title="Adjust Stock"
                             >
-                              <Edit size={16} />
+                              <BarChart3 size={16} />
                             </button>
-                            <button
-                              onClick={() => setDeleteItem(item)}
-                              className="inline-flex items-center justify-center p-1.5 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
-                              title="Delete Item"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </>
-                        )}
+                          )}
+                          {hasPermission('INVENTORY_EDIT') && (
+                            <>
+                              <button
+                                onClick={() => openEdit(item)}
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors cursor-pointer"
+                                title="Edit Item"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button
+                                onClick={() => setDeleteItem(item)}
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
+                                title="Delete Item"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -612,25 +614,25 @@ export default function InventoryPage() {
         <form onSubmit={handleAdd} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-text dark:text-slate-200 mb-1.5">Item Name</label>
-            <input required value={addForm.name} onChange={e => setAddForm({ ...addForm, name: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="e.g. Potatoes" />
+            <input required value={addForm.name} onChange={e => setAddForm({ ...addForm, name: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="e.g. Potatoes" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-text dark:text-slate-200 mb-1.5">Initial Stock</label>
-              <input required type="number" step="0.01" value={addForm.currentStock} onChange={e => setAddForm({ ...addForm, currentStock: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-sm font-mono bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="0.00" />
+              <input required type="number" step="0.01" value={addForm.currentStock} onChange={e => setAddForm({ ...addForm, currentStock: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] font-mono bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="0.00" />
             </div>
             <div>
               <label className="block text-sm font-medium text-text dark:text-slate-200 mb-1.5">Unit</label>
-              <input required value={addForm.unit} onChange={e => setAddForm({ ...addForm, unit: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="kg, liters, pcs" />
+              <input required value={addForm.unit} onChange={e => setAddForm({ ...addForm, unit: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="kg, liters, pcs" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-text dark:text-slate-200 mb-1.5">Low Stock Threshold</label>
-            <input required type="number" step="0.01" value={addForm.lowStockThreshold} onChange={e => setAddForm({ ...addForm, lowStockThreshold: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-sm font-mono bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="0.00" />
+            <input required type="number" step="0.01" value={addForm.lowStockThreshold} onChange={e => setAddForm({ ...addForm, lowStockThreshold: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] font-mono bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="0.00" />
           </div>
-          <div className="pt-2 flex justify-end gap-3 border-t border-border dark:border-slate-800">
-            <button type="button" onClick={() => setAddModalOpen(false)} className="px-4 py-2 text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light transition-colors">Add Item</button>
+          <div className="pt-2 flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 border-t border-border dark:border-slate-800">
+            <button type="button" onClick={() => setAddModalOpen(false)} className="w-full sm:w-auto px-4 py-2.5 text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors min-h-[42px] flex items-center justify-center cursor-pointer">Cancel</button>
+            <button type="submit" className="w-full sm:w-auto px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light transition-colors min-h-[42px] flex items-center justify-center cursor-pointer shadow-xs">Add Item</button>
           </div>
         </form>
       </Modal>
@@ -640,22 +642,22 @@ export default function InventoryPage() {
           <form onSubmit={handleEdit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-text dark:text-slate-200 mb-1.5">Item Name</label>
-              <input required value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" />
+              <input required value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-text dark:text-slate-200 mb-1.5">Unit</label>
-                <input required value={editForm.unit} onChange={e => setEditForm({ ...editForm, unit: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                <input required value={editForm.unit} onChange={e => setEditForm({ ...editForm, unit: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-text dark:text-slate-200 mb-1.5">Low Stock Threshold</label>
-                <input required type="number" step="0.01" value={editForm.lowStockThreshold} onChange={e => setEditForm({ ...editForm, lowStockThreshold: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-sm font-mono bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                <input required type="number" step="0.01" value={editForm.lowStockThreshold} onChange={e => setEditForm({ ...editForm, lowStockThreshold: e.target.value })} className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] font-mono bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
             </div>
             <p className="text-xs text-text-secondary dark:text-slate-400 mt-1 italic">Note: Stock levels must be modified using the "Adjust Stock" feature.</p>
-            <div className="pt-2 flex justify-end gap-3 border-t border-border dark:border-slate-800">
-              <button type="button" onClick={() => setEditItem(null)} className="px-4 py-2 text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors">Cancel</button>
-              <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light transition-colors">Save Changes</button>
+            <div className="pt-2 flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 border-t border-border dark:border-slate-800">
+              <button type="button" onClick={() => setEditItem(null)} className="w-full sm:w-auto px-4 py-2.5 text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors min-h-[42px] flex items-center justify-center cursor-pointer">Cancel</button>
+              <button type="submit" className="w-full sm:w-auto px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light transition-colors min-h-[42px] flex items-center justify-center cursor-pointer shadow-xs">Save Changes</button>
             </div>
           </form>
         )}
@@ -666,9 +668,9 @@ export default function InventoryPage() {
           <div className="space-y-4">
             <p className="text-text dark:text-slate-100">Are you sure you want to delete <span className="font-semibold">{deleteItem.name}</span>?</p>
             <p className="text-sm text-text-secondary dark:text-slate-400">This will permanently remove the item and its history. This action cannot be undone.</p>
-            <div className="pt-2 flex justify-end gap-3 border-t border-border dark:border-slate-800">
-              <button onClick={() => setDeleteItem(null)} className="px-4 py-2 text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors">Cancel</button>
-              <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
+            <div className="pt-2 flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 border-t border-border dark:border-slate-800">
+              <button onClick={() => setDeleteItem(null)} className="w-full sm:w-auto px-4 py-2.5 text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors min-h-[42px] flex items-center justify-center cursor-pointer">Cancel</button>
+              <button onClick={handleDelete} className="w-full sm:w-auto px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors min-h-[42px] flex items-center justify-center cursor-pointer shadow-xs">Delete</button>
             </div>
           </div>
         )}
@@ -702,7 +704,7 @@ export default function InventoryPage() {
                   <button
                     type="button"
                     onClick={() => setAdjustDirection('reduce')}
-                    className={`py-2 px-3 rounded-lg text-sm font-semibold border flex items-center justify-center gap-2 transition-all ${
+                    className={`py-2.5 px-3 rounded-lg text-sm font-semibold border flex items-center justify-center gap-2 transition-all min-h-[44px] cursor-pointer ${
                       adjustDirection === 'reduce'
                         ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
                         : 'bg-white dark:bg-slate-800 text-text-secondary dark:text-slate-300 border-border dark:border-slate-700 hover:bg-surface dark:hover:bg-slate-700'
@@ -713,7 +715,7 @@ export default function InventoryPage() {
                   <button
                     type="button"
                     onClick={() => setAdjustDirection('add')}
-                    className={`py-2 px-3 rounded-lg text-sm font-semibold border flex items-center justify-center gap-2 transition-all ${
+                    className={`py-2.5 px-3 rounded-lg text-sm font-semibold border flex items-center justify-center gap-2 transition-all min-h-[44px] cursor-pointer ${
                       adjustDirection === 'add'
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                         : 'bg-white dark:bg-slate-800 text-text-secondary dark:text-slate-300 border-border dark:border-slate-700 hover:bg-surface dark:hover:bg-slate-700'
@@ -737,7 +739,7 @@ export default function InventoryPage() {
                       setAdjustDirection('add');
                     }
                   }}
-                  className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                 >
                   {ADJUSTMENT_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
@@ -748,7 +750,7 @@ export default function InventoryPage() {
                   Quantity ({adjustItem.unit}) *
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2 text-base font-bold text-text-secondary dark:text-slate-400">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base font-bold text-text-secondary dark:text-slate-400">
                     {adjustDirection === 'reduce' ? '−' : '+'}
                   </span>
                   <input
@@ -758,7 +760,7 @@ export default function InventoryPage() {
                     min="0.01"
                     value={adjustForm.quantity}
                     onChange={e => setAdjustForm({ ...adjustForm, quantity: e.target.value })}
-                    className="w-full pl-8 pr-3 py-2 border border-border dark:border-slate-700 rounded-lg text-sm font-mono font-semibold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="w-full pl-8 pr-3 py-2 border border-border dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] font-mono font-semibold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20"
                     placeholder="e.g. 5 or 2.5"
                   />
                 </div>
@@ -769,7 +771,7 @@ export default function InventoryPage() {
                 <input
                   value={adjustForm.notes}
                   onChange={e => setAdjustForm({ ...adjustForm, notes: e.target.value })}
-                  className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded-lg text-base sm:text-sm min-h-[42px] bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="Additional details (e.g. used for party, bought from local market)..."
                 />
               </div>
@@ -780,12 +782,12 @@ export default function InventoryPage() {
                 </div>
               )}
 
-              <div className="pt-2 flex justify-end gap-3 border-t border-border dark:border-slate-800">
-                <button type="button" onClick={() => setAdjustItem(null)} className="px-4 py-2 text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors">Cancel</button>
+              <div className="pt-2 flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 border-t border-border dark:border-slate-800">
+                <button type="button" onClick={() => setAdjustItem(null)} className="w-full sm:w-auto px-4 py-2.5 text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors min-h-[42px] flex items-center justify-center cursor-pointer">Cancel</button>
                 <button
                   type="submit"
                   disabled={newStock < 0 || !adjustForm.quantity || parseFloat(adjustForm.quantity) <= 0}
-                  className="px-5 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm min-h-[42px] flex items-center justify-center cursor-pointer"
                 >
                   Confirm Adjustment ({adjustDirection === 'reduce' ? '-' : '+'}{rawAdj || 0} {adjustItem.unit})
                 </button>

@@ -114,15 +114,15 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <form onSubmit={save} className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-6 shadow-sm space-y-6">
+      <form onSubmit={save} className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-4 sm:p-6 shadow-sm space-y-5 sm:space-y-6">
 
         <div>
-          <h2 className="text-sm font-semibold text-text dark:text-slate-100 mb-4 pb-2 border-b border-border dark:border-slate-800 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-text dark:text-slate-100 mb-3 sm:mb-4 pb-2 border-b border-border dark:border-slate-800 flex items-center gap-2">
             <Store size={16} className="text-primary" />
             Restaurant Information
           </h2>
 
-          <div className="space-y-4">
+          <div className="space-y-3.5 sm:space-y-4">
 
             <div>
               <label className="block text-xs font-semibold text-text dark:text-slate-300 uppercase mb-1">
@@ -135,7 +135,7 @@ export default function SettingsPage() {
                 value={settings.restaurantName}
                 onChange={(e) => setSettings((s) => ({ ...s, restaurantName: e.target.value }))}
                 placeholder="e.g. Maharaj Veg Villa"
-                className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
+                className="w-full px-3.5 py-2.5 min-h-[42px] bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
               />
             </div>
 
@@ -150,13 +150,13 @@ export default function SettingsPage() {
                   value={settings.address}
                   onChange={(e) => setSettings((s) => ({ ...s, address: e.target.value }))}
                   placeholder="e.g. 123 Main Street, Pune, Maharashtra"
-                  className="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
+                  className="w-full pl-9 pr-3.5 py-2.5 min-h-[42px] bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
                 />
                 <MapPin size={16} className="absolute left-3 top-3 text-text-secondary dark:text-slate-400" />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
               <div>
                 <label className="block text-xs font-semibold text-text dark:text-slate-300 uppercase mb-1">
                   Contact Phone
@@ -168,7 +168,7 @@ export default function SettingsPage() {
                     value={settings.phone}
                     onChange={(e) => setSettings((s) => ({ ...s, phone: e.target.value }))}
                     placeholder="e.g. +91 9876543210"
-                    className="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
+                    className="w-full pl-9 pr-3.5 py-2.5 min-h-[42px] bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
                   />
                   <Phone size={16} className="absolute left-3 top-3 text-text-secondary dark:text-slate-400" />
                 </div>
@@ -185,7 +185,7 @@ export default function SettingsPage() {
                     value={settings.gstin}
                     onChange={(e) => setSettings((s) => ({ ...s, gstin: e.target.value }))}
                     placeholder="e.g. 27AAAAA0000A1Z5"
-                    className="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-sm uppercase font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
+                    className="w-full pl-9 pr-3.5 py-2.5 min-h-[42px] bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-base sm:text-sm uppercase font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
                   />
                   <FileText size={16} className="absolute left-3 top-3 text-text-secondary dark:text-slate-400" />
                 </div>
@@ -195,13 +195,13 @@ export default function SettingsPage() {
         </div>
 
         <div>
-          <h2 className="text-sm font-semibold text-text dark:text-slate-100 mb-4 pb-2 border-b border-border dark:border-slate-800 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-text dark:text-slate-100 mb-3 sm:mb-4 pb-2 border-b border-border dark:border-slate-800 flex items-center gap-2">
             <Percent size={16} className="text-primary" />
             Tax Configuration (GST)
           </h2>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-3.5 sm:space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
               <div>
                 <label className="block text-xs font-semibold text-text dark:text-slate-300 uppercase mb-1">
                   SGST Rate (%) <span className="text-danger">*</span>
@@ -215,7 +215,7 @@ export default function SettingsPage() {
                   disabled={!canEdit}
                   value={settings.sgstPercent}
                   onChange={(e) => setSettings((s) => ({ ...s, sgstPercent: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
+                  className="w-full px-3.5 py-2.5 min-h-[42px] bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-base sm:text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
                 />
               </div>
 
@@ -232,12 +232,12 @@ export default function SettingsPage() {
                   disabled={!canEdit}
                   value={settings.cgstPercent}
                   onChange={(e) => setSettings((s) => ({ ...s, cgstPercent: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
+                  className="w-full px-3.5 py-2.5 min-h-[42px] bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-base sm:text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 disabled:bg-surface dark:disabled:bg-slate-800/50"
                 />
               </div>
             </div>
 
-            <div className="p-3.5 bg-surface dark:bg-slate-800/60 rounded-lg border border-border dark:border-slate-700 flex items-center justify-between text-xs">
+            <div className="p-3.5 bg-surface dark:bg-slate-800/60 rounded-lg border border-border dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
               <span className="text-text-secondary dark:text-slate-400 font-medium">
                 Calculated Total GST on Bills:
               </span>
@@ -249,22 +249,22 @@ export default function SettingsPage() {
         </div>
 
         <div>
-          <h2 className="text-sm font-semibold text-text dark:text-slate-100 mb-4 pb-2 border-b border-border dark:border-slate-800 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-text dark:text-slate-100 mb-3 sm:mb-4 pb-2 border-b border-border dark:border-slate-800 flex items-center gap-2">
             <Percent size={16} className="text-primary" />
             Report Configuration
           </h2>
-          <div className="p-4 bg-surface dark:bg-slate-800/60 rounded-lg border border-border dark:border-slate-700">
-            <label className="flex items-center gap-3 cursor-pointer">
+          <div className="p-3.5 sm:p-4 bg-surface dark:bg-slate-800/60 rounded-lg border border-border dark:border-slate-700">
+            <label className="flex items-start sm:items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 disabled={!canEdit}
                 checked={settings.includePurchasesInReports}
                 onChange={(e) => setSettings(s => ({ ...s, includePurchasesInReports: e.target.checked }))}
-                className="w-4 h-4 rounded border-border dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary disabled:opacity-60"
+                className="w-4 h-4 rounded border-border dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary disabled:opacity-60 mt-0.5 sm:mt-0 shrink-0"
               />
               <div>
-                <span className="text-sm font-medium text-text dark:text-slate-200">Include Purchases in Reports</span>
-                <p className="text-xs text-text-secondary dark:text-slate-400 mt-0.5">
+                <span className="text-xs sm:text-sm font-medium text-text dark:text-slate-200">Include Purchases in Reports</span>
+                <p className="text-[11px] sm:text-xs text-text-secondary dark:text-slate-400 mt-0.5">
                   When enabled, daily/monthly reports will show &quot;Net Sales After Purchases&quot; as a derived metric. This is NOT true profit — purchased stock may remain unused in inventory.
                 </p>
               </div>
@@ -277,7 +277,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg font-semibold text-sm hover:bg-primary-light transition-colors disabled:opacity-50 shadow-sm"
+              className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg font-semibold text-sm hover:bg-primary-light active:scale-[0.99] transition-all disabled:opacity-50 shadow-sm cursor-pointer"
             >
               {saving ? (
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

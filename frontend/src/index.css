@@ -161,10 +161,36 @@ body {
   transition: filter 0.2s ease, opacity 0.2s ease;
 }
 
-:where(.dark, .dark *) aside nav a:not(.active) img {
+:where(.dark, .dark *) aside nav a:not(.active) img,
+:where(.dark, .dark *) .mobile-nav a:not(.active) img {
   opacity: 0.75;
 }
 :where(.dark, .dark *) aside nav a:hover img,
-:where(.dark, .dark *) aside nav a.active img {
+:where(.dark, .dark *) aside nav a.active img,
+:where(.dark, .dark *) .mobile-nav a:hover img,
+:where(.dark, .dark *) .mobile-nav a.active img {
   opacity: 1;
 }
+
+/* Mobile responsive utilities */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.75rem);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+

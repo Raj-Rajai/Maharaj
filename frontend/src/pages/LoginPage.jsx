@@ -68,9 +68,9 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-text dark:text-white">Maharaj Veg Villa</h1>
           <p className="text-text-secondary dark:text-slate-400 mt-1">Hotel Operations Management</p>
         </div>
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-border dark:border-slate-800 p-8 space-y-5 transition-colors">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-border dark:border-slate-800 p-5 sm:p-8 space-y-4 sm:space-y-5 transition-colors">
           <div>
-            <label className="block text-sm font-medium text-text dark:text-slate-200 mb-1.5">Username</label>
+            <label className="block text-xs sm:text-sm font-medium text-text dark:text-slate-200 mb-1.5">Username</label>
             <div className="relative">
               <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary dark:text-slate-400" />
               <input
@@ -78,13 +78,13 @@ export default function LoginPage() {
                 autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-border dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                className="w-full pl-10 pr-4 py-2.5 min-h-[44px] border border-border dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-base sm:text-sm text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                 placeholder="Enter username"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-text dark:text-slate-200 mb-1.5">Password</label>
+            <label className="block text-xs sm:text-sm font-medium text-text dark:text-slate-200 mb-1.5">Password</label>
             <div className="relative">
               <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary dark:text-slate-400" />
               <input
@@ -92,14 +92,14 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-border dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                className="w-full pl-10 pr-4 py-2.5 min-h-[44px] border border-border dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-base sm:text-sm text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                 placeholder="Enter password"
               />
             </div>
           </div>
           <button
             type="submit" disabled={loading}
-            className="w-full py-2.5 bg-primary hover:bg-primary-light dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+            className="w-full min-h-[46px] py-2.5 bg-primary hover:bg-primary-light dark:bg-blue-600 dark:hover:bg-blue-500 active:scale-[0.99] text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-sm mt-2"
           >
             {loading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
             {loading ? 'Signing in...' : 'Sign In'}

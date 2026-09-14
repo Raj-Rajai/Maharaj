@@ -32,6 +32,7 @@ export default function OrderPage() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [payMethod, setPayMethod] = useState('CASH');
   const [finalizing, setFinalizing] = useState(false);
+  const [mobileTab, setMobileTab] = useState('menu'); // 'menu' | 'cart'
 
   const loadData = useCallback(async () => {
     try {
@@ -187,28 +188,71 @@ export default function OrderPage() {
   return (
     <div className="h-full flex flex-col">
 
-      <div className="flex items-center gap-4 mb-4">
-        <button onClick={() => navigate('/tables')} className="p-2 hover:bg-white rounded-lg text-text-secondary"><ArrowLeft size={20} /></button>
-        <h1 className="text-xl font-bold text-text dark:text-white flex items-center gap-2">
-          <img src={tableBlue} alt="Table" className="w-5 h-5 object-contain dark:brightness-0 dark:invert" />
-          Table {table?.number}
-        </h1>
-        <div className="flex items-center gap-1.5">
-          <img
-            src={table?.type === 'AC' ? acBlue : nonAcBlue}
-            alt={table?.type}
-            className="w-4 h-4 object-contain opacity-75 dark:brightness-0 dark:invert"
-          />
-          <Badge variant={table?.type === 'AC' ? 'info' : 'neutral'}>{table?.type?.replace('_', '-')}</Badge>
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <button onClick={() => navigate('/tables')} className="p-2 hover:bg-surface dark:hover:bg-slate-800 rounded-lg text-text-secondary cursor-pointer" title="Back to tables">
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-lg sm:text-xl font-bold text-text dark:text-white flex items-center gap-2">
+            <img src={tableBlue} alt="Table" className="w-5 h-5 object-contain dark:brightness-0 dark:invert" />
+            Table {table?.number}
+          </h1>
+          <div className="flex items-center gap-1.5">
+            <img
+              src={table?.type === 'AC' ? acBlue : nonAcBlue}
+              alt={table?.type}
+              className="w-4 h-4 object-contain opacity-75 dark:brightness-0 dark:invert"
+            />
+            <Badge variant={table?.type === 'AC' ? 'info' : 'neutral'}>{table?.type?.replace('_', '-')}</Badge>
+          </div>
+          <span className="text-xs text-text-secondary dark:text-slate-300 bg-surface dark:bg-slate-800 px-2 py-0.5 sm:py-1 rounded hidden sm:inline">
+            {table?.type === 'AC' ? 'AC' : 'Non-AC'} Menu
+          </span>
+          {table?.status && <Badge variant={table.status === 'OCCUPIED' ? 'info' : 'success'}>{table.status}</Badge>}
         </div>
-        <span className="text-xs text-text-secondary dark:text-slate-300 bg-surface dark:bg-slate-800 px-2 py-1 rounded">{table?.type === 'AC' ? 'AC' : 'Non-AC'} Menu</span>
-        {table?.status && <Badge variant={table.status === 'OCCUPIED' ? 'info' : 'success'}>{table.status}</Badge>}
+
+        {/* Mobile View Switcher (Menu vs Order/Cart) */}
+        <div className="flex lg:hidden w-full sm:w-auto bg-surface dark:bg-slate-800 p-1 rounded-lg border border-border dark:border-slate-700">
+          <button
+            type="button"
+            onClick={() => setMobileTab('menu')}
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+              mobileTab === 'menu'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-white'
+            }`}
+          >
+            Menu Items
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('cart')}
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              mobileTab === 'cart'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-white'
+            }`}
+          >
+            <span>Order & Cart</span>
+            {(cart.length > 0 || (order?.items && order.items.length > 0)) && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                mobileTab === 'cart' ? 'bg-white text-primary' : 'bg-primary text-white'
+              }`}>
+                {cart.reduce((s, i) => s + i.quantity, 0) + (order?.items?.filter(i => i.status !== 'CANCELLED').length || 0)}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 flex gap-4 min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row gap-3 sm:gap-4 min-h-0 relative">
 
-        <div className="flex-[3] flex flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden">
-          <div className="flex gap-1 p-3 border-b border-border dark:border-slate-800 overflow-x-auto">
+        {/* Menu Panel */}
+        <div className={`flex-[3] flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden ${
+          mobileTab === 'menu' ? 'flex flex-1 min-h-[55vh]' : 'hidden lg:flex'
+        }`}>
+          <div className="flex gap-1 p-2 sm:p-3 border-b border-border dark:border-slate-800 overflow-x-auto no-scrollbar">
             <button onClick={() => setSelectedCat('ALL')}
               className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${selectedCat === 'ALL' ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'}`}>
               All
@@ -220,108 +264,141 @@ export default function OrderPage() {
               </button>
             ))}
           </div>
-          <div className="p-3 border-b border-border dark:border-slate-800">
+          <div className="p-2 sm:p-3 border-b border-border dark:border-slate-800">
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary dark:text-slate-400" />
-              <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search menu..."
-                className="w-full pl-9 pr-3 py-2 border border-border dark:border-slate-700 bg-white dark:bg-slate-800 text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+              <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search menu items..."
+                className="w-full pl-9 pr-3 py-2 border border-border dark:border-slate-700 bg-white dark:bg-slate-800 text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
             </div>
           </div>
-          <div className="flex-1 overflow-auto p-3">
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+          <div className="flex-1 overflow-auto p-2 sm:p-3">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2.5">
               {filteredItems.map(item => (
                 <button key={item.id} onClick={() => canOrder && addToCart(item)}
                   disabled={!canOrder}
-                  className={`text-left p-3 rounded-lg border border-border dark:border-slate-800 bg-white dark:bg-slate-800/60 transition-all ${
+                  className={`text-left p-2.5 sm:p-3 rounded-lg border border-border dark:border-slate-800 bg-white dark:bg-slate-800/60 transition-all ${
                     canOrder
-                      ? 'hover:border-primary/40 dark:hover:border-blue-500/50 hover:bg-primary/5 dark:hover:bg-slate-800 cursor-pointer'
+                      ? 'hover:border-primary/40 dark:hover:border-blue-500/50 hover:bg-primary/5 dark:hover:bg-slate-800 active:scale-[0.98] cursor-pointer'
                       : 'opacity-50 cursor-not-allowed'
                   }`}>
-                  <p className="text-sm font-medium text-text dark:text-slate-100 truncate">{item.name}</p>
-                  <p className="text-sm font-mono text-primary dark:text-blue-400 font-semibold mt-1">₹{parseFloat(item.price).toFixed(2)}</p>
+                  <p className="text-xs sm:text-sm font-medium text-text dark:text-slate-100 line-clamp-1">{item.name}</p>
+                  <p className="text-xs sm:text-sm font-mono text-primary dark:text-blue-400 font-semibold mt-1">₹{parseFloat(item.price).toFixed(2)}</p>
                 </button>
               ))}
             </div>
           </div>
+
+          {/* Floating Cart Pill on Mobile when in Menu tab */}
+          {cart.length > 0 && (
+            <div className="lg:hidden p-2.5 bg-primary/10 dark:bg-blue-950/40 border-t border-primary/20 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-primary dark:text-blue-400">
+                  {cart.reduce((s, i) => s + i.quantity, 0)} item(s) in Cart
+                </span>
+                <span className="text-xs font-mono font-bold text-text dark:text-white ml-2">
+                  ₹{cart.reduce((s, i) => s + i.price * i.quantity, 0).toFixed(2)}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileTab('cart')}
+                className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Review Cart &rarr;
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="flex-[2] flex flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden">
-          <div className="p-4 border-b border-border dark:border-slate-800">
-            <h2 className="font-semibold text-text dark:text-slate-100">Current Order</h2>
-            {order && <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">{order.items?.filter(i => i.status !== 'CANCELLED').length || 0} active items</p>}
+        {/* Order / Cart Panel */}
+        <div className={`flex-[2] flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden ${
+          mobileTab === 'cart' ? 'flex flex-1 min-h-[55vh]' : 'hidden lg:flex'
+        }`}>
+          <div className="p-3 sm:p-4 border-b border-border dark:border-slate-800 flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-sm sm:text-base text-text dark:text-slate-100">Current Order</h2>
+              {order && <p className="text-xs text-text-secondary dark:text-slate-400 mt-0.5">{order.items?.filter(i => i.status !== 'CANCELLED').length || 0} active items</p>}
+            </div>
+            <button
+              type="button"
+              onClick={() => setMobileTab('menu')}
+              className="lg:hidden text-xs text-primary dark:text-blue-400 font-semibold hover:underline"
+            >
+              + Add Items
+            </button>
           </div>
 
           <div className="flex-1 overflow-auto">
             {order?.items?.filter(i => i.status !== 'PENDING' && i.status !== 'CANCELLED').map(item => (
-              <div key={item.id} className="flex items-center justify-between px-4 py-2 border-b border-border dark:border-slate-800 bg-surface/50 dark:bg-slate-800/40">
-                <div>
-                  <p className="text-sm text-text-secondary dark:text-slate-300">{item.itemNameSnapshot}</p>
-                  <p className="text-xs text-text-secondary dark:text-slate-400">×{item.quantity} • <Badge variant={item.status === 'SERVED' ? 'success' : item.status === 'READY' ? 'success' : 'warning'}>{item.status}</Badge></p>
+              <div key={item.id} className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-border dark:border-slate-800 bg-surface/50 dark:bg-slate-800/40">
+                <div className="pr-2">
+                  <p className="text-xs sm:text-sm text-text-secondary dark:text-slate-300">{item.itemNameSnapshot}</p>
+                  <p className="text-[11px] sm:text-xs text-text-secondary dark:text-slate-400">×{item.quantity} • <Badge variant={item.status === 'SERVED' ? 'success' : item.status === 'READY' ? 'success' : 'warning'}>{item.status}</Badge></p>
                 </div>
-                <span className="font-mono text-sm text-text-secondary dark:text-slate-300">₹{(parseFloat(item.priceSnapshot) * item.quantity).toFixed(2)}</span>
+                <span className="font-mono text-xs sm:text-sm text-text-secondary dark:text-slate-300 whitespace-nowrap">₹{(parseFloat(item.priceSnapshot) * item.quantity).toFixed(2)}</span>
               </div>
             ))}
 
             {order?.items?.filter(i => i.status === 'CANCELLED').map(item => (
-              <div key={item.id} className="flex items-center justify-between px-4 py-2 border-b border-border dark:border-slate-800 bg-red-50/50 dark:bg-red-950/30 opacity-60">
-                <div>
-                  <p className="text-sm text-text-secondary dark:text-slate-400 line-through">{item.itemNameSnapshot}</p>
-                  <p className="text-xs"><Badge variant="danger">CANCELLED</Badge></p>
+              <div key={item.id} className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-border dark:border-slate-800 bg-red-50/50 dark:bg-red-950/30 opacity-60">
+                <div className="pr-2">
+                  <p className="text-xs sm:text-sm text-text-secondary dark:text-slate-400 line-through">{item.itemNameSnapshot}</p>
+                  <p className="text-[11px] sm:text-xs"><Badge variant="danger">CANCELLED</Badge></p>
                 </div>
-                <span className="font-mono text-sm text-text-secondary dark:text-slate-400 line-through">₹{(parseFloat(item.priceSnapshot) * (item.originalQuantity || item.quantity)).toFixed(2)}</span>
+                <span className="font-mono text-xs sm:text-sm text-text-secondary dark:text-slate-400 line-through whitespace-nowrap">₹{(parseFloat(item.priceSnapshot) * (item.originalQuantity || item.quantity)).toFixed(2)}</span>
               </div>
             ))}
 
             {cart.length > 0 && (
               <div className="border-t-2 border-primary/20 dark:border-blue-500/30">
-                <p className="px-4 py-2 text-xs font-medium text-primary dark:text-blue-400 bg-primary/5 dark:bg-blue-950/40">New Items</p>
+                <p className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold text-primary dark:text-blue-400 bg-primary/5 dark:bg-blue-950/40">New Items to Send</p>
                 {cart.map(item => (
-                  <div key={item.menuItemId} className="flex items-center justify-between px-4 py-2 border-b border-border dark:border-slate-800">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-text dark:text-slate-100">{item.name}</p>
+                  <div key={item.menuItemId} className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-border dark:border-slate-800">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <p className="text-xs sm:text-sm font-medium text-text dark:text-slate-100 truncate">{item.name}</p>
                       <p className="text-xs font-mono text-text-secondary dark:text-slate-400">₹{item.price.toFixed(2)}</p>
                     </div>
                     {canOrder && (
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => updateCartQty(item.menuItemId, -1)} className="w-6 h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 text-text-secondary dark:text-slate-300 hover:bg-border dark:hover:bg-slate-700 cursor-pointer"><Minus size={12} /></button>
-                        <span className="text-sm font-medium font-mono text-text dark:text-slate-100 w-6 text-center">{item.quantity}</span>
-                        <button onClick={() => updateCartQty(item.menuItemId, 1)} className="w-6 h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 text-text-secondary dark:text-slate-300 hover:bg-border dark:hover:bg-slate-700 cursor-pointer"><Plus size={12} /></button>
-                        <button onClick={() => removeFromCart(item.menuItemId)} className="ml-1 text-danger hover:text-red-700 cursor-pointer"><Trash2 size={14} /></button>
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <button onClick={() => updateCartQty(item.menuItemId, -1)} className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 text-text-secondary dark:text-slate-300 hover:bg-border dark:hover:bg-slate-700 cursor-pointer active:scale-95"><Minus size={12} /></button>
+                        <span className="text-xs sm:text-sm font-medium font-mono text-text dark:text-slate-100 w-5 text-center">{item.quantity}</span>
+                        <button onClick={() => updateCartQty(item.menuItemId, 1)} className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 text-text-secondary dark:text-slate-300 hover:bg-border dark:hover:bg-slate-700 cursor-pointer active:scale-95"><Plus size={12} /></button>
+                        <button onClick={() => removeFromCart(item.menuItemId)} className="ml-1 p-1 text-danger hover:text-red-700 cursor-pointer" title="Remove item"><Trash2 size={14} /></button>
                       </div>
                     )}
-                    <span className="font-mono text-sm text-text dark:text-slate-100 ml-3 w-16 text-right">₹{(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="font-mono text-xs sm:text-sm text-text dark:text-slate-100 ml-2 w-14 text-right whitespace-nowrap">₹{(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
             )}
 
             {!order && cart.length === 0 && (
-              <div className="flex items-center justify-center h-32 text-text-secondary dark:text-slate-400 text-sm">Click menu items to add</div>
+              <div className="flex items-center justify-center h-32 text-text-secondary dark:text-slate-400 text-xs sm:text-sm">Click menu items to add</div>
             )}
           </div>
 
-          <div className="p-4 border-t border-border dark:border-slate-800 space-y-2">
+          <div className="p-3 sm:p-4 border-t border-border dark:border-slate-800 space-y-2">
             {cart.length > 0 && (
-              <div className="flex items-center justify-between text-sm mb-2">
+              <div className="flex items-center justify-between text-xs sm:text-sm mb-1.5">
                 <span className="text-text-secondary dark:text-slate-400">New items total:</span>
                 <span className="font-mono font-semibold text-text dark:text-slate-100">₹{cart.reduce((s, i) => s + i.price * i.quantity, 0).toFixed(2)}</span>
               </div>
             )}
             {cart.length > 0 && canOrder && (
               <button onClick={createOrderAndSend} disabled={sending}
-                className="w-full py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer">
+                className="w-full min-h-[44px] py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-sm">
                 {sending ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={16} />}
                 Send to Kitchen (KOT)
               </button>
             )}
             {order && cart.length === 0 && canBill && (
               <button onClick={openBillModal}
-                className="w-full py-2.5 bg-success text-white rounded-lg text-sm font-medium hover:bg-green-600 flex items-center justify-center gap-2 cursor-pointer">
+                className="w-full min-h-[44px] py-2.5 bg-success text-white rounded-lg text-sm font-medium hover:bg-green-600 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer shadow-sm">
                 <Receipt size={16} /> Generate Bill
               </button>
             )}
             {!canOrder && !canBill && (
-              <div className="p-3 bg-surface dark:bg-slate-800/60 border border-border dark:border-slate-700 rounded-lg text-xs text-text-secondary dark:text-slate-400 text-center">
+              <div className="p-2.5 bg-surface dark:bg-slate-800/60 border border-border dark:border-slate-700 rounded-lg text-xs text-text-secondary dark:text-slate-400 text-center">
                 Read-only view: You do not have permissions to modify orders or generate bills.
               </div>
             )}
