@@ -7,7 +7,8 @@
     "build": "prisma generate",
     "postinstall": "prisma generate",
     "start": "node src/index.js",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "export:mysql": "node scripts/export-supabase-to-mysql.js"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
