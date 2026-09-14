@@ -1,10 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { requestTimingStorage } from '../middleware/requestTiming.js';
 
 const globalForPrisma = globalThis;
 
 // Transaction context to distinguish standalone queries from interactive transactions
 const txStorage = new AsyncLocalStorage();
+
+// DIAGNOSTIC: log any single DB query slower than this, regardless of request.
+// Helps tell "the database itself is slow" apart from "the host is slow".
+const SLOW_QUERY_MS = 150;
 
 // Check for PgBouncer transaction mode warning if port 6543 is configured without pgbouncer=true
 const dbUrl = process.env.DATABASE_URL || '';
@@ -107,13 +112,31 @@ const prisma = basePrisma.$extends({
     $allModels: {
       async $allOperations({ model, operation, args, query }) {
         const inTx = txStorage.getStore()?.inTransaction;
-        // If inside an interactive transaction, do NOT perform single-query retry.
-        // Let the error bubble up to $transaction so the entire transaction can retry cleanly.
-        if (inTx) {
-          return query(args);
+        const label = `${model}.${operation}`;
+        const start = process.hrtime.bigint();
+        try {
+          // If inside an interactive transaction, do NOT perform single-query retry.
+          // Let the error bubble up to $transaction so the entire transaction can retry cleanly.
+          if (inTx) {
+            return await query(args);
+          }
+          // Standalone query: retry on transient connection drops
+          return await withRetry(() => query(args), label);
+        } finally {
+          // DIAGNOSTIC TIMING — attribute this query's duration to the in-flight
+          // HTTP request (if any) so requestTiming.js can report db-time vs total-time,
+          // and flag any individually slow query for direct comparison against Supabase's
+          // own dashboard timings.
+          const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
+          const reqStore = requestTimingStorage.getStore();
+          if (reqStore) {
+            reqStore.dbTimeMs += durationMs;
+            reqStore.dbQueryCount += 1;
+          }
+          if (durationMs > SLOW_QUERY_MS) {
+            console.log(`[DB Timing] ${label} took ${durationMs.toFixed(1)}ms`);
+          }
         }
-        // Standalone query: retry on transient connection drops
-        return withRetry(() => query(args), `${model}.${operation}`);
       },
     },
   },

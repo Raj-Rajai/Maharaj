@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import dotenv from 'dotenv';
 import { initSocket } from './utils/socket.js';
+import { requestTiming } from './middleware/requestTiming.js';
 
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
@@ -29,6 +30,11 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// DIAGNOSTIC: logs total request time vs. time spent waiting on the database,
+// to tell apart "the database is slow" from "the host/CPU is slow".
+// Placed first so it wraps every other middleware. Safe to remove later.
+app.use(requestTiming);
 
 // Middleware
 app.use(helmet());
