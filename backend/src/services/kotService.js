@@ -58,67 +58,80 @@ export const create = async (orderId, captainId) => {
 
 export const getAll = async (filters) => {
   const { status, startDate, endDate } = filters || {};
-  let whereClause = '';
+  const conditions = [];
   const params = [];
-  let paramCount = 1;
 
   if (status) {
-    whereClause += ` WHERE k.status = $${paramCount}::"KotStatus"`;
+    conditions.push('k.status = ?');
     params.push(status);
-    paramCount++;
   }
 
   if (startDate || endDate) {
     if (startDate) {
-      whereClause += whereClause ? ` AND ` : ` WHERE `;
-      whereClause += `k."createdAt" >= $${paramCount}`;
+      conditions.push('k.createdAt >= ?');
       params.push(new Date(startDate));
-      paramCount++;
     }
     if (endDate) {
-      whereClause += whereClause ? ` AND ` : ` WHERE `;
-      whereClause += `k."createdAt" <= $${paramCount}`;
+      conditions.push('k.createdAt <= ?');
       params.push(new Date(endDate));
-      paramCount++;
     }
   } else if (!status) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    whereClause += ` WHERE k.status IN ('NEW', 'PREPARING', 'READY') OR k."createdAt" >= $${paramCount}`;
+    conditions.push('(k.status IN (\'NEW\', \'PREPARING\', \'READY\') OR k.createdAt >= ?)');
     params.push(today);
-    paramCount++;
   } else {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    whereClause += whereClause ? ` AND ` : ` WHERE `;
-    whereClause += `k."createdAt" >= $${paramCount}`;
+    conditions.push('k.createdAt >= ?');
     params.push(today);
-    paramCount++;
   }
 
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
   const sql = `
-    SELECT k.id, k."kotNumber", k."orderId", k."sessionId", k."captainId", k.status, k."createdAt",
-           o.id as "order_id", o."orderSource", o."tableId",
-           t.id as "table_id", t.number as "table_number", t.type as "table_type",
-           COALESCE(json_agg(
-             json_build_object(
-               'id', oi.id, 'orderId', oi."orderId", 'menuItemId', oi."menuItemId",
-               'itemNameSnapshot', oi."itemNameSnapshot", 'priceSnapshot', oi."priceSnapshot",
-               'quantity', oi.quantity, 'originalQuantity', oi."originalQuantity",
-               'status', oi.status, 'notes', oi.notes, 'kotId', oi."kotId",
-               'createdAt', oi."createdAt"
-             )
-           ) FILTER (WHERE oi.id IS NOT NULL), '[]') as items
-    FROM "KOT" k
-    LEFT JOIN "Order" o ON o.id = k."orderId"
-    LEFT JOIN "Table" t ON t.id = o."tableId"
-    LEFT JOIN "OrderItem" oi ON oi."kotId" = k.id
+    SELECT k.id, k.kotNumber, k.orderId, k.sessionId, k.captainId, k.status, k.createdAt,
+           o.id as order_id, o.orderSource, o.tableId,
+           t.id as table_id, t.number as table_number, t.type as table_type
+    FROM \`KOT\` k
+    LEFT JOIN \`Order\` o ON o.id = k.orderId
+    LEFT JOIN \`Table\` t ON t.id = o.tableId
     ${whereClause}
-    GROUP BY k.id, o.id, o."orderSource", o."tableId", t.id, t.number, t.type
-    ORDER BY k."createdAt" DESC
+    ORDER BY k.createdAt DESC
   `;
 
   const rows = await prisma.$queryRawUnsafe(sql, ...params);
+  if (!rows || rows.length === 0) return [];
+
+  const kotIds = rows.map(r => r.id);
+  const itemsPlaceholders = kotIds.map(() => '?').join(', ');
+  const itemsSql = `
+    SELECT id, orderId, menuItemId, itemNameSnapshot, priceSnapshot,
+           quantity, originalQuantity, status, notes, kotId, createdAt
+    FROM \`OrderItem\`
+    WHERE kotId IN (${itemsPlaceholders})
+  `;
+  const items = await prisma.$queryRawUnsafe(itemsSql, ...kotIds);
+
+  const itemsByKotId = {};
+  for (const item of items) {
+    if (!itemsByKotId[item.kotId]) {
+      itemsByKotId[item.kotId] = [];
+    }
+    itemsByKotId[item.kotId].push({
+      id: item.id,
+      orderId: item.orderId,
+      menuItemId: item.menuItemId,
+      itemNameSnapshot: item.itemNameSnapshot,
+      priceSnapshot: item.priceSnapshot,
+      quantity: item.quantity,
+      originalQuantity: item.originalQuantity,
+      status: item.status,
+      notes: item.notes,
+      kotId: item.kotId,
+      createdAt: item.createdAt,
+    });
+  }
 
   return rows.map(row => ({
     id: row.id,
@@ -128,13 +141,13 @@ export const getAll = async (filters) => {
     captainId: row.captainId,
     status: row.status,
     createdAt: row.createdAt,
-    items: row.items,
-    order: {
+    items: itemsByKotId[row.id] || [],
+    order: row.order_id ? {
       id: row.order_id,
       orderSource: row.orderSource,
       tableId: row.tableId,
-      table: row.order_id ? { id: row.table_id, number: row.table_number, type: row.table_type } : null
-    }
+      table: row.table_id ? { id: row.table_id, number: row.table_number, type: row.table_type } : null
+    } : null
   }));
 };
 

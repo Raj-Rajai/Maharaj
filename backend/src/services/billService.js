@@ -98,7 +98,7 @@ export const getAll = async (filters) => {
 
   if (status && status !== 'ALL') {
     params.push(status);
-    conditions.push(`b.status = $${params.length}::"BillStatus"`);
+    conditions.push('b.status = ?');
   }
 
   // Support startDate/endDate and from/to aliases
@@ -112,13 +112,13 @@ export const getAll = async (filters) => {
       const s = new Date(startParam);
       s.setHours(0, 0, 0, 0);
       params.push(s);
-      conditions.push(`b."createdAt" >= $${params.length}`);
+      conditions.push('b.createdAt >= ?');
     }
     if (endParam) {
       const e = new Date(endParam);
       e.setHours(23, 59, 59, 999);
       params.push(e);
-      conditions.push(`b."createdAt" <= $${params.length}`);
+      conditions.push('b.createdAt <= ?');
     }
   } else {
     // Default to today's bills if no date range is provided
@@ -127,7 +127,7 @@ export const getAll = async (filters) => {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
     params.push(todayStart, todayEnd);
-    conditions.push(`b."createdAt" >= $${params.length - 1} AND b."createdAt" <= $${params.length}`);
+    conditions.push('b.createdAt >= ? AND b.createdAt <= ?');
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -137,31 +137,29 @@ export const getAll = async (filters) => {
   const skip = page && take ? (Number(page) - 1) * take : undefined;
 
   if (take) {
-    params.push(take);
-    paginationClause += `LIMIT $${params.length} `;
+    paginationClause += `LIMIT ${take} `;
   }
   if (skip) {
-    params.push(skip);
-    paginationClause += `OFFSET $${params.length} `;
+    paginationClause += `OFFSET ${skip} `;
   }
 
   const sql = `
-    SELECT b.id, b."billNumber", b."orderId", b."sessionId", b."tableId",
-           b."customerName", b."customerPhone",
-           b.subtotal, b."sgstPercent", b."cgstPercent", b."sgstAmount", b."cgstAmount",
-           b.discount, b.total, b."roundOff", b.version, b.status, b."createdAt", b."finalizedAt",
-           o.id as "order_id", o."orderSource", o."tableId" as "order_tableId",
-           t.id as "table_id", t.number as "table_number", t.type as "table_type",
-           u.id as "captain_id", u.name as "captain_name", u.role as "captain_role",
-           p.id as "pay_id", p.method as "pay_method", p.amount as "pay_amount",
-           p.status as "pay_status", p."paidAt" as "pay_paidAt"
-    FROM "Bill" b
-    LEFT JOIN "Order" o ON o.id = b."orderId"
-    LEFT JOIN "Table" t ON t.id = o."tableId"
-    LEFT JOIN "User" u ON u.id = o."captainId"
-    LEFT JOIN "Payment" p ON p."billId" = b.id
+    SELECT b.id, b.billNumber, b.orderId, b.sessionId, b.tableId,
+           b.customerName, b.customerPhone,
+           b.subtotal, b.sgstPercent, b.cgstPercent, b.sgstAmount, b.cgstAmount,
+           b.discount, b.total, b.roundOff, b.version, b.status, b.createdAt, b.finalizedAt,
+           o.id as order_id, o.orderSource, o.tableId as order_tableId,
+           t.id as table_id, t.number as table_number, t.type as table_type,
+           u.id as captain_id, u.name as captain_name, u.role as captain_role,
+           p.id as pay_id, p.method as pay_method, p.amount as pay_amount,
+           p.status as pay_status, p.paidAt as pay_paidAt
+    FROM \`Bill\` b
+    LEFT JOIN \`Order\` o ON o.id = b.orderId
+    LEFT JOIN \`Table\` t ON t.id = o.tableId
+    LEFT JOIN \`User\` u ON u.id = o.captainId
+    LEFT JOIN \`Payment\` p ON p.billId = b.id
     ${whereClause}
-    ORDER BY b."createdAt" DESC
+    ORDER BY b.createdAt DESC
     ${paginationClause}
   `;
 

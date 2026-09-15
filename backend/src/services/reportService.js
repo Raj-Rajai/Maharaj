@@ -660,21 +660,21 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   // Run the 4 core queries in parallel ONCE
   const [bills, onlineOrders, allOrders, purchases] = await Promise.all([
     prisma.$queryRawUnsafe(`
-      SELECT b.id, b."orderId", b.total, b."sgstAmount", b."cgstAmount", b."createdAt",
-             b."tableId", b."sessionId",
-             o."orderSource",
-             COALESCE(st.type, ot.type) as "tableType",
-             COALESCE(st.id, ot.id) as "resolvedTableId",
-             COALESCE(st.number, ot.number) as "resolvedTableNumber",
-             p.method as "payMethod", p.amount as "payAmount"
-      FROM "Bill" b
-      LEFT JOIN "Order" o ON o.id = b."orderId"
-      LEFT JOIN "Table" ot ON ot.id = o."tableId"
-      LEFT JOIN "TableSession" s ON s.id = b."sessionId"
-      LEFT JOIN "Table" st ON st.id = s."tableId"
-      LEFT JOIN "Payment" p ON p."billId" = b.id
-      WHERE b.status = 'FINALIZED' AND b."createdAt" >= $1 AND b."createdAt" <= $2
-      ORDER BY b."createdAt" ASC
+      SELECT b.id, b.orderId, b.total, b.sgstAmount, b.cgstAmount, b.createdAt,
+             b.tableId, b.sessionId,
+             o.orderSource,
+             COALESCE(st.type, ot.type) as tableType,
+             COALESCE(st.id, ot.id) as resolvedTableId,
+             COALESCE(st.number, ot.number) as resolvedTableNumber,
+             p.method as payMethod, p.amount as payAmount
+      FROM \`Bill\` b
+      LEFT JOIN \`Order\` o ON o.id = b.orderId
+      LEFT JOIN \`Table\` ot ON ot.id = o.tableId
+      LEFT JOIN \`TableSession\` s ON s.id = b.sessionId
+      LEFT JOIN \`Table\` st ON st.id = s.tableId
+      LEFT JOIN \`Payment\` p ON p.billId = b.id
+      WHERE b.status = 'FINALIZED' AND b.createdAt >= ? AND b.createdAt <= ?
+      ORDER BY b.createdAt ASC
     `, sqlStartDate, sqlEndDate),
 
     prisma.onlineOrder.findMany({

@@ -245,19 +245,19 @@ export const getAll = async (filters) => {
 
   if (sessionId) {
     params.push(sessionId);
-    conditions.push(`o."sessionId" = $${params.length}`);
+    conditions.push('o.sessionId = ?');
   }
   if (tableId) {
     params.push(tableId);
-    conditions.push(`o."tableId" = $${params.length}`);
+    conditions.push('o.tableId = ?');
   }
   if (status && status !== 'ALL') {
     params.push(status);
-    conditions.push(`o.status = $${params.length}::"OrderStatus"`);
+    conditions.push('o.status = ?');
   }
   if (orderSource && orderSource !== 'ALL') {
     params.push(orderSource);
-    conditions.push(`o."orderSource" = $${params.length}::"OrderSource"`);
+    conditions.push('o.orderSource = ?');
   }
 
   // Support date range filtering
@@ -267,13 +267,13 @@ export const getAll = async (filters) => {
     const s = new Date(startParam);
     s.setHours(0, 0, 0, 0);
     params.push(s);
-    conditions.push(`o."createdAt" >= $${params.length}`);
+    conditions.push('o.createdAt >= ?');
   }
   if (endParam) {
     const e = new Date(endParam);
     e.setHours(23, 59, 59, 999);
     params.push(e);
-    conditions.push(`o."createdAt" <= $${params.length}`);
+    conditions.push('o.createdAt <= ?');
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -296,16 +296,16 @@ export const getAll = async (filters) => {
   const offsetClause = offsetValue > 0 ? `OFFSET ${offsetValue}` : '';
 
   const sql = `
-    SELECT o.id, o."orderSource", o."sessionId", o."tableId", o."captainId", o.status, o."createdAt", o."updatedAt",
-           t.id as "table_id", t.number as "table_number", t.type as "table_type", t.status as "table_status",
-           bi.id as "bill_id", bi."billNumber" as "bill_number", bi.total as "bill_total", bi.status as "bill_status",
-           u.id as "captain_id", u.name as "captain_name", u.role as "captain_role"
-    FROM "Order" o
-    LEFT JOIN "Table" t ON t.id = o."tableId"
-    LEFT JOIN "Bill" bi ON bi."orderId" = o.id
-    LEFT JOIN "User" u ON u.id = o."captainId"
+    SELECT o.id, o.orderSource, o.sessionId, o.tableId, o.captainId, o.status, o.createdAt, o.updatedAt,
+           t.id as table_id, t.number as table_number, t.type as table_type, t.status as table_status,
+           bi.id as bill_id, bi.billNumber as bill_number, bi.total as bill_total, bi.status as bill_status,
+           u.id as captain_id, u.name as captain_name, u.role as captain_role
+    FROM \`Order\` o
+    LEFT JOIN \`Table\` t ON t.id = o.tableId
+    LEFT JOIN \`Bill\` bi ON bi.orderId = o.id
+    LEFT JOIN \`User\` u ON u.id = o.captainId
     ${whereClause}
-    ORDER BY o."createdAt" DESC
+    ORDER BY o.createdAt DESC
     ${limitClause}
     ${offsetClause}
   `;
@@ -315,15 +315,14 @@ export const getAll = async (filters) => {
   if (!orders || orders.length === 0) return [];
 
   const orderIds = orders.map(o => o.id);
-  const itemsParams = [...orderIds];
-  const itemsPlaceholders = orderIds.map((_, i) => `$${i + 1}`).join(', ');
+  const itemsPlaceholders = orderIds.map(() => '?').join(', ');
 
   const itemsSql = `
-    SELECT id, "orderId", "itemNameSnapshot", "priceSnapshot", quantity, "originalQuantity", status, notes, "menuItemId", "kotId", "createdAt"
-    FROM "OrderItem"
-    WHERE "orderId" IN (${itemsPlaceholders})
+    SELECT id, orderId, itemNameSnapshot, priceSnapshot, quantity, originalQuantity, status, notes, menuItemId, kotId, createdAt
+    FROM \`OrderItem\`
+    WHERE orderId IN (${itemsPlaceholders})
   `;
-  const items = await prisma.$queryRawUnsafe(itemsSql, ...itemsParams);
+  const items = await prisma.$queryRawUnsafe(itemsSql, ...orderIds);
 
   const itemsByOrderId = {};
   for (const item of items) {
