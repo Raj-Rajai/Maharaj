@@ -57,11 +57,11 @@ export const adjust = async (data, userId) => {
   const adjustQty = Number(quantity);
 
   return prisma.$transaction(async (tx) => {
-    // Acquire exclusive PostgreSQL row-level lock via SELECT ... FOR UPDATE
+    // Acquire exclusive row-level lock via SELECT ... FOR UPDATE (supported by MySQL InnoDB)
     // This serializes concurrent adjustments on the same item and eliminates race conditions
     const rows = await tx.$queryRaw`
-      SELECT id, name, unit, "currentStock", "lowStockThreshold"
-      FROM "InventoryItem"
+      SELECT id, name, unit, currentStock, lowStockThreshold
+      FROM \`InventoryItem\`
       WHERE id = ${inventoryItemId}
       FOR UPDATE
     `;

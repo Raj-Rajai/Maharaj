@@ -37,7 +37,7 @@ const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 150;
 const MAX_RETRY_DELAY = 1500;
 
-// Retryable error codes across Prisma, PostgreSQL, and connection pools
+// Retryable error codes across Prisma, PostgreSQL, MySQL, and connection pools
 const RETRYABLE_CODES = new Set([
   'P1001', // Can't reach database server
   'P1002', // Database server reached but timed out
@@ -52,6 +52,10 @@ const RETRYABLE_CODES = new Set([
   '57P02', // PostgreSQL crash_shutdown
   '57P03', // PostgreSQL cannot_connect_now
   '08000', '08001', '08003', '08004', '08006', // PostgreSQL connection exceptions
+  '1213', 'ER_LOCK_DEADLOCK', // MySQL deadlock detected
+  '1205', 'ER_LOCK_WAIT_TIMEOUT', // MySQL lock wait timeout
+  'PROTOCOL_CONNECTION_LOST', // MySQL connection dropped
+  'ECONNREFUSED',
 ]);
 
 const RETRYABLE_MESSAGES = [
@@ -65,9 +69,12 @@ const RETRYABLE_MESSAGES = [
   'etimedout',
   'epipe',
   'deadlock detected',
+  'deadlock found when trying to get lock',
+  'lock wait timeout exceeded',
   'could not serialize access',
   'timed out fetching a new connection',
   'prepared statement',
+  'query execution was interrupted',
 ];
 
 export function isConnectionError(err) {
