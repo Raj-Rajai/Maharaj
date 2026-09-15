@@ -1,4 +1,4 @@
-import prisma, { isMySQL } from '../utils/prisma.js';
+import prisma from '../utils/prisma.js';
 import { emitKotCreated, emitKotUpdated } from '../utils/socket.js';
 
 export const create = async (orderId, captainId, sessionId = null) => {
@@ -55,73 +55,59 @@ export const create = async (orderId, captainId, sessionId = null) => {
 };
 
 export const getAll = async (filters) => {
-  const mysql = isMySQL();
   const { status, startDate, endDate } = filters || {};
   const conditions = [];
   const params = [];
 
-  const addParam = (val) => {
-    params.push(val);
-    return mysql ? '?' : `$${params.length}`;
-  };
-
   if (status) {
-    const p = addParam(status);
-    conditions.push(mysql ? `k.status = ${p}` : `k.status::text = ${p}`);
+    conditions.push('k.status = ?');
+    params.push(status);
   }
 
   if (startDate || endDate) {
     if (startDate) {
-      const p = addParam(new Date(startDate));
-      conditions.push(mysql ? `k.createdAt >= ${p}` : `k."createdAt" >= ${p}`);
+      conditions.push('k.createdAt >= ?');
+      params.push(new Date(startDate));
     }
     if (endDate) {
-      const p = addParam(new Date(endDate));
-      conditions.push(mysql ? `k.createdAt <= ${p}` : `k."createdAt" <= ${p}`);
+      conditions.push('k.createdAt <= ?');
+      params.push(new Date(endDate));
     }
   } else if (!status) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const p = addParam(today);
-    conditions.push(mysql
-      ? `(k.status IN ('NEW', 'PREPARING', 'READY') OR k.createdAt >= ${p})`
-      : `(k.status::text IN ('NEW', 'PREPARING', 'READY') OR k."createdAt" >= ${p})`
-    );
+    conditions.push('(k.status IN (\'NEW\', \'PREPARING\', \'READY\') OR k.createdAt >= ?)');
+    params.push(today);
   } else {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const p = addParam(today);
-    conditions.push(mysql ? `k.createdAt >= ${p}` : `k."createdAt" >= ${p}`);
+    conditions.push('k.createdAt >= ?');
+    params.push(today);
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const qKOT = mysql ? '`KOT`' : '"KOT"';
-  const qOrder = mysql ? '`Order`' : '"Order"';
-  const qTable = mysql ? '`Table`' : '"Table"';
-  const qOrderItem = mysql ? '`OrderItem`' : '"OrderItem"';
-
   const sql = `
-    SELECT k.id, k.${mysql ? 'kotNumber' : '"kotNumber"'}, k.${mysql ? 'orderId' : '"orderId"'}, k.${mysql ? 'sessionId' : '"sessionId"'}, k.${mysql ? 'captainId' : '"captainId"'}, k.status, k.${mysql ? 'createdAt' : '"createdAt"'},
-           o.id as "order_id", o.${mysql ? 'orderSource' : '"orderSource"'}, o.${mysql ? 'tableId' : '"tableId"'},
-           t.id as "table_id", t.number as "table_number", t.type as "table_type"
-    FROM ${qKOT} k
-    LEFT JOIN ${qOrder} o ON o.id = k.${mysql ? 'orderId' : '"orderId"'}
-    LEFT JOIN ${qTable} t ON t.id = o.${mysql ? 'tableId' : '"tableId"'}
+    SELECT k.id, k.kotNumber, k.orderId, k.sessionId, k.captainId, k.status, k.createdAt,
+           o.id as order_id, o.orderSource, o.tableId,
+           t.id as table_id, t.number as table_number, t.type as table_type
+    FROM \`KOT\` k
+    LEFT JOIN \`Order\` o ON o.id = k.orderId
+    LEFT JOIN \`Table\` t ON t.id = o.tableId
     ${whereClause}
-    ORDER BY k.${mysql ? 'createdAt' : '"createdAt"'} DESC
+    ORDER BY k.createdAt DESC
   `;
 
   const rows = await prisma.$queryRawUnsafe(sql, ...params);
   if (!rows || rows.length === 0) return [];
 
   const kotIds = rows.map(r => r.id);
-  const itemsPlaceholders = kotIds.map((_, i) => mysql ? '?' : `$${i + 1}`).join(', ');
+  const itemsPlaceholders = kotIds.map(() => '?').join(', ');
   const itemsSql = `
-    SELECT id, ${mysql ? 'orderId' : '"orderId"'}, ${mysql ? 'menuItemId' : '"menuItemId"'}, ${mysql ? 'itemNameSnapshot' : '"itemNameSnapshot"'}, ${mysql ? 'priceSnapshot' : '"priceSnapshot"'},
-           quantity, ${mysql ? 'originalQuantity' : '"originalQuantity"'}, status, notes, ${mysql ? 'kotId' : '"kotId"'}, ${mysql ? 'createdAt' : '"createdAt"'}
-    FROM ${qOrderItem}
-    WHERE ${mysql ? 'kotId' : '"kotId"'} IN (${itemsPlaceholders})
+    SELECT id, orderId, menuItemId, itemNameSnapshot, priceSnapshot,
+           quantity, originalQuantity, status, notes, kotId, createdAt
+    FROM \`OrderItem\`
+    WHERE kotId IN (${itemsPlaceholders})
   `;
   const items = await prisma.$queryRawUnsafe(itemsSql, ...kotIds);
 

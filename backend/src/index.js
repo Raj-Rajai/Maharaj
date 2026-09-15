@@ -1,9 +1,9 @@
+import 'dotenv/config';
 import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import dotenv from 'dotenv';
 import { initSocket } from './utils/socket.js';
 import { requestTiming } from './middleware/requestTiming.js';
 
@@ -25,8 +25,6 @@ import inventoryRoutes from './routes/inventoryRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;

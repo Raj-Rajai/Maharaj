@@ -11,14 +11,6 @@ const txStorage = new AsyncLocalStorage();
 // Helps tell "the database itself is slow" apart from "the host is slow".
 const SLOW_QUERY_MS = 150;
 
-// Check for PgBouncer transaction mode warning if port 6543 is configured without pgbouncer=true
-const dbUrl = process.env.DATABASE_URL || '';
-if (dbUrl.includes(':6543') && !dbUrl.includes('pgbouncer=true')) {
-  console.warn(
-    '[Prisma Warning] DATABASE_URL connects via port 6543 (PgBouncer transaction mode) but is missing ?pgbouncer=true. ' +
-    'Prepared statements may fail without this flag.'
-  );
-}
 
 const basePrisma = globalForPrisma.prisma ?? new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
