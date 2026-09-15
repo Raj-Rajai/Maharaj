@@ -85,6 +85,8 @@ export function isConnectionError(err) {
   return RETRYABLE_MESSAGES.some((m) => msg.includes(m));
 }
 
+export const isMySQL = () => (process.env.DATABASE_URL || '').startsWith('mysql');
+
 function computeBackoff(attempt) {
   // Full jitter exponential backoff: delay in [50, min(MAX_DELAY, BASE_DELAY * 2^attempt)]
   const maxWait = Math.min(MAX_RETRY_DELAY, BASE_RETRY_DELAY * Math.pow(2, attempt));

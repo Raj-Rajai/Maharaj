@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import prisma, { isMySQL } from '../utils/prisma.js';
 import { settingsCache } from '../utils/cache.js';
 import { emitKotCreated, emitBillCreated, emitOrderUpdated } from '../utils/socket.js';
 
@@ -238,26 +238,32 @@ export const createTakeAwayOrder = async (data, userId) => {
 };
 
 export const getAll = async (filters) => {
+  const mysql = isMySQL();
   const { sessionId, tableId, status, orderSource, startDate, endDate, from, to, limit, take, page } = filters || {};
   
   const params = [];
   const conditions = [];
 
+  const addParam = (val) => {
+    params.push(val);
+    return mysql ? '?' : `$${params.length}`;
+  };
+
   if (sessionId) {
-    params.push(sessionId);
-    conditions.push('o.sessionId = ?');
+    const p = addParam(sessionId);
+    conditions.push(mysql ? `o.sessionId = ${p}` : `o."sessionId" = ${p}`);
   }
   if (tableId) {
-    params.push(tableId);
-    conditions.push('o.tableId = ?');
+    const p = addParam(tableId);
+    conditions.push(mysql ? `o.tableId = ${p}` : `o."tableId" = ${p}`);
   }
   if (status && status !== 'ALL') {
-    params.push(status);
-    conditions.push('o.status = ?');
+    const p = addParam(status);
+    conditions.push(mysql ? `o.status = ${p}` : `o.status::text = ${p}`);
   }
   if (orderSource && orderSource !== 'ALL') {
-    params.push(orderSource);
-    conditions.push('o.orderSource = ?');
+    const p = addParam(orderSource);
+    conditions.push(mysql ? `o.orderSource = ${p}` : `o."orderSource"::text = ${p}`);
   }
 
   // Support date range filtering
@@ -266,14 +272,14 @@ export const getAll = async (filters) => {
   if (startParam) {
     const s = new Date(startParam);
     s.setHours(0, 0, 0, 0);
-    params.push(s);
-    conditions.push('o.createdAt >= ?');
+    const p = addParam(s);
+    conditions.push(mysql ? `o.createdAt >= ${p}` : `o."createdAt" >= ${p}`);
   }
   if (endParam) {
     const e = new Date(endParam);
     e.setHours(23, 59, 59, 999);
-    params.push(e);
-    conditions.push('o.createdAt <= ?');
+    const p = addParam(e);
+    conditions.push(mysql ? `o.createdAt <= ${p}` : `o."createdAt" <= ${p}`);
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -295,17 +301,23 @@ export const getAll = async (filters) => {
   const limitClause = limitValue !== null ? `LIMIT ${limitValue}` : '';
   const offsetClause = offsetValue > 0 ? `OFFSET ${offsetValue}` : '';
 
+  const qOrder = mysql ? '`Order`' : '"Order"';
+  const qTable = mysql ? '`Table`' : '"Table"';
+  const qBill = mysql ? '`Bill`' : '"Bill"';
+  const qUser = mysql ? '`User`' : '"User"';
+  const qOrderItem = mysql ? '`OrderItem`' : '"OrderItem"';
+
   const sql = `
-    SELECT o.id, o.orderSource, o.sessionId, o.tableId, o.captainId, o.status, o.createdAt, o.updatedAt,
-           t.id as table_id, t.number as table_number, t.type as table_type, t.status as table_status,
-           bi.id as bill_id, bi.billNumber as bill_number, bi.total as bill_total, bi.status as bill_status,
-           u.id as captain_id, u.name as captain_name, u.role as captain_role
-    FROM \`Order\` o
-    LEFT JOIN \`Table\` t ON t.id = o.tableId
-    LEFT JOIN \`Bill\` bi ON bi.orderId = o.id
-    LEFT JOIN \`User\` u ON u.id = o.captainId
+    SELECT o.id, o.${mysql ? 'orderSource' : '"orderSource"'}, o.${mysql ? 'sessionId' : '"sessionId"'}, o.${mysql ? 'tableId' : '"tableId"'}, o.${mysql ? 'captainId' : '"captainId"'}, o.status, o.${mysql ? 'createdAt' : '"createdAt"'}, o.${mysql ? 'updatedAt' : '"updatedAt"'},
+           t.id as "table_id", t.number as "table_number", t.type as "table_type", t.status as "table_status",
+           bi.id as "bill_id", bi.${mysql ? 'billNumber' : '"billNumber"'} as "bill_number", bi.total as "bill_total", bi.status as "bill_status",
+           u.id as "captain_id", u.name as "captain_name", u.role as "captain_role"
+    FROM ${qOrder} o
+    LEFT JOIN ${qTable} t ON t.id = o.${mysql ? 'tableId' : '"tableId"'}
+    LEFT JOIN ${qBill} bi ON bi.${mysql ? 'orderId' : '"orderId"'} = o.id
+    LEFT JOIN ${qUser} u ON u.id = o.${mysql ? 'captainId' : '"captainId"'}
     ${whereClause}
-    ORDER BY o.createdAt DESC
+    ORDER BY o.${mysql ? 'createdAt' : '"createdAt"'} DESC
     ${limitClause}
     ${offsetClause}
   `;
@@ -315,12 +327,12 @@ export const getAll = async (filters) => {
   if (!orders || orders.length === 0) return [];
 
   const orderIds = orders.map(o => o.id);
-  const itemsPlaceholders = orderIds.map(() => '?').join(', ');
+  const itemsPlaceholders = orderIds.map((_, i) => mysql ? '?' : `$${i + 1}`).join(', ');
 
   const itemsSql = `
-    SELECT id, orderId, itemNameSnapshot, priceSnapshot, quantity, originalQuantity, status, notes, menuItemId, kotId, createdAt
-    FROM \`OrderItem\`
-    WHERE orderId IN (${itemsPlaceholders})
+    SELECT id, ${mysql ? 'orderId' : '"orderId"'}, ${mysql ? 'itemNameSnapshot' : '"itemNameSnapshot"'}, ${mysql ? 'priceSnapshot' : '"priceSnapshot"'}, quantity, ${mysql ? 'originalQuantity' : '"originalQuantity"'}, status, notes, ${mysql ? 'menuItemId' : '"menuItemId"'}, ${mysql ? 'kotId' : '"kotId"'}, ${mysql ? 'createdAt' : '"createdAt"'}
+    FROM ${qOrderItem}
+    WHERE ${mysql ? 'orderId' : '"orderId"'} IN (${itemsPlaceholders})
   `;
   const items = await prisma.$queryRawUnsafe(itemsSql, ...orderIds);
 
