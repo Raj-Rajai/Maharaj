@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import prisma, { isMySQL } from '../utils/prisma.js';
 import * as auditService from './auditService.js';
 
 export const getAll = async () => {
@@ -57,14 +57,14 @@ export const adjust = async (data, userId) => {
   const adjustQty = Number(quantity);
 
   return prisma.$transaction(async (tx) => {
-    // Acquire exclusive row-level lock via SELECT ... FOR UPDATE (supported by MySQL InnoDB)
-    // This serializes concurrent adjustments on the same item and eliminates race conditions
-    const rows = await tx.$queryRaw`
-      SELECT id, name, unit, currentStock, lowStockThreshold
-      FROM \`InventoryItem\`
-      WHERE id = ${inventoryItemId}
+    const mysql = isMySQL();
+    const qInventoryItem = mysql ? '`InventoryItem`' : '"InventoryItem"';
+    const rows = await tx.$queryRawUnsafe(`
+      SELECT id, name, unit, ${mysql ? 'currentStock' : '"currentStock"'}, ${mysql ? 'lowStockThreshold' : '"lowStockThreshold"'}
+      FROM ${qInventoryItem}
+      WHERE id = ${mysql ? '?' : '$1'}
       FOR UPDATE
-    `;
+    `, inventoryItemId);
     const item = rows[0];
     if (!item) throw { status: 404, message: 'Inventory item not found' };
 

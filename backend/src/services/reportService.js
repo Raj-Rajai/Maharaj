@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import prisma, { isMySQL } from '../utils/prisma.js';
 import { settingsCache } from '../utils/cache.js';
 
 const getDateRangeFilter = (startDate, endDate) => {
@@ -657,25 +657,34 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   const sqlEndDate = endDate ? new Date(endDate) : new Date();
   if (!endDate) sqlEndDate.setHours(23, 59, 59, 999);
 
+  const mysql = isMySQL();
+  const qBill = mysql ? '`Bill`' : '"Bill"';
+  const qOrder = mysql ? '`Order`' : '"Order"';
+  const qTable = mysql ? '`Table`' : '"Table"';
+  const qTableSession = mysql ? '`TableSession`' : '"TableSession"';
+  const qPayment = mysql ? '`Payment`' : '"Payment"';
+
+  const billsQuery = `
+    SELECT b.id, b.${mysql ? 'orderId' : '"orderId"'}, b.total, b.${mysql ? 'sgstAmount' : '"sgstAmount"'}, b.${mysql ? 'cgstAmount' : '"cgstAmount"'}, b.${mysql ? 'createdAt' : '"createdAt"'},
+           b.${mysql ? 'tableId' : '"tableId"'}, b.${mysql ? 'sessionId' : '"sessionId"'},
+           o.${mysql ? 'orderSource' : '"orderSource"'},
+           COALESCE(st.type, ot.type) as "tableType",
+           COALESCE(st.id, ot.id) as "resolvedTableId",
+           COALESCE(st.number, ot.number) as "resolvedTableNumber",
+           p.method as "payMethod", p.amount as "payAmount"
+    FROM ${qBill} b
+    LEFT JOIN ${qOrder} o ON o.id = b.${mysql ? 'orderId' : '"orderId"'}
+    LEFT JOIN ${qTable} ot ON ot.id = o.${mysql ? 'tableId' : '"tableId"'}
+    LEFT JOIN ${qTableSession} s ON s.id = b.${mysql ? 'sessionId' : '"sessionId"'}
+    LEFT JOIN ${qTable} st ON st.id = s.${mysql ? 'tableId' : '"tableId"'}
+    LEFT JOIN ${qPayment} p ON p.${mysql ? 'billId' : '"billId"'} = b.id
+    WHERE b.status = 'FINALIZED' AND b.${mysql ? 'createdAt' : '"createdAt"'} >= ${mysql ? '?' : '$1'} AND b.${mysql ? 'createdAt' : '"createdAt"'} <= ${mysql ? '?' : '$2'}
+    ORDER BY b.${mysql ? 'createdAt' : '"createdAt"'} ASC
+  `;
+
   // Run the 4 core queries in parallel ONCE
   const [bills, onlineOrders, allOrders, purchases] = await Promise.all([
-    prisma.$queryRawUnsafe(`
-      SELECT b.id, b.orderId, b.total, b.sgstAmount, b.cgstAmount, b.createdAt,
-             b.tableId, b.sessionId,
-             o.orderSource,
-             COALESCE(st.type, ot.type) as tableType,
-             COALESCE(st.id, ot.id) as resolvedTableId,
-             COALESCE(st.number, ot.number) as resolvedTableNumber,
-             p.method as payMethod, p.amount as payAmount
-      FROM \`Bill\` b
-      LEFT JOIN \`Order\` o ON o.id = b.orderId
-      LEFT JOIN \`Table\` ot ON ot.id = o.tableId
-      LEFT JOIN \`TableSession\` s ON s.id = b.sessionId
-      LEFT JOIN \`Table\` st ON st.id = s.tableId
-      LEFT JOIN \`Payment\` p ON p.billId = b.id
-      WHERE b.status = 'FINALIZED' AND b.createdAt >= ? AND b.createdAt <= ?
-      ORDER BY b.createdAt ASC
-    `, sqlStartDate, sqlEndDate),
+    prisma.$queryRawUnsafe(billsQuery, sqlStartDate, sqlEndDate),
 
     prisma.onlineOrder.findMany({
       where: { ...dateFilter },
