@@ -1,4 +1,4 @@
-import prisma, { isMySQL } from '../utils/prisma.js';
+import prisma from '../utils/prisma.js';
 import * as auditService from './auditService.js';
 
 export const getAll = async () => {
@@ -57,12 +57,10 @@ export const adjust = async (data, userId) => {
   const adjustQty = Number(quantity);
 
   return prisma.$transaction(async (tx) => {
-    const mysql = isMySQL();
-    const qInventoryItem = mysql ? '`InventoryItem`' : '"InventoryItem"';
     const rows = await tx.$queryRawUnsafe(`
-      SELECT id, name, unit, ${mysql ? 'currentStock' : '"currentStock"'}, ${mysql ? 'lowStockThreshold' : '"lowStockThreshold"'}
-      FROM ${qInventoryItem}
-      WHERE id = ${mysql ? '?' : '$1'}
+      SELECT id, name, unit, currentStock, lowStockThreshold
+      FROM \`InventoryItem\`
+      WHERE id = ?
       FOR UPDATE
     `, inventoryItemId);
     const item = rows[0];

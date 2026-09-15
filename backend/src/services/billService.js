@@ -1,4 +1,4 @@
-import prisma, { isMySQL } from '../utils/prisma.js';
+import prisma from '../utils/prisma.js';
 import * as auditService from './auditService.js';
 import { settingsCache, tableCache } from '../utils/cache.js';
 import { emitBillCreated, emitBillUpdated, emitBillFinalized } from '../utils/socket.js';
@@ -121,20 +121,14 @@ export const create = async (orderId, discount = 0, customerName = null, custome
 };
 
 export const getAll = async (filters) => {
-  const mysql = isMySQL();
   const { status, startDate, endDate, from, to, all, limit, page } = filters || {};
 
   const conditions = [];
   const params = [];
 
-  const addParam = (val) => {
-    params.push(val);
-    return mysql ? '?' : `$${params.length}`;
-  };
-
   if (status && status !== 'ALL') {
-    const p = addParam(status);
-    conditions.push(mysql ? `b.status = ${p}` : `b.status::text = ${p}`);
+    params.push(status);
+    conditions.push('b.status = ?');
   }
 
   // Support startDate/endDate and from/to aliases
@@ -147,14 +141,14 @@ export const getAll = async (filters) => {
     if (startParam) {
       const s = new Date(startParam);
       s.setHours(0, 0, 0, 0);
-      const p = addParam(s);
-      conditions.push(mysql ? `b.createdAt >= ${p}` : `b."createdAt" >= ${p}`);
+      params.push(s);
+      conditions.push('b.createdAt >= ?');
     }
     if (endParam) {
       const e = new Date(endParam);
       e.setHours(23, 59, 59, 999);
-      const p = addParam(e);
-      conditions.push(mysql ? `b.createdAt <= ${p}` : `b."createdAt" <= ${p}`);
+      params.push(e);
+      conditions.push('b.createdAt <= ?');
     }
   } else {
     // Default to today's bills if no date range is provided
@@ -162,9 +156,8 @@ export const getAll = async (filters) => {
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
-    const p1 = addParam(todayStart);
-    const p2 = addParam(todayEnd);
-    conditions.push(mysql ? `b.createdAt >= ${p1} AND b.createdAt <= ${p2}` : `b."createdAt" >= ${p1} AND b."createdAt" <= ${p2}`);
+    params.push(todayStart, todayEnd);
+    conditions.push('b.createdAt >= ? AND b.createdAt <= ?');
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -180,29 +173,23 @@ export const getAll = async (filters) => {
     paginationClause += `OFFSET ${skip} `;
   }
 
-  const qBill = mysql ? '`Bill`' : '"Bill"';
-  const qOrder = mysql ? '`Order`' : '"Order"';
-  const qTable = mysql ? '`Table`' : '"Table"';
-  const qUser = mysql ? '`User`' : '"User"';
-  const qPayment = mysql ? '`Payment`' : '"Payment"';
-
   const sql = `
-    SELECT b.id, b.${mysql ? 'billNumber' : '"billNumber"'}, b.${mysql ? 'orderId' : '"orderId"'}, b.${mysql ? 'sessionId' : '"sessionId"'}, b.${mysql ? 'tableId' : '"tableId"'},
-           b.${mysql ? 'customerName' : '"customerName"'}, b.${mysql ? 'customerPhone' : '"customerPhone"'},
-           b.subtotal, b.${mysql ? 'sgstPercent' : '"sgstPercent"'}, b.${mysql ? 'cgstPercent' : '"cgstPercent"'}, b.${mysql ? 'sgstAmount' : '"sgstAmount"'}, b.${mysql ? 'cgstAmount' : '"cgstAmount"'},
-           b.discount, b.total, b.${mysql ? 'roundOff' : '"roundOff"'}, b.version, b.status, b.${mysql ? 'createdAt' : '"createdAt"'}, b.${mysql ? 'finalizedAt' : '"finalizedAt"'},
-           o.id as "order_id", o.${mysql ? 'orderSource' : '"orderSource"'}, o.${mysql ? 'tableId' : '"tableId"'} as "order_tableId",
-           t.id as "table_id", t.number as "table_number", t.type as "table_type",
-           u.id as "captain_id", u.name as "captain_name", u.role as "captain_role",
-           p.id as "pay_id", p.method as "pay_method", p.amount as "pay_amount",
-           p.status as "pay_status", p.${mysql ? 'paidAt' : '"paidAt"'} as "pay_paidAt"
-    FROM ${qBill} b
-    LEFT JOIN ${qOrder} o ON o.id = b.${mysql ? 'orderId' : '"orderId"'}
-    LEFT JOIN ${qTable} t ON t.id = o.${mysql ? 'tableId' : '"tableId"'}
-    LEFT JOIN ${qUser} u ON u.id = o.${mysql ? 'captainId' : '"captainId"'}
-    LEFT JOIN ${qPayment} p ON p.${mysql ? 'billId' : '"billId"'} = b.id
+    SELECT b.id, b.billNumber, b.orderId, b.sessionId, b.tableId,
+           b.customerName, b.customerPhone,
+           b.subtotal, b.sgstPercent, b.cgstPercent, b.sgstAmount, b.cgstAmount,
+           b.discount, b.total, b.roundOff, b.version, b.status, b.createdAt, b.finalizedAt,
+           o.id as order_id, o.orderSource, o.tableId as order_tableId,
+           t.id as table_id, t.number as table_number, t.type as table_type,
+           u.id as captain_id, u.name as captain_name, u.role as captain_role,
+           p.id as pay_id, p.method as pay_method, p.amount as pay_amount,
+           p.status as pay_status, p.paidAt as pay_paidAt
+    FROM \`Bill\` b
+    LEFT JOIN \`Order\` o ON o.id = b.orderId
+    LEFT JOIN \`Table\` t ON t.id = o.tableId
+    LEFT JOIN \`User\` u ON u.id = o.captainId
+    LEFT JOIN \`Payment\` p ON p.billId = b.id
     ${whereClause}
-    ORDER BY b.${mysql ? 'createdAt' : '"createdAt"'} DESC
+    ORDER BY b.createdAt DESC
     ${paginationClause}
   `;
 
