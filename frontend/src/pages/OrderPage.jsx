@@ -227,7 +227,15 @@ export default function OrderPage() {
   const handleCloseTable = async () => {
     setClosingTable(true);
     try {
-      await api.post(`/tables/${tableId}/close`);
+      try {
+        await api.post(`/tables/${tableId}/close`);
+      } catch (tableErr) {
+        if (tableErr.response?.status === 404 && session?.id) {
+          await api.post(`/table-sessions/${session.id}/close`);
+        } else {
+          throw tableErr;
+        }
+      }
       toast.success(`Table ${table?.number || ''} closed successfully`);
       setShowCloseModal(false);
       navigate('/tables');
