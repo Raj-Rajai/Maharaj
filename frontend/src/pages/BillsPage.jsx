@@ -192,11 +192,11 @@ const getThermalHtml = (bill, settings, validItems) => {
         <span>-₹${Number(bill.discount).toFixed(2)}</span>
       </div>` : ''}
       <div class="row">
-        <span>SGST (${Number(bill.sgstPercent || 2.5)}%)</span>
+        <span>SGST (${Number(bill.sgstPercent || 2.5).toFixed(3)}%)</span>
         <span>₹${Number(bill.sgstAmount || 0).toFixed(2)}</span>
       </div>
       <div class="row">
-        <span>CGST (${Number(bill.cgstPercent || 2.5)}%)</span>
+        <span>CGST (${Number(bill.cgstPercent || 2.5).toFixed(3)}%)</span>
         <span>₹${Number(bill.cgstAmount || 0).toFixed(2)}</span>
       </div>
       ${Number(bill.roundOff || 0) !== 0 ? `
@@ -861,9 +861,9 @@ export default function BillsPage() {
         row.type,
         customerName,
         customerNumber,
-        `${sgstPercent}%`,
+        `${Number(sgstPercent).toFixed(3)}%`,
         sgstAmount.toFixed(2),
-        `${cgstPercent}%`,
+        `${Number(cgstPercent).toFixed(3)}%`,
         cgstAmount.toFixed(2),
         amountWithoutTax.toFixed(2),
         billTax.toFixed(2),
@@ -1528,11 +1528,11 @@ export default function BillsPage() {
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span>SGST ({Number(billDetails.bill.sgstPercent || 2.5)}%)</span>
+                        <span>SGST ({Number(billDetails.bill.sgstPercent || 2.5).toFixed(3)}%)</span>
                         <span>₹{Number(billDetails.bill.sgstAmount).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>CGST ({Number(billDetails.bill.cgstPercent || 2.5)}%)</span>
+                        <span>CGST ({Number(billDetails.bill.cgstPercent || 2.5).toFixed(3)}%)</span>
                         <span>₹{Number(billDetails.bill.cgstAmount).toFixed(2)}</span>
                       </div>
                       {Number(billDetails.bill.roundOff) !== 0 && (

@@ -3,14 +3,23 @@ import * as auditService from './auditService.js';
 import { settingsCache, tableCache } from '../utils/cache.js';
 import { emitBillCreated, emitBillUpdated, emitBillFinalized } from '../utils/socket.js';
 
+const formatBill = (bill) => {
+  if (!bill) return bill;
+  return {
+    ...bill,
+    sgstPercent: bill.sgstPercent !== null && bill.sgstPercent !== undefined ? Number(bill.sgstPercent).toFixed(3) : '2.500',
+    cgstPercent: bill.cgstPercent !== null && bill.cgstPercent !== undefined ? Number(bill.cgstPercent).toFixed(3) : '2.500',
+  };
+};
+
 const getSettings = async () => {
   const cached = settingsCache.get();
   if (cached) return cached;
 
   const settings = await prisma.settings.findFirst();
   const result = {
-    sgstPercent: settings ? Number(settings.sgstPercent) : 2.5,
-    cgstPercent: settings ? Number(settings.cgstPercent) : 2.5,
+    sgstPercent: settings ? Number(Number(settings.sgstPercent).toFixed(3)) : 2.500,
+    cgstPercent: settings ? Number(Number(settings.cgstPercent).toFixed(3)) : 2.500,
     restaurantName: settings?.restaurantName || 'Maharaj Veg Villa',
     address: settings?.address || '',
     phone: settings?.phone || '',
@@ -43,8 +52,8 @@ export const calculateBill = async (items, menuType = 'NON_AC', discount = 0) =>
   return {
     subtotal,
     discount: discountAmount,
-    sgstPercent: settings.sgstPercent,
-    cgstPercent: settings.cgstPercent,
+    sgstPercent: Number(settings.sgstPercent).toFixed(3),
+    cgstPercent: Number(settings.cgstPercent).toFixed(3),
     sgstAmount,
     cgstAmount,
     roundOff,
@@ -116,8 +125,18 @@ export const create = async (orderId, discount = 0, customerName = null, custome
     },
   });
 
-  emitBillCreated(createdBill);
-  return createdBill;
+  const formatted = formatBill({
+    ...createdBill,
+    order: {
+      id: order.id,
+      orderSource: order.orderSource,
+      tableId: order.tableId,
+      table: order.table ? { id: order.table.id, number: order.table.number, type: order.table.type } : null,
+    },
+    table: order.table ? { id: order.table.id, number: order.table.number, type: order.table.type } : null,
+  });
+  emitBillCreated(formatted);
+  return formatted;
 };
 
 export const getAll = async (filters) => {
@@ -204,8 +223,8 @@ export const getAll = async (filters) => {
     customerName: row.customerName,
     customerPhone: row.customerPhone,
     subtotal: row.subtotal,
-    sgstPercent: row.sgstPercent,
-    cgstPercent: row.cgstPercent,
+    sgstPercent: row.sgstPercent !== null && row.sgstPercent !== undefined ? Number(row.sgstPercent).toFixed(3) : '2.500',
+    cgstPercent: row.cgstPercent !== null && row.cgstPercent !== undefined ? Number(row.cgstPercent).toFixed(3) : '2.500',
     sgstAmount: row.sgstAmount,
     cgstAmount: row.cgstAmount,
     discount: row.discount,
@@ -247,7 +266,7 @@ export const getById = async (id) => {
     },
   });
   if (!bill) throw { status: 404, message: 'Bill not found' };
-  return bill;
+  return formatBill(bill);
 };
 
 export const finalize = async (billId, paymentMethod, customerName = null, customerPhone = null) => {
@@ -310,8 +329,9 @@ export const finalize = async (billId, paymentMethod, customerName = null, custo
     tableCache.invalidate();
   }
 
-  emitBillFinalized(result);
-  return result;
+  const formattedResult = formatBill(result);
+  emitBillFinalized(formattedResult);
+  return formattedResult;
 };
 
 export const cancel = async (billId) => {
@@ -319,8 +339,9 @@ export const cancel = async (billId) => {
   if (!bill) throw { status: 404, message: 'Bill not found' };
   if (bill.status === 'FINALIZED') throw { status: 400, message: 'Cannot cancel a FINALIZED bill' };
   const updated = await prisma.bill.update({ where: { id: billId }, data: { status: 'CANCELLED' } });
-  emitBillUpdated(updated);
-  return updated;
+  const formattedUpdated = formatBill(updated);
+  emitBillUpdated(formattedUpdated);
+  return formattedUpdated;
 };
 
 export const getBillPrintData = async (billId) => {
@@ -549,6 +570,7 @@ export const editDraft = async (billId, changes, discount, userId, customerName 
     });
   });
 
-  emitBillUpdated(updatedBill);
-  return updatedBill;
+  const formattedUpdatedBill = formatBill(updatedBill);
+  emitBillUpdated(formattedUpdatedBill);
+  return formattedUpdatedBill;
 };

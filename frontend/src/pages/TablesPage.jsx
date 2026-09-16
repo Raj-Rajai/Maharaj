@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { Users, Clock, Plus, Edit2, Trash2, Grid3x3 } from 'lucide-react';
+import { Users, Clock, Plus, Edit2, Trash2, Grid3x3, Check, X } from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
@@ -25,6 +25,11 @@ export default function TablesPage() {
   const [creating, setCreating] = useState(false);
   const [tableModal, setTableModal] = useState(null);
   const [tableForm, setTableForm] = useState({ number: '', capacity: 4, type: 'AC' });
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [originalTables, setOriginalTables] = useState([]);
+  const [pendingUpdates, setPendingUpdates] = useState({});
+  const [pendingDeletes, setPendingDeletes] = useState(new Set());
+  const [isSavingEdits, setIsSavingEdits] = useState(false);
   const navigate = useNavigate();
   const { user, hasPermission } = useAuth();
   const isActive = useRouteActive();
@@ -44,7 +49,7 @@ export default function TablesPage() {
   // Instant real-time push for table updates & sessions
   useRealtime({
     'table:updated': () => {
-      fetchTables({ background: true });
+      if (!isEditMode) fetchTables({ background: true });
     },
     'session:opened': () => {
       fetchTables({ background: true });
@@ -58,25 +63,108 @@ export default function TablesPage() {
     'bill:finalized': () => {
       fetchTables({ background: true });
     },
-  }, isActive, ['tables']);
+  }, isActive, ['tables', isEditMode]);
 
   useEffect(() => {
     if (!isActive) return;
     fetchTables({ background: tables.length > 0 });
-    // Gentle 30s background fallback heartbeat (primary sync is instant push)
-    const iv = setInterval(() => fetchTables({ background: true }), 30000);
+    // Gentle 30s background fallback heartbeat (skip if user is actively in edit mode)
+    const iv = setInterval(() => {
+      if (!isEditMode) fetchTables({ background: true });
+    }, 30000);
     return () => clearInterval(iv);
-  }, [isActive]);
+  }, [isActive, isEditMode]);
 
-  const filtered = tables.filter(t => {
+  const filtered = tables
+    .filter(t => !pendingDeletes.has(t.id))
+    .filter(t => {
+      if (user?.role === 'AC_MASTER' && t.type !== 'AC') return false;
+      if (user?.role === 'NON_AC_MASTER' && t.type !== 'NON_AC') return false;
 
-    if (user?.role === 'AC_MASTER' && t.type !== 'AC') return false;
-    if (user?.role === 'NON_AC_MASTER' && t.type !== 'NON_AC') return false;
+      if (filter === 'ALL') return true;
+      if (filter === 'AC' || filter === 'NON_AC') return t.type === filter;
+      return t.status === filter;
+    });
 
-    if (filter === 'ALL') return true;
-    if (filter === 'AC' || filter === 'NON_AC') return t.type === filter;
-    return t.status === filter;
-  });
+  const handleEnterEditMode = () => {
+    setOriginalTables(JSON.parse(JSON.stringify(tables)));
+    setPendingUpdates({});
+    setPendingDeletes(new Set());
+    setIsEditMode(true);
+  };
+
+  const handleCancelEditMode = () => {
+    if (originalTables && originalTables.length > 0) {
+      setTables(originalTables);
+    }
+    setPendingUpdates({});
+    setPendingDeletes(new Set());
+    setIsEditMode(false);
+    toast('Table edits cancelled');
+  };
+
+  const handleSaveEditMode = async () => {
+    const deleteIds = Array.from(pendingDeletes);
+    const updateEntries = Object.entries(pendingUpdates);
+
+    if (deleteIds.length === 0 && updateEntries.length === 0) {
+      setIsEditMode(false);
+      toast('No changes to save');
+      return;
+    }
+
+    setIsSavingEdits(true);
+    try {
+      // 1. Process deletes
+      for (const id of deleteIds) {
+        await api.delete(`/tables/${id}`);
+      }
+      // 2. Process updates
+      for (const [id, data] of updateEntries) {
+        await api.patch(`/tables/${id}`, data);
+      }
+      toast.success('All table changes saved successfully');
+      setPendingUpdates({});
+      setPendingDeletes(new Set());
+      setIsEditMode(false);
+      await fetchTables();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save some table changes');
+      await fetchTables();
+    } finally {
+      setIsSavingEdits(false);
+    }
+  };
+
+  const handleEditTableClick = (table, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const currentData = pendingUpdates[table.id] || table;
+    setTableForm({ number: currentData.number, capacity: currentData.capacity, type: currentData.type });
+    setTableModal(table);
+  };
+
+  const handleDeleteTableClick = (table, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (table.status !== 'AVAILABLE') {
+      toast.error(`Cannot delete table ${table.number} because it is ${table.status.toLowerCase()}`);
+      return;
+    }
+    if (isEditMode) {
+      setPendingDeletes(prev => {
+        const next = new Set(prev);
+        next.add(table.id);
+        return next;
+      });
+      setPendingUpdates(prev => {
+        const next = { ...prev };
+        delete next[table.id];
+        return next;
+      });
+      toast(`Table ${table.number} marked for deletion (click Save to apply)`);
+    } else {
+      deleteTable(table.id, e);
+    }
+  };
 
   const openSession = async () => {
     if (!sessionModal) return;
@@ -91,6 +179,12 @@ export default function TablesPage() {
   };
 
   const handleTableClick = (table) => {
+    if (isEditMode) {
+      if (table.status === 'AVAILABLE' && hasPermission('TABLE_EDIT')) {
+        handleEditTableClick(table);
+      }
+      return;
+    }
     if (table.status === 'AVAILABLE') { setSessionModal(table); setGuestCount(''); }
     else navigate(`/tables/${table.id}/order`);
   };
@@ -103,18 +197,62 @@ export default function TablesPage() {
   };
 
   const saveTable = async () => {
-    try {
-      const data = { number: parseInt(tableForm.number), capacity: parseInt(tableForm.capacity), type: tableForm.type };
-      if (tableModal === 'new') await api.post('/tables', data);
-      else await api.patch(`/tables/${tableModal.id}`, data);
-      toast.success('Table saved');
+    const num = parseInt(tableForm.number);
+    const cap = parseInt(tableForm.capacity);
+    const typ = tableForm.type;
+
+    if (isNaN(num) || num <= 0) {
+      toast.error('Valid table number is required');
+      return;
+    }
+    if (isNaN(cap) || cap <= 0) {
+      toast.error('Valid capacity is required');
+      return;
+    }
+
+    const duplicate = tables.find(t => t.number === num && t.id !== tableModal?.id && !pendingDeletes.has(t.id));
+    if (duplicate) {
+      toast.error(`Table ${num} already exists`);
+      return;
+    }
+
+    if (tableModal === 'new') {
+      try {
+        const data = { number: num, capacity: cap, type: typ };
+        await api.post('/tables', data);
+        toast.success('Table created');
+        setTableModal(null);
+        fetchTables();
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to create table');
+      }
+      return;
+    }
+
+    // Editing an existing table
+    if (isEditMode) {
+      setTables(prev => prev.map(t => t.id === tableModal.id ? { ...t, number: num, capacity: cap, type: typ } : t));
+      setPendingUpdates(prev => ({
+        ...prev,
+        [tableModal.id]: { number: num, capacity: cap, type: typ }
+      }));
+      toast.success(`Table ${num} updated (unsaved)`);
       setTableModal(null);
-      fetchTables();
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+    } else {
+      try {
+        const data = { number: num, capacity: cap, type: typ };
+        await api.patch(`/tables/${tableModal.id}`, data);
+        toast.success('Table saved');
+        setTableModal(null);
+        fetchTables();
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to save table');
+      }
+    }
   };
 
   const deleteTable = async (id, e) => {
-    e.stopPropagation();
+    if (e && e.stopPropagation) e.stopPropagation();
     if (!confirm('Delete this table?')) return;
     try { await api.delete(`/tables/${id}`); toast.success('Table deleted'); fetchTables(); }
     catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
@@ -132,13 +270,49 @@ export default function TablesPage() {
             <img src={dineInBlue} alt="Dine-In" className="w-5 sm:w-6 h-5 sm:h-6 object-contain dark:brightness-0 dark:invert" />
             Dine-In
           </h1>
-          {hasPermission('TABLE_CREATE') && (
-            <button onClick={() => { setTableForm({ number: '', capacity: 4, type: 'AC' }); setTableModal('new'); }}
-              className="sm:hidden flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-light text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-xs">
-              <Plus size={14} /> Add
-            </button>
-          )}
+          <div className="flex items-center gap-1.5 sm:hidden">
+            {(hasPermission('TABLE_EDIT') || hasPermission('TABLE_DELETE')) && (
+              !isEditMode ? (
+                <button
+                  type="button"
+                  onClick={handleEnterEditMode}
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-border dark:border-slate-700 text-text dark:text-slate-200 rounded-lg text-xs font-semibold cursor-pointer shadow-xs hover:bg-surface"
+                  title="Edit tables"
+                >
+                  <Edit2 size={13} className="text-primary dark:text-blue-400" /> Edit
+                </button>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleCancelEditMode}
+                    disabled={isSavingEdits}
+                    className="px-2.5 py-1.5 bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-300 rounded-lg text-xs font-semibold cursor-pointer"
+                    title="Undo / Cancel edits"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveEditMode}
+                    disabled={isSavingEdits}
+                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
+                    title="Save all changes"
+                  >
+                    Save
+                  </button>
+                </div>
+              )
+            )}
+            {hasPermission('TABLE_CREATE') && (
+              <button onClick={() => { setTableForm({ number: '', capacity: 4, type: 'AC' }); setTableModal('new'); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-light text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-xs">
+                <Plus size={14} /> Add
+              </button>
+            )}
+          </div>
         </div>
+
         <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto">
           <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 overflow-x-auto no-scrollbar w-full sm:w-auto">
             {filters.map(f => (
@@ -148,34 +322,112 @@ export default function TablesPage() {
               </button>
             ))}
           </div>
+
+          {/* Edit Table / (Cancel + Save) Controls placed at left side of Add Table */}
+          {(hasPermission('TABLE_EDIT') || hasPermission('TABLE_DELETE')) && (
+            !isEditMode ? (
+              <button
+                type="button"
+                onClick={handleEnterEditMode}
+                className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-border dark:border-slate-800 hover:bg-surface dark:hover:bg-slate-800 hover:border-primary/40 dark:hover:border-slate-700 text-text dark:text-slate-200 rounded-lg text-sm font-medium cursor-pointer transition-all whitespace-nowrap shadow-xs"
+                title="Enter edit mode to modify or delete tables"
+              >
+                <Edit2 size={15} className="text-primary dark:text-blue-400" />
+                <span>Edit Table</span>
+              </button>
+            ) : (
+              <div className="hidden sm:flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleCancelEditMode}
+                  disabled={isSavingEdits}
+                  className="flex items-center gap-1 px-3 py-2 bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-300 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer transition-colors disabled:opacity-50"
+                  title="Undo / Cancel edits"
+                >
+                  <X size={14} className="text-danger" />
+                  <span>Cancel</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEditMode}
+                  disabled={isSavingEdits}
+                  className="flex items-center gap-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-semibold cursor-pointer transition-colors shadow-xs disabled:opacity-50"
+                  title="Save all changes"
+                >
+                  {isSavingEdits ? (
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Check size={14} />
+                  )}
+                  <span>Save</span>
+                </button>
+              </div>
+            )
+          )}
+
           {hasPermission('TABLE_CREATE') && (
             <button onClick={() => { setTableForm({ number: '', capacity: 4, type: 'AC' }); setTableModal('new'); }}
-              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-light text-white rounded-lg text-sm font-medium cursor-pointer transition-colors whitespace-nowrap">
+              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-light text-white rounded-lg text-sm font-medium cursor-pointer transition-colors whitespace-nowrap shadow-xs">
               <Plus size={16} /> Add Table
             </button>
           )}
         </div>
       </div>
 
+      {isEditMode && (
+        <div className="mb-4 px-4 py-2.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl flex items-center justify-between gap-3 text-xs sm:text-sm text-blue-900 dark:text-blue-300">
+          <div className="flex items-center gap-2">
+            <Edit2 size={15} className="text-primary dark:text-blue-400 shrink-0" />
+            <span>
+              <strong>Edit Mode:</strong> Click the edit (pencil) or delete (trash) icons on any available table to modify it. Click <strong>Save</strong> to commit changes or <strong>Cancel</strong> to discard.
+            </span>
+          </div>
+          {(pendingDeletes.size > 0 || Object.keys(pendingUpdates).length > 0) && (
+            <span className="shrink-0 px-2.5 py-0.5 bg-blue-200/80 dark:bg-blue-900 rounded-full font-mono text-xs font-semibold">
+              {pendingDeletes.size + Object.keys(pendingUpdates).length} unsaved change{pendingDeletes.size + Object.keys(pendingUpdates).length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-4">
         {filtered.map(table => {
           const session = getSessionInfo(table);
+          const isModified = !!pendingUpdates[table.id];
+
           return (
             <div key={table.id} onClick={() => handleTableClick(table)}
               className={`bg-white dark:bg-slate-900 rounded-xl border-2 p-3 sm:p-5 cursor-pointer transition-all hover:shadow-md active:scale-[0.98] relative group ${
-                table.status === 'OCCUPIED' ? 'border-primary/40 dark:border-blue-500/50' : table.status === 'BILLING' ? 'border-warning/40 dark:border-amber-500/50' : 'border-border dark:border-slate-800 hover:border-primary/20 dark:hover:border-primary/40'
+                isEditMode
+                  ? 'border-dashed border-primary/50 dark:border-blue-500/50 hover:border-primary'
+                  : table.status === 'OCCUPIED'
+                  ? 'border-primary/40 dark:border-blue-500/50'
+                  : table.status === 'BILLING'
+                  ? 'border-warning/40 dark:border-amber-500/50'
+                  : 'border-border dark:border-slate-800 hover:border-primary/20 dark:hover:border-primary/40'
               }`}>
-              {table.status === 'AVAILABLE' && (hasPermission('TABLE_EDIT') || hasPermission('TABLE_DELETE')) && (
-                <div className="absolute top-2 right-2 flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+              {/* Edit & Delete Action Buttons — Visible ONLY in Edit Mode */}
+              {isEditMode && table.status === 'AVAILABLE' && (hasPermission('TABLE_EDIT') || hasPermission('TABLE_DELETE')) && (
+                <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10 animate-in fade-in zoom-in-95 duration-150">
                   {hasPermission('TABLE_EDIT') && (
-                    <button onClick={(e) => { e.stopPropagation(); setTableForm({ number: table.number, capacity: table.capacity, type: table.type }); setTableModal(table); }}
-                      className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 hover:bg-border dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 cursor-pointer"
-                      title="Edit Table"><Edit2 size={12} /></button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleEditTableClick(table, e)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900 text-primary dark:text-blue-400 shadow-xs cursor-pointer transition-all hover:scale-105"
+                      title="Edit Table"
+                    >
+                      <Edit2 size={16} />
+                    </button>
                   )}
                   {hasPermission('TABLE_DELETE') && (
-                    <button onClick={(e) => deleteTable(table.id, e)}
-                      className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-950/50 text-text-secondary dark:text-slate-400 hover:text-danger dark:hover:text-red-400 cursor-pointer"
-                      title="Delete Table"><Trash2 size={12} /></button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteTableClick(table, e)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/80 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900 text-danger dark:text-red-400 shadow-xs cursor-pointer transition-all hover:scale-105"
+                      title="Delete Table"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   )}
                 </div>
               )}
@@ -183,6 +435,11 @@ export default function TablesPage() {
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <img src={tableBlue} alt="Table" className="w-4 sm:w-5 h-4 sm:h-5 object-contain dark:brightness-0 dark:invert" />
                   <span className="text-lg sm:text-2xl font-bold text-text dark:text-slate-100 font-mono">{table.number}</span>
+                  {isModified && (
+                    <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 px-1.5 py-0.5 rounded font-medium">
+                      Edited
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   <img
@@ -226,7 +483,7 @@ export default function TablesPage() {
         </div>
       </Modal>
 
-      <Modal isOpen={!!tableModal} onClose={() => setTableModal(null)} title={tableModal === 'new' ? 'Add Table' : 'Edit Table'} size="sm">
+      <Modal isOpen={!!tableModal} onClose={() => setTableModal(null)} title={tableModal === 'new' ? 'Add Table' : (isEditMode ? 'Edit Table (Staged)' : 'Edit Table')} size="sm">
         <div className="space-y-3">
           <div><label className="block text-xs sm:text-sm font-medium text-text dark:text-slate-200 mb-1">Table Number</label>
             <input type="number" value={tableForm.number} onChange={e => setTableForm(f => ({ ...f, number: e.target.value }))}
@@ -244,7 +501,9 @@ export default function TablesPage() {
               ))}
             </div>
           </div>
-          <button onClick={saveTable} className="w-full min-h-[42px] py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light active:scale-[0.99] cursor-pointer shadow-xs mt-2">Save Table</button>
+          <button onClick={saveTable} className="w-full min-h-[42px] py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light active:scale-[0.99] cursor-pointer shadow-xs mt-2">
+            {tableModal === 'new' ? 'Save Table' : (isEditMode ? 'Apply Edit' : 'Save Table')}
+          </button>
         </div>
       </Modal>
     </div>

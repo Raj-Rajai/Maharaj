@@ -17,7 +17,8 @@ const ALL_PERMISSIONS = [
   'REPORT_VIEW', 'REPORT_PDF', 'REPORT_CSV',
   'USER_VIEW', 'USER_CREATE', 'USER_EDIT', 'USER_DELETE',
   'SETTINGS_VIEW', 'SETTINGS_EDIT',
-  'ONLINE_ORDER_VIEW', 'ONLINE_ORDER_CREATE', 'ONLINE_ORDER_EDIT'
+  'ONLINE_ORDER_VIEW', 'ONLINE_ORDER_CREATE', 'ONLINE_ORDER_EDIT',
+  'NOTIFICATION_KOT_AC', 'NOTIFICATION_KOT_NON_AC', 'NOTIFICATION_BILL_AC', 'NOTIFICATION_BILL_NON_AC'
 ];
 
 async function main() {
@@ -55,13 +56,21 @@ async function main() {
     data: adminPerms.map(p => ({ userId: seededUsers['admin'].id, permission: p }))
   });
 
-  const acMasterPerms = ['TABLE_VIEW', 'MENU_AC_VIEW', 'ORDER_CREATE', 'ORDER_EDIT', 'KOT_CREATE', 'KOT_VIEW', 'KOT_PRINT', 'BILL_VIEW_DRAFT'];
+  const acMasterPerms = [
+    'TABLE_VIEW', 'MENU_AC_VIEW', 'ORDER_CREATE', 'ORDER_EDIT',
+    'KOT_CREATE', 'KOT_VIEW', 'KOT_PRINT', 'BILL_VIEW_DRAFT',
+    'NOTIFICATION_KOT_AC', 'NOTIFICATION_BILL_AC'
+  ];
   await prisma.userPermission.deleteMany({ where: { userId: seededUsers['acmaster'].id } });
   await prisma.userPermission.createMany({
     data: acMasterPerms.map(p => ({ userId: seededUsers['acmaster'].id, permission: p }))
   });
 
-  const nonAcMasterPerms = ['TABLE_VIEW', 'MENU_NON_AC_VIEW', 'ORDER_CREATE', 'ORDER_EDIT', 'KOT_CREATE', 'KOT_VIEW', 'KOT_PRINT', 'BILL_VIEW_DRAFT'];
+  const nonAcMasterPerms = [
+    'TABLE_VIEW', 'MENU_NON_AC_VIEW', 'ORDER_CREATE', 'ORDER_EDIT',
+    'KOT_CREATE', 'KOT_VIEW', 'KOT_PRINT', 'BILL_VIEW_DRAFT',
+    'NOTIFICATION_KOT_NON_AC', 'NOTIFICATION_BILL_NON_AC'
+  ];
   await prisma.userPermission.deleteMany({ where: { userId: seededUsers['nonacmaster'].id } });
   await prisma.userPermission.createMany({
     data: nonAcMasterPerms.map(p => ({ userId: seededUsers['nonacmaster'].id, permission: p }))

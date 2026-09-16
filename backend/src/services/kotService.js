@@ -180,10 +180,12 @@ export const updateStatus = async (id, status) => {
     throw { status: 404, message: 'KOT not found' };
   }
 
-  return prisma.kOT.update({
+  const updated = await prisma.kOT.update({
     where: { id },
     data: { status },
   });
+  emitKotUpdated(updated);
+  return updated;
 };
 
 export const updateItemStatus = async (itemId, status) => {
@@ -219,19 +221,23 @@ export const updateItemStatus = async (itemId, status) => {
       where: { kotId: orderItem.kotId }
     });
 
+    let newKotStatus = null;
     const activeItems = allItems.filter(i => i.status !== 'CANCELLED');
     if (activeItems.length > 0) {
       if (activeItems.every(i => i.status === 'SERVED')) {
+        newKotStatus = 'COMPLETED';
         await tx.kOT.update({
           where: { id: orderItem.kotId },
           data: { status: 'COMPLETED' }
         });
       } else if (activeItems.every(i => i.status === 'READY' || i.status === 'SERVED')) {
+        newKotStatus = 'READY';
         await tx.kOT.update({
           where: { id: orderItem.kotId },
           data: { status: 'READY' }
         });
       } else if (activeItems.some(i => i.status === 'PREPARING')) {
+        newKotStatus = 'PREPARING';
         await tx.kOT.update({
           where: { id: orderItem.kotId },
           data: { status: 'PREPARING' }
@@ -239,11 +245,11 @@ export const updateItemStatus = async (itemId, status) => {
       }
     }
 
-    return updatedItem;
+    return { updatedItem, newKotStatus };
   });
 
-  emitKotUpdated({ itemId, status, kotId: orderItem.kotId });
-  return result;
+  emitKotUpdated({ itemId, status, kotId: orderItem.kotId, kotStatus: result.newKotStatus });
+  return result.updatedItem;
 };
 
 export const editItemQuantity = async (orderItemId, newQuantity, reason, userId) => {
@@ -313,12 +319,14 @@ export const cancelItem = async (orderItemId, reason, userId) => {
       data: { status: 'CANCELLED', originalQuantity: orderItem.originalQuantity || orderItem.quantity },
     });
 
+    let newKotStatus = null;
     if (orderItem.kotId) {
       const allItems = await tx.orderItem.findMany({
         where: { kotId: orderItem.kotId }
       });
       const activeItems = allItems.filter(i => i.status !== 'CANCELLED');
       if (activeItems.length === 0 || activeItems.every(i => i.status === 'SERVED')) {
+        newKotStatus = 'COMPLETED';
         await tx.kOT.update({
           where: { id: orderItem.kotId },
           data: { status: 'COMPLETED' }
@@ -326,9 +334,9 @@ export const cancelItem = async (orderItemId, reason, userId) => {
       }
     }
 
-    return updated;
+    return { updated, newKotStatus };
   });
 
-  emitKotUpdated({ itemId: orderItemId, status: 'CANCELLED', kotId: orderItem.kotId });
-  return result;
+  emitKotUpdated({ itemId: orderItemId, status: 'CANCELLED', kotId: orderItem.kotId, kotStatus: result.newKotStatus });
+  return result.updated;
 };

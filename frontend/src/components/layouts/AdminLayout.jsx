@@ -7,6 +7,8 @@ import {
   dashboardBlue, reportsBlue, menuBlue, dineInBlue, takeAwayBlue,
   kitchenBlue, billBlue, purchasesBlue, inventoryBlue, usersBlue, settingsBlue
 } from '../../assets';
+import NotificationCenter from '../notifications/NotificationCenter';
+import NotificationToaster from '../notifications/NotificationToaster';
 
 const roleDisplayNames = {
   SUPER_ADMIN: 'Super Admin',
@@ -89,6 +91,8 @@ export default function AdminLayout({ children }) {
 
   return (
     <div className="flex h-screen bg-surface dark:bg-slate-950 transition-colors duration-200 overflow-hidden">
+      {/* 10-Second Floating Popups Container */}
+      <NotificationToaster />
 
       {/* Mobile Slide-over Drawer Backdrop */}
       <div
@@ -254,9 +258,12 @@ export default function AdminLayout({ children }) {
             </span>
           </div>
 
-          {/* Right Header Operations: Dark/Light Mode Switch + User Profile + Logout */}
-          <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
+          {/* Right Header Operations: Notifications + Dark/Light Mode Switch + User Profile + Logout */}
+          <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
             
+            {/* Notification Center */}
+            <NotificationCenter />
+
             {/* Dark / Light Mode Toggle Switch */}
             <button
               type="button"

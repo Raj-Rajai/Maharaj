@@ -127,8 +127,8 @@ export const createTakeAwayOrder = async (data, userId) => {
   }
 
   const settings = await getSettings();
-  const sgstPercent = Number(settings.sgstPercent ?? 2.5);
-  const cgstPercent = Number(settings.cgstPercent ?? 2.5);
+  const sgstPercent = Number(Number(settings.sgstPercent ?? 2.5).toFixed(3));
+  const cgstPercent = Number(Number(settings.cgstPercent ?? 2.5).toFixed(3));
 
   // Calculate using DB prices — never trust client
   const subtotal = items.reduce(
@@ -520,7 +520,7 @@ export const cancel = async (id) => {
 };
 
 export const sendKotOrder = async (data, captainId) => {
-  const { sessionId, tableId, items, generateKot = true } = data;
+  const { sessionId, tableId, items, generateKot = true, customerNotes } = data;
   if (!items || !Array.isArray(items) || items.length === 0) {
     throw { status: 400, message: 'At least one item is required' };
   }
@@ -604,6 +604,9 @@ export const sendKotOrder = async (data, captainId) => {
     const orderItemsData = items.map((item) => {
       const menuItem = menuItemMap.get(item.menuItemId);
       const qty = parseInt(item.quantity, 10) || 1;
+      const finalNote = item.notes
+        ? (customerNotes && !item.notes.includes(customerNotes) ? `${item.notes} (${customerNotes})` : item.notes)
+        : (customerNotes || null);
       return {
         orderId: order.id,
         menuItemId: item.menuItemId,
@@ -611,7 +614,7 @@ export const sendKotOrder = async (data, captainId) => {
         priceSnapshot: menuItem.price,
         quantity: qty,
         originalQuantity: qty,
-        notes: item.notes || null,
+        notes: finalNote || null,
         kotId: newKot ? newKot.id : null,
         status: newKot ? 'SENT' : 'PENDING',
       };
@@ -642,7 +645,15 @@ export const sendKotOrder = async (data, captainId) => {
     };
   });
 
-  if (result.kot) emitKotCreated(result.kot);
+  if (result.kot) {
+    const enrichedKot = {
+      ...result.kot,
+      order: result.order,
+      items: result.order?.items?.filter((i) => i.kotId === result.kot.id) || [],
+      itemsCount: result.itemsCount,
+    };
+    emitKotCreated(enrichedKot);
+  }
   if (result.order) emitOrderUpdated(result.order);
 
   return result;

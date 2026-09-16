@@ -12,7 +12,50 @@ const txStorage = new AsyncLocalStorage();
 const SLOW_QUERY_MS = 150;
 
 
+function getOptimalDatabaseUrl() {
+  const rawUrl = process.env.DATABASE_URL || '';
+  if (!rawUrl || rawUrl.startsWith('mysql')) {
+    return rawUrl;
+  }
+
+  try {
+    const url = new URL(rawUrl);
+    // If connecting to Supabase pooler, switch from session mode (5432, pool_size: 15)
+    // to transaction mode (6543) with pgbouncer=true to eliminate EMAXCONNSESSION
+    if (url.hostname.includes('pooler.supabase.com')) {
+      if (url.port === '5432' || !url.port) {
+        url.port = '6543';
+        url.searchParams.set('pgbouncer', 'true');
+      }
+      const currentLimit = parseInt(url.searchParams.get('connection_limit') || '10', 10);
+      if (currentLimit > 5) {
+        url.searchParams.set('connection_limit', '5');
+      }
+      return url.toString();
+    }
+
+    if (url.protocol.startsWith('postgres')) {
+      const currentLimit = parseInt(url.searchParams.get('connection_limit') || '10', 10);
+      if (currentLimit > 5) {
+        url.searchParams.set('connection_limit', '5');
+      }
+      return url.toString();
+    }
+
+    return rawUrl;
+  } catch {
+    return rawUrl;
+  }
+}
+
+const optimalDbUrl = getOptimalDatabaseUrl();
+
 const basePrisma = globalForPrisma.prisma ?? new PrismaClient({
+  datasources: optimalDbUrl ? {
+    db: {
+      url: optimalDbUrl,
+    },
+  } : undefined,
   log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   transactionOptions: {
     maxWait: 4000,
@@ -51,6 +94,9 @@ const RETRYABLE_CODES = new Set([
 ]);
 
 const RETRYABLE_MESSAGES = [
+  'emaxconnsession',
+  'max clients reached',
+  'pool_size',
   'server has closed the connection',
   "can't reach database server",
   'connection reset',
@@ -78,6 +124,41 @@ export function isConnectionError(err) {
 }
 
 export const isMySQL = () => (process.env.DATABASE_URL || '').startsWith('mysql');
+
+export function translateQueryForDialect(sql, params = []) {
+  if (isMySQL()) {
+    return { sql, params };
+  }
+
+  let pgSql = sql;
+
+  // 1. Cast enum comparisons for PostgreSQL:
+  pgSql = pgSql.replace(/([a-zA-Z_0-9.]+)\.status\s*=\s*\?/g, '$1.status::text = ?');
+  pgSql = pgSql.replace(/([a-zA-Z_0-9.]+)\.status\s+IN\s*\(([^)]+)\)/g, '$1.status::text IN ($2)');
+
+  // 2. Replace backticks `Word` with "Word"
+  pgSql = pgSql.replace(/`([^`]+)`/g, '"$1"');
+
+  // 3. List of camelCase identifiers that must be quoted in double quotes in Postgres:
+  const camelCaseIdentifiers = [
+    'kotNumber', 'orderId', 'sessionId', 'captainId', 'createdAt', 'updatedAt',
+    'orderSource', 'tableId', 'itemNameSnapshot', 'priceSnapshot', 'originalQuantity',
+    'menuItemId', 'kotId', 'sgstAmount', 'cgstAmount', 'sgstPercent', 'cgstPercent',
+    'finalizedAt', 'customerName', 'customerPhone', 'roundOff', 'lowStockThreshold',
+    'currentStock', 'inventoryItemId', 'billNumber', 'billId', 'paidAt'
+  ];
+
+  for (const id of camelCaseIdentifiers) {
+    const regex = new RegExp(`(?<!")\\b${id}\\b(?!")`, 'g');
+    pgSql = pgSql.replace(regex, `"${id}"`);
+  }
+
+  // 4. Replace ? with $1, $2, $3...
+  let paramIndex = 1;
+  pgSql = pgSql.replace(/\?/g, () => `$${paramIndex++}`);
+
+  return { sql: pgSql, params };
+}
 
 function computeBackoff(attempt) {
   // Full jitter exponential backoff: delay in [50, min(MAX_DELAY, BASE_DELAY * 2^attempt)]
@@ -142,6 +223,10 @@ const prisma = basePrisma.$extends({
     },
   },
   client: {
+    async $queryRawUnsafe(sql, ...params) {
+      const translated = translateQueryForDialect(sql, params);
+      return withRetry(() => basePrisma.$queryRawUnsafe(translated.sql, ...translated.params), '$queryRawUnsafe');
+    },
     async $transaction(...args) {
       const [arg1, arg2] = args;
       // Array transaction: prisma.$transaction([ op1, op2 ])
@@ -152,7 +237,14 @@ const prisma = basePrisma.$extends({
       if (typeof arg1 === 'function') {
         return withRetry(() => {
           return txStorage.run({ inTransaction: true }, () => {
-            return basePrisma.$transaction(arg1, arg2);
+            return basePrisma.$transaction(async (tx) => {
+              const originalQueryRawUnsafe = tx.$queryRawUnsafe.bind(tx);
+              tx.$queryRawUnsafe = (sql, ...params) => {
+                const translated = translateQueryForDialect(sql, params);
+                return originalQueryRawUnsafe(translated.sql, ...translated.params);
+              };
+              return arg1(tx);
+            }, arg2);
           });
         }, '$transaction(interactive)');
       }
