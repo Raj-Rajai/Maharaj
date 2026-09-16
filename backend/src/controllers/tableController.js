@@ -62,3 +62,12 @@ export const remove = async (req, res, next) => {
     next(error);
   }
 };
+
+export const closeTable = async (req, res, next) => {
+  try {
+    const table = await tableService.closeTable(req.params.id);
+    res.json(table);
+  } catch (error) {
+    next(error);
+  }
+};

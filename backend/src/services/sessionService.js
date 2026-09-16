@@ -1,6 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { tableCache } from '../utils/cache.js';
-import { emitSessionOpened, emitSessionClosed, emitTableUpdated } from '../utils/socket.js';
+import { emitSessionOpened, emitSessionClosed, emitTableUpdated, emitOrderUpdated, emitKotUpdated } from '../utils/socket.js';
 
 export const create = async (data, captainId) => {
   const session = await prisma.$transaction(async (tx) => {
@@ -65,18 +65,73 @@ export const getById = async (id) => {
   return session;
 };
 
-export const close = async (id) => {
-  const updatedSession = await prisma.$transaction(async (tx) => {
+export const close = async (id, options = {}) => {
+  const { cancelOrders = true } = options;
+
+  const result = await prisma.$transaction(async (tx) => {
     const session = await tx.tableSession.findUnique({
       where: { id },
-      include: { orders: true }
+      include: {
+        orders: {
+          include: {
+            items: true,
+            bill: true,
+          },
+        },
+      },
     });
 
     if (!session) throw { status: 404, message: 'Session not found' };
     if (session.status !== 'OPEN') throw { status: 400, message: 'Session is already closed' };
 
-    const hasIncompleteOrders = session.orders.some(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
-    if (hasIncompleteOrders) throw { status: 400, message: 'Cannot close session with incomplete orders' };
+    const activeOrders = session.orders.filter(
+      (o) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED'
+    );
+
+    if (activeOrders.length > 0) {
+      if (!cancelOrders) {
+        throw { status: 400, message: 'Cannot close session with incomplete orders' };
+      }
+
+      for (const order of activeOrders) {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: 'CANCELLED' },
+        });
+
+        await tx.orderItem.updateMany({
+          where: {
+            orderId: order.id,
+            status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          },
+          data: { status: 'CANCELLED' },
+        });
+
+        if (order.bill && order.bill.status === 'DRAFT') {
+          await tx.bill.update({
+            where: { id: order.bill.id },
+            data: { status: 'CANCELLED' },
+          });
+        }
+      }
+    }
+
+    // Cancel any active uncompleted KOTs for this session
+    const activeKots = await tx.kOT.findMany({
+      where: {
+        sessionId: id,
+        status: { in: ['NEW', 'PREPARING', 'READY'] },
+      },
+    });
+
+    if (activeKots.length > 0) {
+      await tx.kOT.updateMany({
+        where: {
+          id: { in: activeKots.map((k) => k.id) },
+        },
+        data: { status: 'COMPLETED' },
+      });
+    }
 
     // Parallelize session close and table release
     const [closedSession] = await Promise.all([
@@ -93,11 +148,23 @@ export const close = async (id) => {
       }),
     ]);
 
-    return closedSession;
+    return {
+      closedSession,
+      tableId: session.tableId,
+      cancelledOrders: activeOrders,
+      cancelledKots: activeKots,
+    };
   });
 
   tableCache.invalidate();
-  emitSessionClosed(updatedSession);
-  emitTableUpdated({ id: updatedSession.tableId, status: 'AVAILABLE' });
-  return updatedSession;
+  emitSessionClosed(result.closedSession);
+  emitTableUpdated({ id: result.tableId, status: 'AVAILABLE' });
+  for (const ord of result.cancelledOrders) {
+    emitOrderUpdated({ id: ord.id, status: 'CANCELLED', sessionId: id });
+  }
+  for (const kot of result.cancelledKots) {
+    emitKotUpdated({ id: kot.id, kotId: kot.id, kotStatus: 'COMPLETED' });
+  }
+
+  return result.closedSession;
 };

@@ -11,6 +11,7 @@ router.get('/:id', authenticate, requirePermission('TABLE_VIEW'), tableControlle
 router.post('/', authenticate, requirePermission('TABLE_CREATE'), tableController.create);
 router.patch('/:id', authenticate, requirePermission('TABLE_EDIT'), tableController.update);
 router.patch('/:id/status', authenticate, validate(updateStatusSchema), tableController.updateStatus);
+router.post('/:id/close', authenticate, requirePermission('TABLE_EDIT', 'ORDER_CANCEL', 'ORDER_EDIT', 'BILL_FINALIZE'), tableController.closeTable);
 router.delete('/:id', authenticate, requirePermission('TABLE_DELETE'), tableController.remove);
 
 export default router;
