@@ -102,7 +102,7 @@ export const close = async (id, options = {}) => {
         await tx.orderItem.updateMany({
           where: {
             orderId: order.id,
-            status: { notIn: ['COMPLETED', 'CANCELLED'] },
+            status: { notIn: ['SERVED', 'CANCELLED'] },
           },
           data: { status: 'CANCELLED' },
         });
