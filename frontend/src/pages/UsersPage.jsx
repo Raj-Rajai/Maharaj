@@ -44,6 +44,7 @@ const PERMISSION_GROUPS = [
   { group: 'Users & Roles', perms: ['USER_VIEW', 'USER_CREATE', 'USER_EDIT', 'USER_DELETE'] },
   { group: 'Settings', perms: ['SETTINGS_VIEW', 'SETTINGS_EDIT'] },
   { group: 'Online Orders', perms: ['ONLINE_ORDER_VIEW', 'ONLINE_ORDER_CREATE', 'ONLINE_ORDER_EDIT'] },
+  { group: 'Notifications', perms: ['NOTIFICATION_KOT_AC', 'NOTIFICATION_KOT_NON_AC', 'NOTIFICATION_BILL_AC', 'NOTIFICATION_BILL_NON_AC'] },
 ];
 
 const PERMISSION_LABELS = {
@@ -117,6 +118,11 @@ const PERMISSION_LABELS = {
   ONLINE_ORDER_VIEW: 'View Online Orders',
   ONLINE_ORDER_CREATE: 'Create Online Orders',
   ONLINE_ORDER_EDIT: 'Update Online Orders',
+
+  NOTIFICATION_KOT_AC: 'Receive AC KOT Notifications',
+  NOTIFICATION_KOT_NON_AC: 'Receive Non-AC KOT Notifications',
+  NOTIFICATION_BILL_AC: 'Receive AC Bill Notifications',
+  NOTIFICATION_BILL_NON_AC: 'Receive Non-AC Bill Notifications',
 };
 
 const ALL_PERMS = PERMISSION_GROUPS.flatMap((g) => g.perms);

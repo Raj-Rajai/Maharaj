@@ -16,8 +16,8 @@ export default function SettingsPage() {
     address: '',
     phone: '',
     gstin: '',
-    sgstPercent: '2.5',
-    cgstPercent: '2.5',
+    sgstPercent: '2.500',
+    cgstPercent: '2.500',
     includePurchasesInReports: false,
   });
   const [loading, setLoading] = useState(true);
@@ -32,8 +32,8 @@ export default function SettingsPage() {
           address: res.data.address || '',
           phone: res.data.phone || '',
           gstin: res.data.gstin || '',
-          sgstPercent: res.data.sgstPercent !== undefined ? String(res.data.sgstPercent) : '2.5',
-          cgstPercent: res.data.cgstPercent !== undefined ? String(res.data.cgstPercent) : '2.5',
+          sgstPercent: res.data.sgstPercent !== undefined && res.data.sgstPercent !== null ? Number(res.data.sgstPercent).toFixed(3) : '2.500',
+          cgstPercent: res.data.cgstPercent !== undefined && res.data.cgstPercent !== null ? Number(res.data.cgstPercent).toFixed(3) : '2.500',
           includePurchasesInReports: !!res.data.includePurchasesInReports,
         });
       }
@@ -75,7 +75,7 @@ export default function SettingsPage() {
 
     setSaving(true);
     try {
-      await api.put('/settings', {
+      const res = await api.put('/settings', {
         restaurantName: settings.restaurantName.trim(),
         address: settings.address.trim() || null,
         phone: settings.phone.trim() || null,
@@ -84,6 +84,13 @@ export default function SettingsPage() {
         cgstPercent: cgst,
         includePurchasesInReports: settings.includePurchasesInReports,
       });
+      if (res.data) {
+        setSettings((s) => ({
+          ...s,
+          sgstPercent: res.data.sgstPercent !== undefined && res.data.sgstPercent !== null ? Number(res.data.sgstPercent).toFixed(3) : Number(sgst).toFixed(3),
+          cgstPercent: res.data.cgstPercent !== undefined && res.data.cgstPercent !== null ? Number(res.data.cgstPercent).toFixed(3) : Number(cgst).toFixed(3),
+        }));
+      }
       toast.success('Settings saved successfully');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save settings');
@@ -208,7 +215,7 @@ export default function SettingsPage() {
                 </label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="0.001"
                   min="0"
                   max="100"
                   required
@@ -225,7 +232,7 @@ export default function SettingsPage() {
                 </label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="0.001"
                   min="0"
                   max="100"
                   required
@@ -242,7 +249,7 @@ export default function SettingsPage() {
                 Calculated Total GST on Bills:
               </span>
               <span className="font-mono font-bold text-text dark:text-slate-100 bg-white dark:bg-slate-800 px-2.5 py-1 rounded border border-border dark:border-slate-700">
-                {totalGst.toFixed(2)}% ({settings.sgstPercent}% SGST + {settings.cgstPercent}% CGST)
+                {totalGst.toFixed(3)}% ({Number(settings.sgstPercent || 0).toFixed(3)}% SGST + {Number(settings.cgstPercent || 0).toFixed(3)}% CGST)
               </span>
             </div>
           </div>

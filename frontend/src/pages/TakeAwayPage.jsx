@@ -754,11 +754,11 @@ export default function TakeAwayPage() {
                   <span className="font-mono text-text dark:text-slate-200">₹{cartSubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-text-secondary dark:text-slate-400">
-                  <span>SGST (2.5%)</span>
+                  <span>SGST (2.500%)</span>
                   <span className="font-mono text-text dark:text-slate-200">₹{sgstAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-text-secondary dark:text-slate-400">
-                  <span>CGST (2.5%)</span>
+                  <span>CGST (2.500%)</span>
                   <span className="font-mono text-text dark:text-slate-200">₹{cgstAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-sm text-text dark:text-slate-100 pt-2 border-t border-border dark:border-slate-700">
