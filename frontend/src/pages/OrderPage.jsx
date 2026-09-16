@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Search, Plus, Minus, Send, Receipt, Trash2, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Minus, Send, Receipt, Trash2, ShoppingBag, LogOut, AlertTriangle } from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
@@ -15,6 +15,7 @@ export default function OrderPage() {
   const { user, hasPermission } = useAuth();
   const canOrder = hasPermission('ORDER_CREATE');
   const canBill = hasPermission('BILL_VIEW_DRAFT');
+  const canCloseTable = user?.role === 'SUPER_ADMIN' || hasPermission('TABLE_EDIT') || hasPermission('ORDER_CANCEL') || hasPermission('ORDER_EDIT') || hasPermission('BILL_FINALIZE');
   const [table, setTable] = useState(null);
   const [session, setSession] = useState(null);
   const [order, setOrder] = useState(null);
@@ -34,6 +35,8 @@ export default function OrderPage() {
   const [payMethod, setPayMethod] = useState('CASH');
   const [finalizing, setFinalizing] = useState(false);
   const [mobileTab, setMobileTab] = useState('menu'); // 'menu' | 'cart'
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [closingTable, setClosingTable] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -221,6 +224,20 @@ export default function OrderPage() {
     finally { setFinalizing(false); }
   };
 
+  const handleCloseTable = async () => {
+    setClosingTable(true);
+    try {
+      await api.post(`/tables/${tableId}/close`);
+      toast.success(`Table ${table?.number || ''} closed successfully`);
+      setShowCloseModal(false);
+      navigate('/tables');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to close table');
+    } finally {
+      setClosingTable(false);
+    }
+  };
+
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
 
   return (
@@ -250,37 +267,52 @@ export default function OrderPage() {
           {table?.status && <Badge variant={table.status === 'OCCUPIED' ? 'info' : 'success'}>{table.status}</Badge>}
         </div>
 
-        {/* Mobile View Switcher (Menu vs Order/Cart) */}
-        <div className="flex lg:hidden w-full sm:w-auto bg-surface dark:bg-slate-800 p-1 rounded-lg border border-border dark:border-slate-700">
-          <button
-            type="button"
-            onClick={() => setMobileTab('menu')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-              mobileTab === 'menu'
-                ? 'bg-primary text-white shadow-sm'
-                : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-white'
-            }`}
-          >
-            Menu Items
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab('cart')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              mobileTab === 'cart'
-                ? 'bg-primary text-white shadow-sm'
-                : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-white'
-            }`}
-          >
-            <span>Order & Cart</span>
-            {(cart.length > 0 || (order?.items && order.items.length > 0)) && (
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                mobileTab === 'cart' ? 'bg-white text-primary' : 'bg-primary text-white'
-              }`}>
-                {cart.reduce((s, i) => s + i.quantity, 0) + (order?.items?.filter(i => i.status !== 'CANCELLED').length || 0)}
-              </span>
-            )}
-          </button>
+        {/* Right Action: Close Table & Mobile View Switcher */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
+          {canCloseTable && (table?.status === 'OCCUPIED' || table?.status === 'BILLING' || session) && (
+            <button
+              type="button"
+              onClick={() => setShowCloseModal(true)}
+              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/40 dark:hover:bg-red-900/50 dark:text-red-400 border border-red-200 dark:border-red-800/60 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+              title="Close and release table"
+            >
+              <LogOut size={15} />
+              <span>Close Table</span>
+            </button>
+          )}
+
+          {/* Mobile View Switcher (Menu vs Order/Cart) */}
+          <div className="flex lg:hidden w-full sm:w-auto bg-surface dark:bg-slate-800 p-1 rounded-lg border border-border dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setMobileTab('menu')}
+              className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                mobileTab === 'menu'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-white'
+              }`}
+            >
+              Menu Items
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab('cart')}
+              className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                mobileTab === 'cart'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-white'
+              }`}
+            >
+              <span>Order & Cart</span>
+              {(cart.length > 0 || (order?.items && order.items.length > 0)) && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  mobileTab === 'cart' ? 'bg-white text-primary' : 'bg-primary text-white'
+                }`}>
+                  {cart.reduce((s, i) => s + i.quantity, 0) + (order?.items?.filter(i => i.status !== 'CANCELLED').length || 0)}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -686,6 +718,55 @@ export default function OrderPage() {
             {finalizing ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Receipt size={16} />}
             Create Draft Bill
           </button>
+        </div>
+      </Modal>
+
+      {/* Close Table Confirmation Modal */}
+      <Modal isOpen={showCloseModal} onClose={() => !closingTable && setShowCloseModal(false)} title={`Close Table ${table?.number || ''}`} size="sm">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 rounded-xl text-red-800 dark:text-red-300">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 text-red-500 mt-0.5" />
+            <div className="text-xs space-y-1.5">
+              <p className="font-semibold text-sm">Release Table {table?.number}?</p>
+              <p className="text-red-700 dark:text-red-300/90 leading-relaxed">
+                This will close the active session and release this table back to <span className="font-semibold text-green-600 dark:text-green-400">AVAILABLE</span>.
+              </p>
+              {order?.items && order.items.some(i => i.status !== 'CANCELLED') && (
+                <p className="font-medium text-amber-700 dark:text-amber-400 pt-1">
+                  ⚠️ Note: Unbilled items and active KOTs for this table will be cancelled.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              disabled={closingTable}
+              onClick={() => setShowCloseModal(false)}
+              className="px-4 py-2 border border-border dark:border-slate-700 rounded-lg text-xs font-medium text-text-secondary dark:text-slate-300 hover:bg-surface dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={closingTable}
+              onClick={handleCloseTable}
+              className="px-4 py-2 bg-danger text-white rounded-lg text-xs font-medium hover:bg-red-600 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-sm"
+            >
+              {closingTable ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Closing...</span>
+                </>
+              ) : (
+                <>
+                  <LogOut size={14} />
+                  <span>Confirm & Close Table</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

@@ -1,6 +1,7 @@
 import prisma from '../utils/prisma.js';
 import { tableCache } from '../utils/cache.js';
 import { emitTableUpdated } from '../utils/socket.js';
+import * as sessionService from './sessionService.js';
 
 export const getAll = async () => {
   const cached = tableCache.get();
@@ -74,8 +75,29 @@ export const remove = async (id) => {
   });
   if (!table) throw { status: 404, message: 'Table not found' };
   if (table.sessions.length > 0) throw { status: 400, message: 'Cannot delete table with active sessions' };
-  if (table.status === 'OCCUPIED') throw { status: 400, message: 'Cannot delete occupied table' };
   const deleted = await prisma.table.delete({ where: { id } });
   tableCache.invalidate();
   return deleted;
 };
+
+export const closeTable = async (tableId) => {
+  const openSession = await prisma.tableSession.findFirst({
+    where: { tableId, status: 'OPEN' },
+  });
+
+  if (openSession) {
+    await sessionService.close(openSession.id, { cancelOrders: true });
+  } else {
+    // If no open session exists, directly release table to AVAILABLE
+    await prisma.table.update({
+      where: { id: tableId },
+      data: { status: 'AVAILABLE' },
+    });
+    tableCache.invalidate();
+    emitTableUpdated({ id: tableId, status: 'AVAILABLE' });
+  }
+
+  const updatedTable = await prisma.table.findUnique({ where: { id: tableId } });
+  return updatedTable;
+};
+
