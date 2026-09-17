@@ -237,12 +237,18 @@ const prisma = basePrisma.$extends({
         return withRetry(() => {
           return txStorage.run({ inTransaction: true }, () => {
             return basePrisma.$transaction(async (tx) => {
-              const originalQueryRawUnsafe = tx.$queryRawUnsafe.bind(tx);
-              tx.$queryRawUnsafe = (sql, ...params) => {
-                const translated = translateQueryForDialect(sql, params);
-                return originalQueryRawUnsafe(translated.sql, ...translated.params);
-              };
-              return arg1(tx);
+              const txProxy = new Proxy(tx, {
+                get(target, prop, receiver) {
+                  if (prop === '$queryRawUnsafe') {
+                    return (sql, ...params) => {
+                      const translated = translateQueryForDialect(sql, params);
+                      return target.$queryRawUnsafe(translated.sql, ...translated.params);
+                    };
+                  }
+                  return Reflect.get(target, prop, receiver);
+                },
+              });
+              return arg1(txProxy);
             }, arg2);
           });
         }, '$transaction(interactive)');
