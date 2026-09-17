@@ -309,4 +309,31 @@ const gracefulShutdown = async (signal) => {
 process.once('SIGINT', () => gracefulShutdown('SIGINT'));
 process.once('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
+/**
+ * Standalone raw-query wrapper that ALWAYS applies dialect translation + retry.
+ * 
+ * The $extends({ client: { $queryRawUnsafe } }) override is unreliable — Prisma
+ * may silently ignore it depending on version, provider, and build. This function
+ * calls basePrisma.$queryRawUnsafe() directly, bypassing the extension system
+ * entirely. All services should use rawQuery() instead of prisma.$queryRawUnsafe().
+ */
+export async function rawQuery(sql, ...params) {
+  const translated = translateQueryForDialect(sql, params);
+  return withRetry(
+    () => basePrisma.$queryRawUnsafe(translated.sql, ...translated.params),
+    '$rawQuery'
+  );
+}
+
+/**
+ * Same as rawQuery but for INSERT/UPDATE/DELETE (returns affected row count).
+ */
+export async function rawExecute(sql, ...params) {
+  const translated = translateQueryForDialect(sql, params);
+  return withRetry(
+    () => basePrisma.$executeRawUnsafe(translated.sql, ...translated.params),
+    '$rawExecute'
+  );
+}
+
 export default prisma;
