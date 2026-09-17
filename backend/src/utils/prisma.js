@@ -123,6 +123,31 @@ export function isConnectionError(err) {
 
 export const isMySQL = () => (process.env.DATABASE_URL || '').startsWith('mysql');
 
+/**
+ * Flatten a Prisma/driver error into one log-friendly line.
+ * Retry and error-handler logs previously printed only `err.code`, which is
+ * undefined for most driver-level errors — hiding whether a failure was a real
+ * connection drop, a pool timeout, or a query rejected by the database.
+ */
+export function describeDbError(err) {
+  if (!err) return 'unknown error';
+  const parts = [];
+  if (err.code) parts.push(`code=${err.code}`);
+  if (err.name) parts.push(`name=${err.name}`);
+  if (err.errno !== undefined) parts.push(`errno=${err.errno}`);
+  if (err.meta) {
+    try {
+      parts.push(`meta=${JSON.stringify(err.meta)}`);
+    } catch {
+      // not serializable — keep the rest of the line
+    }
+  }
+  if (err.message) {
+    parts.push(`message=${String(err.message).replace(/\s+/g, ' ').trim()}`);
+  }
+  return parts.length > 0 ? parts.join(' ') : String(err);
+}
+
 export function translateQueryForDialect(sql, params = []) {
   if (isMySQL()) {
     const mysqlParams = params.map((p) => (p instanceof Date ? p.toISOString().slice(0, 19).replace('T', ' ') : p));
@@ -175,11 +200,16 @@ async function withRetry(fn, label) {
       if (isConnectionError(err) && attempt < MAX_RETRIES - 1) {
         const delay = computeBackoff(attempt);
         console.warn(
-          `[Prisma Retry] ${err.code || 'CONN_ERR'} on attempt ${attempt + 1}/${MAX_RETRIES} for "${label}". Retrying in ${delay}ms...`
+          `[Prisma Retry] attempt ${attempt + 1}/${MAX_RETRIES} for "${label}": ${describeDbError(err)}. Retrying in ${delay}ms...`
         );
         await new Promise((r) => setTimeout(r, delay));
         continue;
       }
+      // Out of retries, or not retryable: log the real error here, because the
+      // error handler flattens connection-classified errors into a generic 503.
+      console.error(
+        `[Prisma Fail] "${label}" after ${attempt + 1} attempt(s): ${describeDbError(err)}`
+      );
       throw err;
     }
   }
