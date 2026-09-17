@@ -9,7 +9,8 @@
     "postinstall": "node scripts/sync-provider.js && prisma generate",
     "start": "node src/index.js",
     "seed": "node prisma/seed.js",
-    "export:mysql": "node scripts/export-supabase-to-mysql.js"
+    "export:mysql": "node scripts/export-supabase-to-mysql.js",
+    "migrate:mysql": "node scripts/migrate-mysql.js"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

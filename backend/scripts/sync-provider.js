@@ -18,17 +18,8 @@ if (!fs.existsSync(schemaPath)) {
   process.exit(0);
 }
 
-let targetProvider = null;
-if (dbUrl.startsWith('mysql://')) {
-  targetProvider = 'mysql';
-} else if (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')) {
-  targetProvider = 'postgresql';
-}
-
-if (!targetProvider) {
-  console.log('[sync-provider] No matching provider detected from DATABASE_URL protocol. Keeping schema as-is.');
-  process.exit(0);
-}
+// Maharaj Veg Villa is strictly configured for MySQL 8.0+
+const targetProvider = 'mysql';
 
 let content = fs.readFileSync(schemaPath, 'utf8');
 const providerRegex = /provider\s*=\s*"(mysql|postgresql|sqlite|sqlserver)"/;

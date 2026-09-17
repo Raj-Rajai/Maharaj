@@ -13,37 +13,7 @@ const SLOW_QUERY_MS = 150;
 
 
 function getOptimalDatabaseUrl() {
-  const rawUrl = process.env.DATABASE_URL || '';
-  if (!rawUrl || rawUrl.startsWith('mysql')) {
-    return rawUrl;
-  }
-
-  try {
-    const url = new URL(rawUrl);
-    // If connecting to Supabase pooler, preserve user-selected mode (5432 = session, 6543 = transaction)
-    if (url.hostname.includes('pooler.supabase.com')) {
-      if (url.port === '6543') {
-        url.searchParams.set('pgbouncer', 'true');
-      }
-      const currentLimit = parseInt(url.searchParams.get('connection_limit') || '10', 10);
-      if (currentLimit > 5) {
-        url.searchParams.set('connection_limit', '5');
-      }
-      return url.toString();
-    }
-
-    if (url.protocol.startsWith('postgres')) {
-      const currentLimit = parseInt(url.searchParams.get('connection_limit') || '10', 10);
-      if (currentLimit > 5) {
-        url.searchParams.set('connection_limit', '5');
-      }
-      return url.toString();
-    }
-
-    return rawUrl;
-  } catch {
-    return rawUrl;
-  }
+  return process.env.DATABASE_URL || '';
 }
 
 const optimalDbUrl = getOptimalDatabaseUrl();
@@ -70,25 +40,20 @@ const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 150;
 const MAX_RETRY_DELAY = 1500;
 
-// Retryable error codes across Prisma, PostgreSQL, MySQL, and connection pools
+// Retryable error codes across Prisma, MySQL, and connection pools
 const RETRYABLE_CODES = new Set([
   'P1001', // Can't reach database server
   'P1002', // Database server reached but timed out
   'P1008', // Operations timed out
-  'P1017', // Server has closed the connection (PgBouncer idle drop)
+  'P1017', // Server has closed the connection
   'P2024', // Timed out fetching a new connection from the connection pool
   'P2028', // Transaction API error (transaction expired/closed)
   'P2034', // Transaction failed due to write conflict or deadlock
-  '40001', // PostgreSQL serialization_failure
-  '40P01', // PostgreSQL deadlock_detected
-  '57P01', // PostgreSQL admin_shutdown
-  '57P02', // PostgreSQL crash_shutdown
-  '57P03', // PostgreSQL cannot_connect_now
-  '08000', '08001', '08003', '08004', '08006', // PostgreSQL connection exceptions
   '1213', 'ER_LOCK_DEADLOCK', // MySQL deadlock detected
   '1205', 'ER_LOCK_WAIT_TIMEOUT', // MySQL lock wait timeout
   'PROTOCOL_CONNECTION_LOST', // MySQL connection dropped
   'ECONNREFUSED',
+  'ER_QUERY_INTERRUPTED',
 ]);
 
 const RETRYABLE_MESSAGES = [
@@ -107,7 +72,6 @@ const RETRYABLE_MESSAGES = [
   'deadlock detected',
   'deadlock found when trying to get lock',
   'lock wait timeout exceeded',
-  'could not serialize access',
   'timed out fetching a new connection',
   'prepared statement',
   'query execution was interrupted',
@@ -121,7 +85,8 @@ export function isConnectionError(err) {
   return RETRYABLE_MESSAGES.some((m) => msg.includes(m));
 }
 
-export const isMySQL = () => (process.env.DATABASE_URL || '').startsWith('mysql');
+// Project is strictly configured for MySQL 8.0+
+export const isMySQL = () => true;
 
 /**
  * Flatten a Prisma/driver error into one log-friendly line.
@@ -148,40 +113,13 @@ export function describeDbError(err) {
   return parts.length > 0 ? parts.join(' ') : String(err);
 }
 
+/**
+ * Format parameters for native MySQL execution.
+ * Converts JavaScript Date instances into MySQL-compatible 'YYYY-MM-DD HH:MM:SS' strings.
+ */
 export function translateQueryForDialect(sql, params = []) {
-  if (isMySQL()) {
-    const mysqlParams = params.map((p) => (p instanceof Date ? p.toISOString().slice(0, 19).replace('T', ' ') : p));
-    return { sql, params: mysqlParams };
-  }
-
-  let pgSql = sql;
-
-  // 1. Cast enum comparisons for PostgreSQL:
-  pgSql = pgSql.replace(/([a-zA-Z_0-9.]+)\.status\s*=\s*\?/g, '$1.status::text = ?');
-  pgSql = pgSql.replace(/([a-zA-Z_0-9.]+)\.status\s+IN\s*\(([^)]+)\)/g, '$1.status::text IN ($2)');
-
-  // 2. Replace backticks `Word` with "Word"
-  pgSql = pgSql.replace(/`([^`]+)`/g, '"$1"');
-
-  // 3. List of camelCase identifiers that must be quoted in double quotes in Postgres:
-  const camelCaseIdentifiers = [
-    'kotNumber', 'orderId', 'sessionId', 'captainId', 'createdAt', 'updatedAt',
-    'orderSource', 'tableId', 'itemNameSnapshot', 'priceSnapshot', 'originalQuantity',
-    'menuItemId', 'kotId', 'sgstAmount', 'cgstAmount', 'sgstPercent', 'cgstPercent',
-    'finalizedAt', 'customerName', 'customerPhone', 'roundOff', 'lowStockThreshold',
-    'currentStock', 'inventoryItemId', 'billNumber', 'billId', 'paidAt', 'userId'
-  ];
-
-  for (const id of camelCaseIdentifiers) {
-    const regex = new RegExp(`(?<!")\\b${id}\\b(?!")`, 'g');
-    pgSql = pgSql.replace(regex, `"${id}"`);
-  }
-
-  // 4. Replace ? with $1, $2, $3...
-  let paramIndex = 1;
-  pgSql = pgSql.replace(/\?/g, () => `$${paramIndex++}`);
-
-  return { sql: pgSql, params };
+  const mysqlParams = params.map((p) => (p instanceof Date ? p.toISOString().slice(0, 19).replace('T', ' ') : p));
+  return { sql, params: mysqlParams };
 }
 
 function computeBackoff(attempt) {

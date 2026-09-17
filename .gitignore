@@ -11,6 +11,7 @@ lerna-debug.log*
 .agents/
 .claude/
 .claude/skills/playwright-cli/
+Claude outputs/
 
 # Environment & Secrets
 .env
