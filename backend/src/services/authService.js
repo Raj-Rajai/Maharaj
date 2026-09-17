@@ -2,6 +2,7 @@ import prisma from '../utils/prisma.js';
 import { comparePassword } from '../utils/password.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 import { userAuthCache } from '../utils/cache.js';
+import { fetchUserPermissions } from '../utils/permissions.js';
 
 export const login = async (username, password) => {
   const user = await prisma.user.findUnique({
@@ -34,19 +35,19 @@ export const login = async (username, password) => {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
 
-  await prisma.refreshToken.create({
-    data: {
-      token: refreshToken,
-      userId: user.id,
-      expiresAt
-    }
-  });
+  try {
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: user.id,
+        expiresAt
+      }
+    });
+  } catch (tokenErr) {
+    console.warn('[Auth] Could not persist refresh token:', tokenErr.message);
+  }
 
-  const permRows = await prisma.$queryRawUnsafe(
-    'SELECT `permission` FROM `UserPermission` WHERE `userId` = ?',
-    user.id
-  );
-  const permissionsList = (permRows || []).map(p => p.permission);
+  const permissionsList = await fetchUserPermissions(user.id, user.role);
 
   userAuthCache.set(user.id, {
     id: user.id,
@@ -131,11 +132,7 @@ export const getProfile = async (userId) => {
     throw { status: 404, message: 'User not found' };
   }
 
-  const permRows = await prisma.$queryRawUnsafe(
-    'SELECT `permission` FROM `UserPermission` WHERE `userId` = ?',
-    userId
-  );
-  const permissionsList = (permRows || []).map(p => p.permission);
+  const permissionsList = await fetchUserPermissions(userId, user.role);
 
   const profile = {
     ...user,

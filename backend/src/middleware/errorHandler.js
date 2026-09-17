@@ -11,9 +11,9 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
-  console.error('Error:', err);
+  console.error(`[Error] ${req.method} ${req.originalUrl}:`, err);
   const status = err.status || 500;
-  const message = err.message || 'Internal server error';
+  const message = err.message || (typeof err === 'string' ? err : 'Internal server error');
   res.status(status).json({
     message,
     error: {
