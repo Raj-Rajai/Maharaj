@@ -17,7 +17,6 @@ import {
   Lock,
   RotateCcw,
   CheckCheck,
-  Plus,
   Trash2,
 } from 'lucide-react';
 import Badge from '../components/ui/Badge';
@@ -157,7 +156,6 @@ export default function UsersPage() {
   const [permSearch, setPermSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const { user: currentUser, hasPermission, refreshUser } = useAuth();
-  const canCreate = hasPermission('USER_CREATE');
   const canEdit = hasPermission('USER_EDIT');
   const canDelete = hasPermission('USER_DELETE');
 
@@ -357,14 +355,6 @@ export default function UsersPage() {
             View system accounts, update roles, and manage granular permissions
           </p>
         </div>
-        {canCreate && (
-          <button
-            onClick={openAddModal}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light transition-colors shadow-xs cursor-pointer w-full sm:w-auto min-h-[42px]"
-          >
-            <Plus size={16} /> Add User
-          </button>
-        )}
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 shadow-xs overflow-hidden">
