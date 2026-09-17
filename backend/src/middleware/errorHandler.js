@@ -16,6 +16,10 @@ export const errorHandler = (err, req, res, next) => {
     return res.status(503).json({
       message: 'Database connection temporarily unavailable, please retry',
       retryable: true,
+      // TEMPORARY DIAGNOSTIC — these 503s hide their real cause, and the server
+      // log has not been reachable, so surface it in the response where it can be
+      // read from the browser's network tab. Remove once the cause is known.
+      debug: describeDbError(err),
     });
   }
 
