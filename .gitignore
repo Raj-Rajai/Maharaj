@@ -30,6 +30,7 @@ docs/
 *.zip
 backend/prisma/*_dump.json
 backend/prisma/*_export.json
+server-database-csv/
 
 # Build outputs
 dist/
