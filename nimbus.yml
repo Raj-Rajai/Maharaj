@@ -6,11 +6,13 @@ runtime:
 install:
   # 1. Copy the generated .env into backend folder first
   - cp .env backend/.env
-  # 2. Install backend dependencies
+  # 2. Sync schema provider with DATABASE_URL
+  - node backend/scripts/sync-provider.js
+  # 3. Install backend dependencies
   - npm --prefix backend install
-  # 3. Generate Prisma client with explicit schema path
+  # 4. Generate Prisma client with explicit schema path
   - npx --prefix backend prisma generate --schema=backend/prisma/schema.prisma
-  # 4. Install frontend dependencies
+  # 5. Install frontend dependencies
   - npm --prefix frontend install
 
 build:
