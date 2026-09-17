@@ -145,7 +145,7 @@ export function translateQueryForDialect(sql, params = []) {
     'orderSource', 'tableId', 'itemNameSnapshot', 'priceSnapshot', 'originalQuantity',
     'menuItemId', 'kotId', 'sgstAmount', 'cgstAmount', 'sgstPercent', 'cgstPercent',
     'finalizedAt', 'customerName', 'customerPhone', 'roundOff', 'lowStockThreshold',
-    'currentStock', 'inventoryItemId', 'billNumber', 'billId', 'paidAt'
+    'currentStock', 'inventoryItemId', 'billNumber', 'billId', 'paidAt', 'userId'
   ];
 
   for (const id of camelCaseIdentifiers) {
