@@ -7,29 +7,49 @@ export const updatePermissions = async (userId, permissions) => {
   await prisma.$transaction(async (tx) => {
     await tx.userPermission.deleteMany({ where: { userId } });
     if (permissions && permissions.length > 0) {
-      await tx.userPermission.createMany({
-        data: permissions.map(p => ({ userId, permission: p }))
-      });
+      for (const p of permissions) {
+        await tx.$queryRawUnsafe(
+          'INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (UUID(), ?, ?, NOW(3))',
+          userId,
+          p
+        );
+      }
     }
   });
   userAuthCache.invalidate(userId);
 };
 
 export const getAll = async () => {
-  return prisma.user.findMany({
+  const users = await prisma.user.findMany({
     select: {
       id: true,
       username: true,
       name: true,
       role: true,
       active: true,
-      createdAt: true,
-      permissions: { select: { permission: true } }
+      createdAt: true
     },
     orderBy: {
       createdAt: 'desc'
     }
   });
+
+  if (users.length === 0) return [];
+
+  const allPerms = await prisma.$queryRawUnsafe(
+    'SELECT `userId`, `permission` FROM `UserPermission`'
+  );
+
+  const permsByUserId = {};
+  for (const p of (allPerms || [])) {
+    if (!permsByUserId[p.userId]) permsByUserId[p.userId] = [];
+    permsByUserId[p.userId].push({ permission: p.permission });
+  }
+
+  return users.map(u => ({
+    ...u,
+    permissions: permsByUserId[u.id] || []
+  }));
 };
 
 export const getById = async (id) => {
@@ -41,8 +61,7 @@ export const getById = async (id) => {
       name: true,
       role: true,
       active: true,
-      createdAt: true,
-      permissions: { select: { permission: true } }
+      createdAt: true
     }
   });
 
@@ -50,7 +69,15 @@ export const getById = async (id) => {
     throw { status: 404, message: 'User not found' };
   }
 
-  return user;
+  const permRows = await prisma.$queryRawUnsafe(
+    'SELECT `permission` FROM `UserPermission` WHERE `userId` = ?',
+    id
+  );
+
+  return {
+    ...user,
+    permissions: (permRows || []).map(p => ({ permission: p.permission }))
+  };
 };
 
 export const create = async (data) => {
@@ -83,9 +110,13 @@ export const create = async (data) => {
     });
 
     if (permissions && permissions.length > 0) {
-      await tx.userPermission.createMany({
-        data: permissions.map(p => ({ userId: user.id, permission: p }))
-      });
+      for (const p of permissions) {
+        await tx.$queryRawUnsafe(
+          'INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (UUID(), ?, ?, NOW(3))',
+          user.id,
+          p
+        );
+      }
     }
 
     return user;
@@ -122,9 +153,13 @@ export const update = async (id, data) => {
     if (permissions) {
       await tx.userPermission.deleteMany({ where: { userId: id } });
       if (permissions.length > 0) {
-        await tx.userPermission.createMany({
-          data: permissions.map(p => ({ userId: id, permission: p }))
-        });
+        for (const p of permissions) {
+          await tx.$queryRawUnsafe(
+            'INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (UUID(), ?, ?, NOW(3))',
+            id,
+            p
+          );
+        }
       }
     }
 
