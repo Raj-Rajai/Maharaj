@@ -42,4 +42,4 @@ env:
   FRONTEND_URL: "https://maharaj.sudhirrajai.com"
   JWT_SECRET: "maharaj_prod_jwt_secret_9283748291"
   JWT_REFRESH_SECRET: "maharaj_prod_jwt_refresh_secret_18273645"
-  DATABASE_URL: "mysql://maharaj_user:%28w%28Q4P2Z%24%289K%40bsH@127.0.0.1:3306/maharaj"
+  DATABASE_URL: "mysql://maharaj_user:%28w%28Q4P2Z%24%289K%40bsH@127.0.0.1:3306/maharaj?connection_limit=15&pool_timeout=20"
