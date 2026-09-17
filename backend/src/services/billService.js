@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import prisma, { rawQuery } from '../utils/prisma.js';
 import * as auditService from './auditService.js';
 import { settingsCache, tableCache } from '../utils/cache.js';
 import { emitBillCreated, emitBillUpdated, emitBillFinalized } from '../utils/socket.js';
@@ -212,7 +212,7 @@ export const getAll = async (filters) => {
     ${paginationClause}
   `;
 
-  const rows = await prisma.$queryRawUnsafe(sql, ...params);
+  const rows = await rawQuery(sql, ...params);
 
   return rows.map(row => ({
     id: row.id,

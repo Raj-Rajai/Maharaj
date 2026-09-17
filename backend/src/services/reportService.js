@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import prisma, { rawQuery } from '../utils/prisma.js';
 import { settingsCache } from '../utils/cache.js';
 
 const getDateRangeFilter = (startDate, endDate) => {
@@ -677,7 +677,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
 
   // Run the 4 core queries in parallel ONCE
   const [bills, onlineOrders, allOrders, purchases] = await Promise.all([
-    prisma.$queryRawUnsafe(billsQuery, sqlStartDate, sqlEndDate),
+    rawQuery(billsQuery, sqlStartDate, sqlEndDate),
 
     prisma.onlineOrder.findMany({
       where: { ...dateFilter },

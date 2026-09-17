@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import prisma, { rawQuery } from '../utils/prisma.js';
 import { emitKotCreated, emitKotUpdated } from '../utils/socket.js';
 
 export const create = async (orderId, captainId, sessionId = null) => {
@@ -98,7 +98,7 @@ export const getAll = async (filters) => {
     ORDER BY k.createdAt DESC
   `;
 
-  const rows = await prisma.$queryRawUnsafe(sql, ...params);
+  const rows = await rawQuery(sql, ...params);
   if (!rows || rows.length === 0) return [];
 
   const kotIds = rows.map(r => r.id);
@@ -109,7 +109,7 @@ export const getAll = async (filters) => {
     FROM \`OrderItem\`
     WHERE kotId IN (${itemsPlaceholders})
   `;
-  const items = await prisma.$queryRawUnsafe(itemsSql, ...kotIds);
+  const items = await rawQuery(itemsSql, ...kotIds);
 
   const itemsByKotId = {};
   for (const item of items) {

@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import prisma, { rawQuery } from '../utils/prisma.js';
 import { settingsCache } from '../utils/cache.js';
 import { emitKotCreated, emitBillCreated, emitOrderUpdated } from '../utils/socket.js';
 
@@ -310,7 +310,7 @@ export const getAll = async (filters) => {
     ${offsetClause}
   `;
 
-  const orders = await prisma.$queryRawUnsafe(sql, ...params);
+  const orders = await rawQuery(sql, ...params);
 
   if (!orders || orders.length === 0) return [];
 
@@ -322,7 +322,7 @@ export const getAll = async (filters) => {
     FROM \`OrderItem\`
     WHERE orderId IN (${itemsPlaceholders})
   `;
-  const items = await prisma.$queryRawUnsafe(itemsSql, ...orderIds);
+  const items = await rawQuery(itemsSql, ...orderIds);
 
   const itemsByOrderId = {};
   for (const item of items) {

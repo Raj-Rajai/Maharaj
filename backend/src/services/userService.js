@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import prisma from '../utils/prisma.js';
+import prisma, { rawQuery } from '../utils/prisma.js';
 import { hashPassword } from '../utils/password.js';
 import { userAuthCache, tableCache } from '../utils/cache.js';
 import { fetchUserPermissions, getDefaultPermissionsForRole } from '../utils/permissions.js';
@@ -58,12 +58,12 @@ export const getAll = async () => {
 
   let allPerms = [];
   try {
-    allPerms = await prisma.$queryRawUnsafe(
+    allPerms = await rawQuery(
       'SELECT `userId`, `permission` FROM `UserPermission`'
     );
   } catch {
     try {
-      allPerms = await prisma.$queryRawUnsafe(
+      allPerms = await rawQuery(
         'SELECT `userId`, `permission` FROM `userpermission`'
       );
     } catch (e) {

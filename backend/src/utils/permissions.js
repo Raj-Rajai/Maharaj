@@ -1,4 +1,4 @@
-import prisma from './prisma.js';
+import prisma, { rawQuery } from './prisma.js';
 
 export const ALL_PERMISSIONS = [
   'DASHBOARD_VIEW', 'TABLE_VIEW', 'TABLE_CREATE', 'TABLE_EDIT', 'TABLE_DELETE',
@@ -55,7 +55,7 @@ export async function fetchUserPermissions(userId, role) {
   }
 
   try {
-    const permRows = await prisma.$queryRawUnsafe(
+    const permRows = await rawQuery(
       'SELECT `permission` FROM `UserPermission` WHERE `userId` = ?',
       userId
     );
@@ -65,7 +65,7 @@ export async function fetchUserPermissions(userId, role) {
     }
   } catch (err1) {
     try {
-      const permRows = await prisma.$queryRawUnsafe(
+      const permRows = await rawQuery(
         'SELECT `permission` FROM `userpermission` WHERE `userId` = ?',
         userId
       );
