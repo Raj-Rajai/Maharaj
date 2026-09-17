@@ -213,7 +213,11 @@ model UserPermission {
 
 model RefreshToken {
   id        String   @id @default(uuid())
-  token     String   @unique
+  // JWT refresh tokens carry id + jti + iat + exp and run ~247 chars. The MySQL
+  // default for String is VARCHAR(191), which silently truncates them (or errors
+  // with 1406 under strict mode) — 512 keeps the unique index within InnoDB's
+  // 3072-byte key limit at utf8mb4 (512 * 4 = 2048).
+  token     String   @unique @db.VarChar(512)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
