@@ -20,11 +20,9 @@ function getOptimalDatabaseUrl() {
 
   try {
     const url = new URL(rawUrl);
-    // If connecting to Supabase pooler, switch from session mode (5432, pool_size: 15)
-    // to transaction mode (6543) with pgbouncer=true to eliminate EMAXCONNSESSION
+    // If connecting to Supabase pooler, preserve user-selected mode (5432 = session, 6543 = transaction)
     if (url.hostname.includes('pooler.supabase.com')) {
-      if (url.port === '5432' || !url.port) {
-        url.port = '6543';
+      if (url.port === '6543') {
         url.searchParams.set('pgbouncer', 'true');
       }
       const currentLimit = parseInt(url.searchParams.get('connection_limit') || '10', 10);
@@ -127,7 +125,8 @@ export const isMySQL = () => (process.env.DATABASE_URL || '').startsWith('mysql'
 
 export function translateQueryForDialect(sql, params = []) {
   if (isMySQL()) {
-    return { sql, params };
+    const mysqlParams = params.map((p) => (p instanceof Date ? p.toISOString().slice(0, 19).replace('T', ' ') : p));
+    return { sql, params: mysqlParams };
   }
 
   let pgSql = sql;
