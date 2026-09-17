@@ -27,15 +27,18 @@ export const authenticate = async (req, res, next) => {
           id: true,
           role: true,
           active: true,
-          permissions: { select: { permission: true } }
         }
       });
       if (userRecord) {
+        const permRows = await prisma.$queryRawUnsafe(
+          'SELECT `permission` FROM `UserPermission` WHERE `userId` = ?',
+          userRecord.id
+        );
         dbUser = {
           id: userRecord.id,
           role: userRecord.role,
           active: userRecord.active,
-          permissions: (userRecord.permissions || []).map(p => p.permission)
+          permissions: (permRows || []).map(p => p.permission)
         };
         userAuthCache.set(payload.id, dbUser);
       }
@@ -94,14 +97,14 @@ export const requirePermission = (...permissions) => {
       }
 
       // Safe fallback: If permissions array was not loaded on req.user, check DB
-      const userPermission = await prisma.userPermission.findFirst({
-        where: {
-          userId: req.user.id,
-          permission: { in: permissions }
-        }
-      });
+      const permRows = await prisma.$queryRawUnsafe(
+        'SELECT `permission` FROM `UserPermission` WHERE `userId` = ?',
+        req.user.id
+      );
+      const userPerms = (permRows || []).map(p => p.permission);
+      const hasPerm = permissions.some(p => userPerms.includes(p));
 
-      if (!userPermission) {
+      if (!hasPerm) {
         return res.status(403).json({ message: 'Insufficient permissions' });
       }
 

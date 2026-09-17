@@ -6,7 +6,14 @@ import { userAuthCache } from '../utils/cache.js';
 export const login = async (username, password) => {
   const user = await prisma.user.findUnique({
     where: { username },
-    include: { permissions: { select: { permission: true } } }
+    select: {
+      id: true,
+      username: true,
+      password: true,
+      name: true,
+      role: true,
+      active: true,
+    }
   });
   if (!user) {
     throw { status: 401, message: 'Invalid credentials' };
@@ -35,7 +42,12 @@ export const login = async (username, password) => {
     }
   });
 
-  const permissionsList = user.permissions.map(p => p.permission);
+  const permRows = await prisma.$queryRawUnsafe(
+    'SELECT `permission` FROM `UserPermission` WHERE `userId` = ?',
+    user.id
+  );
+  const permissionsList = (permRows || []).map(p => p.permission);
+
   userAuthCache.set(user.id, {
     id: user.id,
     role: user.role,
@@ -112,7 +124,6 @@ export const getProfile = async (userId) => {
       name: true,
       role: true,
       active: true,
-      permissions: { select: { permission: true } }
     }
   });
 
@@ -120,9 +131,15 @@ export const getProfile = async (userId) => {
     throw { status: 404, message: 'User not found' };
   }
 
+  const permRows = await prisma.$queryRawUnsafe(
+    'SELECT `permission` FROM `UserPermission` WHERE `userId` = ?',
+    userId
+  );
+  const permissionsList = (permRows || []).map(p => p.permission);
+
   const profile = {
     ...user,
-    permissions: user.permissions.map(p => p.permission)
+    permissions: permissionsList
   };
   userAuthCache.setProfile(userId, profile);
   return profile;
