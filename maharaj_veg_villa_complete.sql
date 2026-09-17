@@ -1,35 +1,448 @@
 -- ==============================================================================
--- Maharaj Veg Villa - Complete Production MySQL Database Dump
--- Generated: 2026-09-17T06:50:30.182Z
+-- Maharaj Veg Villa - Complete Production MySQL 8.0 Database Dump
+-- Generated: 2026-09-17T10:19:41.962Z
 -- Dialect: MySQL 8.0+ / MariaDB 10.4+
--- Total Tables: 22 | Total Rows: 1689
--- Source: server-database-csv (Client Production Data) + Maharaj Master Records
+-- Character Set: utf8mb4 | Collation: utf8mb4_unicode_ci
+-- Total Tables: 22 | Total Data Rows: 1689
+-- Schema: Exact Prisma 6 MySQL Model Specifications
+-- Source: Maharaj Master Records + Client Production CSVs (Verified)
 -- ==============================================================================
 
 SET NAMES utf8mb4;
 SET CHARACTER SET utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-SET time_zone = "+00:00";
+SET AUTOCOMMIT = 0;
+START TRANSACTION;
 
 -- ------------------------------------------------------------------------------
--- Table structure for table `User`
+-- Select default production database (safe for CLI import or interactive source)
+USE `maharaj`;
+
+-- 1. DROP EXISTING TABLES (Clean Re-import Safe)
 -- ------------------------------------------------------------------------------
+DROP TABLE IF EXISTS `AuditLog`;
+DROP TABLE IF EXISTS `Settings`;
+DROP TABLE IF EXISTS `InventoryTransaction`;
+DROP TABLE IF EXISTS `InventoryItem`;
+DROP TABLE IF EXISTS `PurchaseItem`;
+DROP TABLE IF EXISTS `PurchaseEntry`;
+DROP TABLE IF EXISTS `Supplier`;
+DROP TABLE IF EXISTS `OnlineOrder`;
+DROP TABLE IF EXISTS `Payment`;
+DROP TABLE IF EXISTS `BillAmendment`;
+DROP TABLE IF EXISTS `Bill`;
+DROP TABLE IF EXISTS `KOT`;
+DROP TABLE IF EXISTS `OrderItemHistory`;
+DROP TABLE IF EXISTS `OrderItem`;
+DROP TABLE IF EXISTS `Order`;
+DROP TABLE IF EXISTS `TableSession`;
+DROP TABLE IF EXISTS `MenuItem`;
+DROP TABLE IF EXISTS `Category`;
+DROP TABLE IF EXISTS `Table`;
+DROP TABLE IF EXISTS `RefreshToken`;
+DROP TABLE IF EXISTS `UserPermission`;
 DROP TABLE IF EXISTS `User`;
-CREATE TABLE `User` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `username` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `password` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `name` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `role` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `active` tinyint(1) NOT NULL DEFAULT '1',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt` datetime(3) NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `User_username_key` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
--- Dumping data for table `User` (5 rows)
+-- ------------------------------------------------------------------------------
+-- 2. CREATE TABLE STRUCTURES (Strict MySQL 8.0 DDL)
+-- ------------------------------------------------------------------------------
+-- Table structure for `User`
+CREATE TABLE `User` (
+    `id` VARCHAR(191) NOT NULL,
+    `username` VARCHAR(191) NOT NULL,
+    `password` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `role` ENUM('SUPER_ADMIN', 'ADMIN', 'AC_MASTER', 'NON_AC_MASTER') NOT NULL,
+    `active` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+    
+    UNIQUE INDEX `User_username_key`(`username`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `UserPermission`
+CREATE TABLE `UserPermission` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `permission` ENUM('DASHBOARD_VIEW', 'TABLE_VIEW', 'TABLE_CREATE', 'TABLE_EDIT', 'TABLE_DELETE', 'MENU_AC_VIEW', 'MENU_AC_CREATE', 'MENU_AC_EDIT', 'MENU_AC_DELETE', 'MENU_NON_AC_VIEW', 'MENU_NON_AC_CREATE', 'MENU_NON_AC_EDIT', 'MENU_NON_AC_DELETE', 'MENU_SWIGGY_VIEW', 'MENU_SWIGGY_CREATE', 'MENU_SWIGGY_EDIT', 'MENU_SWIGGY_DELETE', 'MENU_ZOMATO_VIEW', 'MENU_ZOMATO_CREATE', 'MENU_ZOMATO_EDIT', 'MENU_ZOMATO_DELETE', 'MENU_BULK_ADD', 'ORDER_CREATE', 'ORDER_EDIT', 'ORDER_CANCEL', 'KOT_CREATE', 'KOT_VIEW', 'KOT_EDIT', 'KOT_PRINT', 'BILL_VIEW_DRAFT', 'BILL_EDIT', 'BILL_PRINT', 'BILL_FINALIZE', 'BILL_CANCEL', 'BILL_AMEND', 'PURCHASE_VIEW', 'PURCHASE_CREATE', 'PURCHASE_EDIT', 'PURCHASE_DELETE', 'INVENTORY_VIEW', 'INVENTORY_CREATE', 'INVENTORY_EDIT', 'INVENTORY_ADJUST', 'REPORT_VIEW', 'REPORT_PDF', 'REPORT_CSV', 'USER_VIEW', 'USER_CREATE', 'USER_EDIT', 'USER_DELETE', 'SETTINGS_VIEW', 'SETTINGS_EDIT', 'ONLINE_ORDER_VIEW', 'ONLINE_ORDER_CREATE', 'ONLINE_ORDER_EDIT', 'NOTIFICATION_KOT_AC', 'NOTIFICATION_KOT_NON_AC', 'NOTIFICATION_BILL_AC', 'NOTIFICATION_BILL_NON_AC') NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    INDEX `UserPermission_userId_idx`(`userId`),
+    UNIQUE INDEX `UserPermission_userId_permission_key`(`userId`, `permission`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `RefreshToken`
+CREATE TABLE `RefreshToken` (
+    `id` VARCHAR(191) NOT NULL,
+    `token` VARCHAR(512) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    UNIQUE INDEX `RefreshToken_token_key`(`token`),
+    INDEX `RefreshToken_userId_idx`(`userId`),
+    INDEX `RefreshToken_expiresAt_idx`(`expiresAt`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `Table`
+CREATE TABLE `Table` (
+    `id` VARCHAR(191) NOT NULL,
+    `number` INTEGER NOT NULL,
+    `capacity` INTEGER NOT NULL DEFAULT 4,
+    `type` ENUM('AC', 'NON_AC') NOT NULL,
+    `status` ENUM('AVAILABLE', 'OCCUPIED', 'BILLING') NOT NULL DEFAULT 'AVAILABLE',
+    `active` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    UNIQUE INDEX `Table_number_key`(`number`),
+    INDEX `Table_type_idx`(`type`),
+    INDEX `Table_status_idx`(`status`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `Category`
+CREATE TABLE `Category` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `displayOrder` INTEGER NOT NULL DEFAULT 0,
+    `active` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    UNIQUE INDEX `Category_name_key`(`name`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `MenuItem`
+CREATE TABLE `MenuItem` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `categoryId` VARCHAR(191) NOT NULL,
+    `menuType` ENUM('AC', 'NON_AC', 'SWIGGY', 'ZOMATO') NOT NULL,
+    `price` DECIMAL(65, 30) NOT NULL,
+    `description` VARCHAR(191) NULL,
+    `active` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+    
+    INDEX `MenuItem_menuType_idx`(`menuType`),
+    INDEX `MenuItem_categoryId_idx`(`categoryId`),
+    INDEX `MenuItem_active_idx`(`active`),
+    INDEX `MenuItem_menuType_active_idx`(`menuType`, `active`),
+    INDEX `MenuItem_categoryId_active_idx`(`categoryId`, `active`),
+    UNIQUE INDEX `MenuItem_name_categoryId_menuType_key`(`name`, `categoryId`, `menuType`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `TableSession`
+CREATE TABLE `TableSession` (
+    `id` VARCHAR(191) NOT NULL,
+    `tableId` VARCHAR(191) NOT NULL,
+    `captainId` VARCHAR(191) NOT NULL,
+    `guestCount` INTEGER NULL,
+    `status` ENUM('OPEN', 'CLOSED') NOT NULL DEFAULT 'OPEN',
+    `openedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `closedAt` DATETIME(3) NULL,
+    
+    INDEX `TableSession_tableId_idx`(`tableId`),
+    INDEX `TableSession_captainId_idx`(`captainId`),
+    INDEX `TableSession_status_idx`(`status`),
+    INDEX `TableSession_tableId_status_idx`(`tableId`, `status`),
+    INDEX `TableSession_status_openedAt_idx`(`status`, `openedAt`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `Order`
+CREATE TABLE `Order` (
+    `id` VARCHAR(191) NOT NULL,
+    `orderSource` ENUM('DINE_IN_AC', 'DINE_IN_NON_AC', 'SELF_PICKUP', 'SWIGGY', 'ZOMATO') NOT NULL DEFAULT 'DINE_IN_NON_AC',
+    `sessionId` VARCHAR(191) NULL,
+    `tableId` VARCHAR(191) NULL,
+    `captainId` VARCHAR(191) NOT NULL,
+    `status` ENUM('ACTIVE', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'ACTIVE',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+    
+    INDEX `Order_orderSource_idx`(`orderSource`),
+    INDEX `Order_status_idx`(`status`),
+    INDEX `Order_createdAt_idx`(`createdAt`),
+    INDEX `Order_sessionId_idx`(`sessionId`),
+    INDEX `Order_tableId_idx`(`tableId`),
+    INDEX `Order_captainId_idx`(`captainId`),
+    INDEX `Order_status_createdAt_idx`(`status`, `createdAt`),
+    INDEX `Order_sessionId_status_idx`(`sessionId`, `status`),
+    INDEX `Order_tableId_status_idx`(`tableId`, `status`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `OrderItem`
+CREATE TABLE `OrderItem` (
+    `id` VARCHAR(191) NOT NULL,
+    `orderId` VARCHAR(191) NOT NULL,
+    `menuItemId` VARCHAR(191) NOT NULL,
+    `itemNameSnapshot` VARCHAR(191) NOT NULL,
+    `priceSnapshot` DECIMAL(65, 30) NOT NULL,
+    `quantity` INTEGER NOT NULL,
+    `originalQuantity` INTEGER NULL,
+    `notes` VARCHAR(191) NULL,
+    `kotId` VARCHAR(191) NULL,
+    `status` ENUM('PENDING', 'SENT', 'PREPARING', 'READY', 'SERVED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    INDEX `OrderItem_orderId_idx`(`orderId`),
+    INDEX `OrderItem_menuItemId_idx`(`menuItemId`),
+    INDEX `OrderItem_kotId_idx`(`kotId`),
+    INDEX `OrderItem_status_idx`(`status`),
+    INDEX `OrderItem_orderId_status_idx`(`orderId`, `status`),
+    INDEX `OrderItem_kotId_status_idx`(`kotId`, `status`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `OrderItemHistory`
+CREATE TABLE `OrderItemHistory` (
+    `id` VARCHAR(191) NOT NULL,
+    `orderItemId` VARCHAR(191) NOT NULL,
+    `changeType` ENUM('EDITED', 'CANCELLED') NOT NULL,
+    `oldQuantity` INTEGER NOT NULL,
+    `newQuantity` INTEGER NOT NULL,
+    `reason` VARCHAR(191) NULL,
+    `changedBy` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    INDEX `OrderItemHistory_orderItemId_idx`(`orderItemId`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `KOT`
+CREATE TABLE `KOT` (
+    `id` VARCHAR(191) NOT NULL,
+    `kotNumber` INTEGER NOT NULL,
+    `orderId` VARCHAR(191) NOT NULL,
+    `sessionId` VARCHAR(191) NULL,
+    `captainId` VARCHAR(191) NOT NULL,
+    `status` ENUM('NEW', 'PREPARING', 'READY', 'COMPLETED') NOT NULL DEFAULT 'NEW',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    INDEX `KOT_orderId_idx`(`orderId`),
+    INDEX `KOT_sessionId_idx`(`sessionId`),
+    INDEX `KOT_status_idx`(`status`),
+    INDEX `KOT_createdAt_idx`(`createdAt`),
+    INDEX `KOT_status_createdAt_idx`(`status`, `createdAt`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `Bill`
+CREATE TABLE `Bill` (
+    `id` VARCHAR(191) NOT NULL,
+    `billNumber` INTEGER NOT NULL AUTO_INCREMENT,
+    `orderId` VARCHAR(191) NOT NULL,
+    `sessionId` VARCHAR(191) NULL,
+    `tableId` VARCHAR(191) NULL,
+    `customerName` VARCHAR(191) NULL,
+    `customerPhone` VARCHAR(191) NULL,
+    `subtotal` DECIMAL(65, 30) NOT NULL,
+    `sgstPercent` DECIMAL(65, 30) NOT NULL DEFAULT 2.5,
+    `cgstPercent` DECIMAL(65, 30) NOT NULL DEFAULT 2.5,
+    `sgstAmount` DECIMAL(65, 30) NOT NULL DEFAULT 0,
+    `cgstAmount` DECIMAL(65, 30) NOT NULL DEFAULT 0,
+    `discount` DECIMAL(65, 30) NOT NULL DEFAULT 0,
+    `total` DECIMAL(65, 30) NOT NULL,
+    `roundOff` DECIMAL(65, 30) NOT NULL DEFAULT 0,
+    `version` INTEGER NOT NULL DEFAULT 1,
+    `status` ENUM('DRAFT', 'FINALIZED', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `finalizedAt` DATETIME(3) NULL,
+    
+    UNIQUE INDEX `Bill_billNumber_key`(`billNumber`),
+    UNIQUE INDEX `Bill_orderId_key`(`orderId`),
+    INDEX `Bill_status_idx`(`status`),
+    INDEX `Bill_createdAt_idx`(`createdAt`),
+    INDEX `Bill_sessionId_idx`(`sessionId`),
+    INDEX `Bill_tableId_idx`(`tableId`),
+    INDEX `Bill_status_createdAt_idx`(`status`, `createdAt`),
+    INDEX `Bill_createdAt_status_idx`(`createdAt`, `status`),
+    INDEX `Bill_tableId_status_idx`(`tableId`, `status`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `BillAmendment`
+CREATE TABLE `BillAmendment` (
+    `id` VARCHAR(191) NOT NULL,
+    `billId` VARCHAR(191) NOT NULL,
+    `version` INTEGER NOT NULL,
+    `changes` JSON NOT NULL,
+    `reason` VARCHAR(191) NOT NULL,
+    `modifiedBy` VARCHAR(191) NOT NULL,
+    `originalTotal` DECIMAL(65, 30) NOT NULL,
+    `newSubtotal` DECIMAL(65, 30) NOT NULL,
+    `newSgstAmount` DECIMAL(65, 30) NOT NULL,
+    `newCgstAmount` DECIMAL(65, 30) NOT NULL,
+    `newDiscount` DECIMAL(65, 30) NOT NULL DEFAULT 0,
+    `newTotal` DECIMAL(65, 30) NOT NULL,
+    `difference` DECIMAL(65, 30) NOT NULL,
+    `paymentStatus` VARCHAR(191) NOT NULL DEFAULT 'PENDING',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    INDEX `BillAmendment_billId_idx`(`billId`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `Payment`
+CREATE TABLE `Payment` (
+    `id` VARCHAR(191) NOT NULL,
+    `billId` VARCHAR(191) NOT NULL,
+    `method` ENUM('CASH', 'UPI', 'CARD') NOT NULL,
+    `amount` DECIMAL(65, 30) NOT NULL,
+    `status` ENUM('PENDING', 'PAID', 'REFUNDED') NOT NULL DEFAULT 'PAID',
+    `paidAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    UNIQUE INDEX `Payment_billId_key`(`billId`),
+    INDEX `Payment_paidAt_idx`(`paidAt`),
+    INDEX `Payment_method_idx`(`method`),
+    INDEX `Payment_status_paidAt_idx`(`status`, `paidAt`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `OnlineOrder`
+CREATE TABLE `OnlineOrder` (
+    `id` VARCHAR(191) NOT NULL,
+    `platform` ENUM('SWIGGY', 'ZOMATO') NOT NULL,
+    `externalOrderId` VARCHAR(191) NOT NULL,
+    `customerName` VARCHAR(191) NULL,
+    `items` JSON NOT NULL,
+    `subtotal` DECIMAL(65, 30) NOT NULL,
+    `discount` DECIMAL(65, 30) NOT NULL DEFAULT 0,
+    `charges` DECIMAL(65, 30) NOT NULL DEFAULT 0,
+    `total` DECIMAL(65, 30) NOT NULL,
+    `paymentStatus` ENUM('PAID', 'PENDING', 'SETTLED', 'REFUNDED') NOT NULL DEFAULT 'PAID',
+    `status` ENUM('NEW', 'ACCEPTED', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'NEW',
+    `notes` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+    
+    INDEX `OnlineOrder_platform_idx`(`platform`),
+    INDEX `OnlineOrder_status_idx`(`status`),
+    INDEX `OnlineOrder_createdAt_idx`(`createdAt`),
+    INDEX `OnlineOrder_status_createdAt_idx`(`status`, `createdAt`),
+    INDEX `OnlineOrder_platform_status_idx`(`platform`, `status`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `Supplier`
+CREATE TABLE `Supplier` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `phone` VARCHAR(191) NULL,
+    `address` VARCHAR(191) NULL,
+    `active` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `PurchaseEntry`
+CREATE TABLE `PurchaseEntry` (
+    `id` VARCHAR(191) NOT NULL,
+    `supplierId` VARCHAR(191) NOT NULL,
+    `purchaseNumber` VARCHAR(191) NULL,
+    `totalAmount` DECIMAL(65, 30) NOT NULL,
+    `purchaseDate` DATETIME(3) NOT NULL,
+    `addToInventory` BOOLEAN NOT NULL DEFAULT false,
+    `status` VARCHAR(191) NOT NULL DEFAULT 'ACTIVE',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    INDEX `PurchaseEntry_supplierId_idx`(`supplierId`),
+    INDEX `PurchaseEntry_purchaseDate_idx`(`purchaseDate`),
+    INDEX `PurchaseEntry_status_idx`(`status`),
+    INDEX `PurchaseEntry_status_purchaseDate_idx`(`status`, `purchaseDate`),
+    INDEX `PurchaseEntry_supplierId_purchaseDate_idx`(`supplierId`, `purchaseDate`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `PurchaseItem`
+CREATE TABLE `PurchaseItem` (
+    `id` VARCHAR(191) NOT NULL,
+    `purchaseId` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `quantity` DECIMAL(65, 30) NOT NULL,
+    `unit` VARCHAR(191) NOT NULL,
+    `rate` DECIMAL(65, 30) NOT NULL,
+    `amount` DECIMAL(65, 30) NOT NULL,
+    
+    INDEX `PurchaseItem_purchaseId_idx`(`purchaseId`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `InventoryItem`
+CREATE TABLE `InventoryItem` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `currentStock` DECIMAL(65, 30) NOT NULL,
+    `unit` VARCHAR(191) NOT NULL,
+    `lowStockThreshold` DECIMAL(65, 30) NOT NULL DEFAULT 0,
+    `updatedAt` DATETIME(3) NOT NULL,
+    
+    UNIQUE INDEX `InventoryItem_name_key`(`name`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `InventoryTransaction`
+CREATE TABLE `InventoryTransaction` (
+    `id` VARCHAR(191) NOT NULL,
+    `inventoryItemId` VARCHAR(191) NOT NULL,
+    `type` ENUM('PURCHASE', 'PURCHASE_REVERSAL', 'MANUAL_ADJUSTMENT') NOT NULL,
+    `quantity` DECIMAL(65, 30) NOT NULL,
+    `referenceId` VARCHAR(191) NULL,
+    `notes` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    INDEX `InventoryTransaction_inventoryItemId_idx`(`inventoryItemId`),
+    INDEX `InventoryTransaction_type_idx`(`type`),
+    INDEX `InventoryTransaction_createdAt_idx`(`createdAt`),
+    INDEX `InventoryTransaction_inventoryItemId_createdAt_idx`(`inventoryItemId`, `createdAt`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `Settings`
+CREATE TABLE `Settings` (
+    `id` VARCHAR(191) NOT NULL,
+    `restaurantName` VARCHAR(191) NOT NULL DEFAULT 'Maharaj Veg Villa',
+    `address` VARCHAR(191) NULL,
+    `phone` VARCHAR(191) NULL,
+    `gstin` VARCHAR(191) NULL,
+    `sgstPercent` DECIMAL(65, 30) NOT NULL DEFAULT 2.5,
+    `cgstPercent` DECIMAL(65, 30) NOT NULL DEFAULT 2.5,
+    `includePurchasesInReports` BOOLEAN NOT NULL DEFAULT false,
+    `updatedAt` DATETIME(3) NOT NULL,
+    
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Table structure for `AuditLog`
+CREATE TABLE `AuditLog` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `action` VARCHAR(191) NOT NULL,
+    `entity` VARCHAR(191) NOT NULL,
+    `entityId` VARCHAR(191) NOT NULL,
+    `before` JSON NULL,
+    `after` JSON NULL,
+    `reason` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    
+    INDEX `AuditLog_userId_idx`(`userId`),
+    INDEX `AuditLog_entity_idx`(`entity`),
+    INDEX `AuditLog_createdAt_idx`(`createdAt`),
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 3. INSERT TABLE DATA (Batched for Performance & Safety)
+-- ------------------------------------------------------------------------------
+-- Data for table `User` (5 rows)
 INSERT INTO `User` (`id`, `username`, `password`, `name`, `role`, `active`, `createdAt`, `updatedAt`) VALUES
   ('eaf7089f-7712-4686-8338-940d70a83f4e', 'admin', '$2b$10$2ju2aqEZNdRQUITajbkae.mwzE1ngXQAl6dGu2ZPJ1vJUR4XyhLAa', 'Admin', 'ADMIN', 1, '2026-09-02 16:53:09.669', '2026-09-06 12:29:52.791'),
   ('db2e18de-1255-4781-b084-b9609bb8698a', 'nonacmaster', '$2b$10$2i0gcHQ7obDmo1ZFE8xDOOJdo2Gv5bhD7vZjqI7zaLe8BGN0oQYgq', 'Non AC Master', 'NON_AC_MASTER', 1, '2026-09-02 16:53:09.823', '2026-09-11 02:12:33.238'),
@@ -37,22 +450,7 @@ INSERT INTO `User` (`id`, `username`, `password`, `name`, `role`, `active`, `cre
   ('785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'superadmin', '$2b$10$VlKazNEj5KiXzi4z55s//OMMTAVeYsmxUlvGO4MsJBVR6ckgbPgqO', 'Super Admin', 'SUPER_ADMIN', 1, '2026-09-02 16:53:09.592', '2026-09-13 14:48:32.320'),
   ('964275ae-4cb0-44d3-a257-65e45ab8583c', 'ertjhk.', '$2b$10$XPODGugWV60WgZ/Yx43hP.LxlRxPr4IY5N.5y5w5uQH8kGGM//9K2', 'extra', 'ADMIN', 1, '2026-09-02 17:31:22.367', '2026-09-13 23:24:19.374');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `UserPermission`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `UserPermission`;
-CREATE TABLE `UserPermission` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `userId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `permission` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UserPermission_userId_permission_key` (`userId`,`permission`),
-  KEY `UserPermission_userId_idx` (`userId`),
-  CONSTRAINT `UserPermission_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `UserPermission` (160 rows)
+-- Data for table `UserPermission` (160 rows)
 INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES
   ('00e023f9-8971-403c-8b3f-e8c3b2673f75', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'BILL_AMEND', '2026-09-06 06:59:52.967'),
   ('01fd7cfc-9abe-4d75-a091-f79cfafde50f', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'MENU_AC_DELETE', '2026-09-06 06:59:52.957'),
@@ -217,24 +615,7 @@ INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES
   ('fed4ef3f-c77a-48f5-bd9b-0bf961c18011', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'BILL_EDIT', '2026-09-06 06:59:52.967'),
   ('ff9ff315-1ba9-45ed-bb0e-e9ce1ebda34f', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'INVENTORY_EDIT', '2026-09-06 06:59:52.967');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `RefreshToken`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `RefreshToken`;
-CREATE TABLE `RefreshToken` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `token` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `userId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `expiresAt` datetime(3) NOT NULL,
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `RefreshToken_token_key` (`token`),
-  KEY `RefreshToken_expiresAt_idx` (`expiresAt`),
-  KEY `RefreshToken_userId_idx` (`userId`),
-  CONSTRAINT `RefreshToken_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `RefreshToken` (41 rows)
+-- Data for table `RefreshToken` (41 rows)
 INSERT INTO `RefreshToken` (`id`, `token`, `userId`, `expiresAt`, `createdAt`) VALUES
   ('6cc86b8f-134d-450b-af47-909e794ca9f0', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc4NWRiZjZmLWU3YzYtNGUzNC05MGRlLWUzMGMxZjUyY2VkNyIsImlhdCI6MTc4OTA5NDc3OCwiZXhwIjoxNzg5Njk5NTc4fQ.FOGBArq83qNYS16iFc4g4cwCk2VQY_JObrlDMVJqsR8', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '2026-09-18 02:46:18.740', '2026-09-11 02:46:18.741'),
   ('49820a4a-6994-44ad-bf23-f7b18b9c8ed4', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImVhZjcwODlmLTc3MTItNDY4Ni04MzM4LTk0MGQ3MGE4M2Y0ZSIsImlhdCI6MTc4OTA5NDgyMSwiZXhwIjoxNzg5Njk5NjIxfQ.5W5QGyBaut5jbkTMn-Ey0mxEO0U4QsYVJcg3dJ5sU3g', 'eaf7089f-7712-4686-8338-940d70a83f4e', '2026-09-18 02:47:01.518', '2026-09-11 02:47:01.520'),
@@ -278,46 +659,7 @@ INSERT INTO `RefreshToken` (`id`, `token`, `userId`, `expiresAt`, `createdAt`) V
   ('4244f5e1-ecf8-4ea5-ac42-cfc7382158d9', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc4NWRiZjZmLWU3YzYtNGUzNC05MGRlLWUzMGMxZjUyY2VkNyIsImlhdCI6MTc4OTUyNDExMiwiZXhwIjoxNzkwMTI4OTEyfQ.bDw_YberqZ2CWQt-YDMfwjZzpLqxN6SaoXz-zCW9CDA', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '2026-09-23 02:01:52.486', '2026-09-16 02:01:52.488'),
   ('943421e6-477b-4e2f-8497-c5616980a24d', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc4NWRiZjZmLWU3YzYtNGUzNC05MGRlLWUzMGMxZjUyY2VkNyIsImlhdCI6MTc4OTUyODIzMCwiZXhwIjoxNzkwMTMzMDMwfQ.sht-jJAhUyyM-06TK_Q9fUPSoIo2vl1_PrNF-9Gy8Lw', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '2026-09-23 03:10:30.299', '2026-09-16 03:10:30.301');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `Settings`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `Settings`;
-CREATE TABLE `Settings` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `restaurantName` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'Maharaj Veg Villa',
-  `address` text COLLATE utf8mb4_bin,
-  `phone` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `gstin` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `sgstPercent` decimal(65,30) NOT NULL DEFAULT '2.500000000000000000000000000000',
-  `cgstPercent` decimal(65,30) NOT NULL DEFAULT '2.500000000000000000000000000000',
-  `includePurchasesInReports` tinyint(1) NOT NULL DEFAULT '0',
-  `updatedAt` datetime(3) NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `Settings` (1 rows)
-INSERT INTO `Settings` (`id`, `restaurantName`, `address`, `phone`, `gstin`, `sgstPercent`, `cgstPercent`, `includePurchasesInReports`, `updatedAt`) VALUES
-  ('dad25155-2a70-42cd-b12f-e99b6bd2a89f', 'Maharaj Veg Villa', 'Paravdi bypass Triveni square, opp. Hotel maroon, Godhra', NULL, NULL, '2.5', '2.5', 1, '2026-09-16 02:15:14.918');
-
--- ------------------------------------------------------------------------------
--- Table structure for table `Table`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `Table`;
-CREATE TABLE `Table` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `number` int NOT NULL,
-  `capacity` int NOT NULL DEFAULT '4',
-  `type` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `status` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'AVAILABLE',
-  `active` tinyint(1) NOT NULL DEFAULT '1',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `Table_number_key` (`number`),
-  KEY `Table_status_idx` (`status`),
-  KEY `Table_type_idx` (`type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `Table` (17 rows)
+-- Data for table `Table` (17 rows)
 INSERT INTO `Table` (`id`, `number`, `capacity`, `type`, `status`, `active`, `createdAt`) VALUES
   ('0115e427-4d14-4a8c-a9ab-3cb416c66f6c', 3, 4, 'NON_AC', 'AVAILABLE', 1, '2026-09-06 22:21:12.311'),
   ('184a22a8-b018-4646-82a1-b1e41b4d7782', 18, 4, 'AC', 'AVAILABLE', 1, '2026-09-13 01:00:16.031'),
@@ -337,21 +679,7 @@ INSERT INTO `Table` (`id`, `number`, `capacity`, `type`, `status`, `active`, `cr
   ('fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 1, 6, 'NON_AC', 'OCCUPIED', 1, '2026-09-02 11:23:09.866'),
   ('fd0f0ec6-8121-4a59-a1d7-8079e68b71c3', 5, 6, 'NON_AC', 'AVAILABLE', 1, '2026-09-12 11:32:44.430');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `Category`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `Category`;
-CREATE TABLE `Category` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `name` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `displayOrder` int NOT NULL DEFAULT '0',
-  `active` tinyint(1) NOT NULL DEFAULT '1',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `Category_name_key` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `Category` (22 rows)
+-- Data for table `Category` (22 rows)
 INSERT INTO `Category` (`id`, `name`, `displayOrder`, `active`, `createdAt`) VALUES
   ('294d7508-3800-47d0-8107-07536c5623d6', 'Starters', 1, 1, '2026-09-02 16:53:09.884'),
   ('a29cdebc-54c7-4059-85dc-7f9aab91722f', 'Breads', 4, 1, '2026-09-02 16:53:09.891'),
@@ -376,397 +704,7 @@ INSERT INTO `Category` (`id`, `name`, `displayOrder`, `active`, `createdAt`) VAL
   ('e127a853-c5e1-4b22-ac13-92f8bfb9ddd9', 'THALI', 16, 1, '2026-09-13 10:44:49.467'),
   ('9b4faaa7-c423-42b9-8f11-8c588a42d591', 'EXTRA', 17, 1, '2026-09-13 10:48:59.623');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `Supplier`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `Supplier`;
-CREATE TABLE `Supplier` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `name` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `phone` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `address` text COLLATE utf8mb4_bin,
-  `active` tinyint(1) NOT NULL DEFAULT '1',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `Supplier` (11 rows)
-INSERT INTO `Supplier` (`id`, `name`, `phone`, `address`, `active`, `createdAt`) VALUES
-  ('4192a2bb-c0bb-41ee-852d-55474b42f6fd', 'Fruits & Vegetables', NULL, NULL, 1, '2026-09-06 18:27:37.321'),
-  ('4ed515f0-9f2a-4793-8ea1-578f3d6ff0ea', 'Groceries & Staples', NULL, NULL, 1, '2026-09-06 18:27:37.331'),
-  ('8a6066ae-4b57-447e-8acf-d51b90f4f8f7', 'Spices & Masalas', NULL, NULL, 1, '2026-09-06 18:27:37.339'),
-  ('93b94a1e-eefb-456b-9574-5647949b72f8', 'Dairy & Bakery', NULL, NULL, 1, '2026-09-06 18:27:37.346'),
-  ('af51f0c9-a8b2-42b3-933b-bd81bb1f29e9', 'Cooking Essentials', NULL, NULL, 1, '2026-09-06 18:27:37.353'),
-  ('c433c372-87a5-4083-9f25-275da36082e1', 'Beverages', NULL, NULL, 1, '2026-09-06 18:27:37.359'),
-  ('ec85341a-ca6b-42ca-af03-b71ed2a61fb2', 'Packaged Foods', NULL, NULL, 1, '2026-09-06 18:27:37.365'),
-  ('2a6e7b49-039d-4040-8a54-b055da4b0022', 'Utensils', NULL, NULL, 1, '2026-09-06 18:27:37.370'),
-  ('88a90893-6eac-4628-b779-a6d984d754db', 'Disposables', NULL, NULL, 1, '2026-09-06 18:27:37.376'),
-  ('1b8855aa-e924-41e2-954b-e18171fe4911', 'General Essentials', NULL, NULL, 1, '2026-09-06 18:27:37.382'),
-  ('b23809bb-8fa0-44c8-8b33-b277b0421e1c', 'Others', NULL, NULL, 1, '2026-09-06 18:27:37.388');
-
--- ------------------------------------------------------------------------------
--- Table structure for table `PurchaseEntry`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `PurchaseEntry`;
-CREATE TABLE `PurchaseEntry` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `supplierId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `purchaseNumber` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `totalAmount` decimal(65,30) NOT NULL,
-  `purchaseDate` datetime(3) NOT NULL,
-  `addToInventory` tinyint(1) NOT NULL DEFAULT '0',
-  `status` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'ACTIVE',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `PurchaseEntry_purchaseDate_idx` (`purchaseDate`),
-  KEY `PurchaseEntry_status_idx` (`status`),
-  KEY `PurchaseEntry_status_purchaseDate_idx` (`purchaseDate`,`status`),
-  KEY `PurchaseEntry_supplierId_idx` (`supplierId`),
-  KEY `PurchaseEntry_supplierId_purchaseDate_idx` (`supplierId`,`purchaseDate`),
-  CONSTRAINT `PurchaseEntry_supplierId_fkey` FOREIGN KEY (`supplierId`) REFERENCES `Supplier` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `PurchaseEntry` (5 rows)
-INSERT INTO `PurchaseEntry` (`id`, `supplierId`, `purchaseNumber`, `totalAmount`, `purchaseDate`, `addToInventory`, `status`, `createdAt`) VALUES
-  ('83ce4182-6b46-4185-8234-a0e8212353d8', '4ed515f0-9f2a-4793-8ea1-578f3d6ff0ea', 'PO-002', '3300', '2026-09-06 00:00:00.000', 1, 'ACTIVE', '2026-09-06 05:09:03.375'),
-  ('de7104cf-7e8c-451a-9ce5-3a90dafbb03b', '4ed515f0-9f2a-4793-8ea1-578f3d6ff0ea', 'PO-VERIFY', '2375', '2026-09-06 00:00:00.000', 1, 'ACTIVE', '2026-09-06 05:13:09.588'),
-  ('72f8bc06-bf9f-40af-b561-d87e3f697183', '4192a2bb-c0bb-41ee-852d-55474b42f6fd', NULL, '1700', '2026-09-06 00:00:00.000', 1, 'ACTIVE', '2026-09-06 05:30:02.260'),
-  ('f44aec7f-5dca-4819-90c4-9c308b638ac9', '4192a2bb-c0bb-41ee-852d-55474b42f6fd', '123123', '2250', '2026-09-07 00:00:00.000', 1, 'ACTIVE', '2026-09-07 11:15:02.092'),
-  ('44aa6c7a-a3ae-41b3-b312-28d54f637886', '4192a2bb-c0bb-41ee-852d-55474b42f6fd', 'sgs82', '1200', '2026-09-11 00:00:00.000', 1, 'CANCELLED', '2026-09-11 03:08:47.926');
-
--- ------------------------------------------------------------------------------
--- Table structure for table `PurchaseItem`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `PurchaseItem`;
-CREATE TABLE `PurchaseItem` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `purchaseId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `name` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `quantity` decimal(65,30) NOT NULL,
-  `unit` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `rate` decimal(65,30) NOT NULL,
-  `amount` decimal(65,30) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `PurchaseItem_purchaseId_idx` (`purchaseId`),
-  CONSTRAINT `PurchaseItem_purchaseId_fkey` FOREIGN KEY (`purchaseId`) REFERENCES `PurchaseEntry` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `PurchaseItem` (5 rows)
-INSERT INTO `PurchaseItem` (`id`, `purchaseId`, `name`, `quantity`, `unit`, `rate`, `amount`) VALUES
-  ('47ef04a7-d2de-4d58-a5c8-bd671c6f89a2', '83ce4182-6b46-4185-8234-a0e8212353d8', 'Fresh Paneer', '15', 'kg', '220', '3300'),
-  ('29055a7c-191e-494f-b780-62285686c4db', 'de7104cf-7e8c-451a-9ce5-3a90dafbb03b', 'Basmati Rice', '25', 'kg', '95', '2375'),
-  ('0427772c-7883-461d-b369-cef861613bee', '72f8bc06-bf9f-40af-b561-d87e3f697183', 'potato', '50', 'kg', '34', '1700'),
-  ('af1c1a22-4496-45fe-9bd7-02fa0a91e116', 'f44aec7f-5dca-4819-90c4-9c308b638ac9', 'potato', '150', 'kg', '15', '2250'),
-  ('b66fb00e-e566-4f22-b4af-10f5867efe0e', '44aa6c7a-a3ae-41b3-b312-28d54f637886', 'tomato', '100', 'kg', '12', '1200');
-
--- ------------------------------------------------------------------------------
--- Table structure for table `InventoryItem`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `InventoryItem`;
-CREATE TABLE `InventoryItem` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `name` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `currentStock` decimal(65,30) NOT NULL,
-  `unit` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `lowStockThreshold` decimal(65,30) NOT NULL DEFAULT '0.000000000000000000000000000000',
-  `updatedAt` datetime(3) NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `InventoryItem_name_key` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `InventoryItem` (5 rows)
-INSERT INTO `InventoryItem` (`id`, `name`, `currentStock`, `unit`, `lowStockThreshold`, `updatedAt`) VALUES
-  ('0b24da2f-40d0-43ce-a2b3-bb8a823f271d', 'Fresh Paneer', '12', 'kg', '0', '2026-09-06 05:09:03.430'),
-  ('d88e51db-1e4d-4dc9-a112-3013abbf7d3c', 'Basmati Rice', '30', 'kg', '0', '2026-09-06 05:13:09.641'),
-  ('c119bb97-498b-4d93-ae23-bddd9589a8e5', 'potato', '150', 'kg', '10', '2026-09-07 11:15:02.112'),
-  ('cecf961c-2373-4a24-9159-dee90e81a012', 'tomato', '0', 'kg', '0', '2026-09-11 12:37:43.260'),
-  ('ac4a4cb7-98a7-4e63-bf06-50b3af65e25b', 'Step4 Test Item 1789145492410', '50', 'KG', '10', '2026-09-11 16:51:32.411');
-
--- ------------------------------------------------------------------------------
--- Table structure for table `InventoryTransaction`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `InventoryTransaction`;
-CREATE TABLE `InventoryTransaction` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `inventoryItemId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `type` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `quantity` decimal(65,30) NOT NULL,
-  `referenceId` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `notes` text COLLATE utf8mb4_bin,
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `InventoryTransaction_createdAt_idx` (`createdAt`),
-  KEY `InventoryTransaction_inventoryItemId_createdAt_idx` (`inventoryItemId`,`createdAt`),
-  KEY `InventoryTransaction_inventoryItemId_idx` (`inventoryItemId`),
-  KEY `InventoryTransaction_type_idx` (`type`),
-  CONSTRAINT `InventoryTransaction_inventoryItemId_fkey` FOREIGN KEY (`inventoryItemId`) REFERENCES `InventoryItem` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `InventoryTransaction` (14 rows)
-INSERT INTO `InventoryTransaction` (`id`, `inventoryItemId`, `type`, `quantity`, `referenceId`, `notes`, `createdAt`) VALUES
-  ('d5cf6fe6-f36e-47fa-87dd-21d64fe6a5b5', '0b24da2f-40d0-43ce-a2b3-bb8a823f271d', 'PURCHASE', '15', '83ce4182-6b46-4185-8234-a0e8212353d8', 'Purchase PO-002', '2026-09-06 05:09:03.381'),
-  ('a817835e-7325-4ae2-8391-37a86679bd3b', '0b24da2f-40d0-43ce-a2b3-bb8a823f271d', 'MANUAL_ADJUSTMENT', '-3', NULL, '[Used] 3kg used in kitchen', '2026-09-06 05:09:03.432'),
-  ('4dd676a6-f94a-4b76-997b-4b45a81438fb', 'd88e51db-1e4d-4dc9-a112-3013abbf7d3c', 'PURCHASE', '25', 'de7104cf-7e8c-451a-9ce5-3a90dafbb03b', 'Purchase PO-VERIFY', '2026-09-06 05:13:09.592'),
-  ('95a09a58-af9d-4eff-ab8e-c6e76ad4aa0a', 'd88e51db-1e4d-4dc9-a112-3013abbf7d3c', 'MANUAL_ADJUSTMENT', '-5', NULL, '[Used] Kitchen consumption', '2026-09-06 05:13:09.631'),
-  ('03fa01c5-49f1-4a9b-950d-cafcd4e03655', 'd88e51db-1e4d-4dc9-a112-3013abbf7d3c', 'MANUAL_ADJUSTMENT', '10', NULL, '[Buyed Inventory] Local market purchase', '2026-09-06 05:13:09.643'),
-  ('cb5c20d4-2530-4dca-92cb-39b9b118f3fe', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'PURCHASE', '50', '72f8bc06-bf9f-40af-b561-d87e3f697183', 'Purchase 72f8bc06-bf9f-40af-b561-d87e3f697183', '2026-09-06 05:30:02.266'),
-  ('c3084085-7f95-4823-bb65-d03df56e9b35', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'MANUAL_ADJUSTMENT', '-5', NULL, '[Used]', '2026-09-06 05:30:53.861'),
-  ('0ef3b2bc-6b9c-4dd3-852a-158157686746', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'MANUAL_ADJUSTMENT', '-10', NULL, '[Used]', '2026-09-06 05:31:14.375'),
-  ('8fd39d2a-5cc6-4751-8590-233e2f9c4158', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'MANUAL_ADJUSTMENT', '-20', NULL, '[Used]', '2026-09-06 17:52:23.528'),
-  ('0ac62b38-c2fc-4613-8855-95454bf52647', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'MANUAL_ADJUSTMENT', '-7', NULL, '[Used]', '2026-09-06 17:52:30.866'),
-  ('cb7f3bc9-ff88-4e5e-b098-376d046e5aa5', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'MANUAL_ADJUSTMENT', '-8', NULL, '[Used]', '2026-09-06 18:37:34.106'),
-  ('81719ecd-9bc6-41f4-b9f7-e058a496d6a9', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'PURCHASE', '150', 'f44aec7f-5dca-4819-90c4-9c308b638ac9', 'Purchase 123123', '2026-09-07 11:15:02.119'),
-  ('dedb05a7-a2f2-4ac2-8828-c0c1f3be3c7b', 'cecf961c-2373-4a24-9159-dee90e81a012', 'PURCHASE', '100', '44aa6c7a-a3ae-41b3-b312-28d54f637886', 'Purchase sgs82', '2026-09-11 03:08:48.253'),
-  ('4370d080-941f-4413-a278-daee83f76916', 'cecf961c-2373-4a24-9159-dee90e81a012', 'PURCHASE_REVERSAL', '-100', '44aa6c7a-a3ae-41b3-b312-28d54f637886', 'Purchase reversal - sgs82', '2026-09-11 12:37:43.726');
-
--- ------------------------------------------------------------------------------
--- Table structure for table `TableSession`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `TableSession`;
-CREATE TABLE `TableSession` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `tableId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `captainId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `guestCount` int DEFAULT NULL,
-  `status` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'OPEN',
-  `openedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `closedAt` datetime(3) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `TableSession_captainId_idx` (`captainId`),
-  KEY `TableSession_status_idx` (`status`),
-  KEY `TableSession_status_openedAt_idx` (`status`,`openedAt`),
-  KEY `TableSession_tableId_idx` (`tableId`),
-  KEY `TableSession_tableId_status_idx` (`tableId`,`status`),
-  CONSTRAINT `TableSession_captainId_fkey` FOREIGN KEY (`captainId`) REFERENCES `User` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `TableSession_tableId_fkey` FOREIGN KEY (`tableId`) REFERENCES `Table` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `TableSession` (53 rows)
-INSERT INTO `TableSession` (`id`, `tableId`, `captainId`, `guestCount`, `status`, `openedAt`, `closedAt`) VALUES
-  ('042b45c8-e416-4cd0-920f-43acd92a3849', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 2, 'CLOSED', '2026-09-15 05:07:45.271', '2026-09-15 05:57:25.255'),
-  ('05341f88-3b29-457c-bcbf-ad4bec4195d8', 'cbcea35a-4533-4ff5-9be8-d81d815d0b3b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-15 17:18:46.588', '2026-09-15 17:55:43.841'),
-  ('07719768-e557-4f8f-937b-7fccbb143250', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 4, 'CLOSED', '2026-09-16 17:11:49.494', '2026-09-16 17:53:15.832'),
-  ('0a664a20-7359-40c2-814d-97e6972acf95', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 2, 'CLOSED', '2026-09-06 22:21:48.060', '2026-09-06 22:22:42.168'),
-  ('1199a584-f231-46f0-a926-9c651bc3b59c', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-02 12:17:10.851', '2026-09-02 12:18:59.738'),
-  ('1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 8, 'CLOSED', '2026-09-16 16:06:03.672', '2026-09-16 17:03:55.834'),
-  ('1bd2c241-4ae5-4e7c-b90d-15e53b48d8ab', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 4, 'CLOSED', '2026-09-12 01:22:12.819', '2026-09-12 01:35:35.956'),
-  ('1f57d1e5-79a0-4d7b-acc0-8c38766494b7', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 4, 'OPEN', '2026-09-16 01:46:58.987', NULL),
-  ('2b5fa717-7893-45ba-b6bb-125c5971a588', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-02 12:04:52.970', '2026-09-02 12:06:12.007'),
-  ('2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 3, 'CLOSED', '2026-09-16 14:55:50.597', '2026-09-16 15:35:55.794'),
-  ('45edc51a-d198-46b5-8b4c-4f59adec5451', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-07 01:59:33.017', '2026-09-07 02:51:38.555'),
-  ('4c3ca8fc-3db9-42c8-9870-ec73177f4339', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 17:33:21.279', '2026-09-16 18:16:09.431'),
-  ('4c823d29-65bc-45cc-b88e-896e1df9f3cd', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 2, 'CLOSED', '2026-09-05 23:39:42.116', '2026-09-05 23:58:23.857'),
-  ('4ebe80d7-b953-4e55-a344-a955125604b2', '76c5cd38-2ccb-454c-8186-437797a863a3', 'eaf7089f-7712-4686-8338-940d70a83f4e', 3, 'CLOSED', '2026-09-14 09:07:44.545', '2026-09-14 09:48:51.346'),
-  ('5723eda4-a410-4a8d-9516-b00364c7a308', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 09:59:17.476', '2026-09-16 10:04:12.010'),
-  ('5da7b87f-2d05-42d9-85bc-40497a0e52a8', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', 'eaf7089f-7712-4686-8338-940d70a83f4e', 1, 'CLOSED', '2026-09-16 15:18:01.287', '2026-09-16 15:46:01.909'),
-  ('661aa2c6-678e-46b7-a56c-512a52068a5e', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 8, 'CLOSED', '2026-09-15 16:51:39.665', '2026-09-15 17:38:10.728'),
-  ('6b8d7082-7735-46f7-a8d1-600ed5dda13f', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 7, 'CLOSED', '2026-09-07 09:37:34.697', '2026-09-10 21:33:01.911'),
-  ('79296c8a-e296-47d6-add1-b8f0b47ae55d', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 4, 'CLOSED', '2026-09-12 11:49:45.407', '2026-09-12 12:29:05.112'),
-  ('7a70439f-7722-436f-88a4-77418f406291', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 4, 'CLOSED', '2026-09-13 09:00:17.690', '2026-09-14 00:08:14.823'),
-  ('81839e1e-e75f-4022-986a-2bf57f399780', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 1, 'CLOSED', '2026-09-16 06:23:42.587', '2026-09-16 06:26:25.483'),
-  ('818ad85a-5d1e-459f-94e6-563adb28d96b', 'cda9fe13-f599-4116-88df-c918052a4999', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 4, 'CLOSED', '2026-09-16 14:22:14.555', '2026-09-16 14:47:28.989'),
-  ('8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 3, 'CLOSED', '2026-09-16 10:12:30.855', '2026-09-16 10:49:29.219'),
-  ('88d51b6f-36e9-47c6-97a1-d6ceea3f16fe', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-15 06:26:25.854', '2026-09-15 07:00:39.077'),
-  ('8a909874-08c4-4534-99f4-4b5a27eb21b8', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-15 07:01:03.887', '2026-09-15 07:01:34.061'),
-  ('98b3a572-7c5a-47a2-b31d-d86fc09afb0d', 'c56f28a9-bc91-4cf7-95b1-1e1247392c50', 'eaf7089f-7712-4686-8338-940d70a83f4e', 3, 'CLOSED', '2026-09-14 09:25:36.208', '2026-09-14 10:01:35.341'),
-  ('a0c9132d-07b0-4faf-b539-cd41a0508026', 'c81db452-9936-40ba-9227-2896f25bd758', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 1, 'CLOSED', '2026-09-16 05:57:11.699', '2026-09-16 06:07:05.506'),
-  ('a2906871-6e32-4537-a9ec-b1680e4edbed', '1ec38bd8-a6f0-4a32-8103-a7057ca4abc3', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-06 07:02:39.263', '2026-09-06 07:02:39.276'),
-  ('adb0a83f-3745-487a-8e48-ecfb1fa52b35', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 3, 'CLOSED', '2026-09-14 10:53:14.665', '2026-09-14 12:15:21.666'),
-  ('ae2938ed-e543-4cda-a23f-613ffd79b479', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 6, 'CLOSED', '2026-09-15 16:19:25.703', '2026-09-15 16:55:17.444'),
-  ('ae74efec-eff6-4062-a3aa-539e37690db1', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 1, 'CLOSED', '2026-09-16 16:18:34.982', '2026-09-16 16:33:26.730'),
-  ('b775b41a-50f2-442e-9949-d0dee94ecb8d', 'c56f28a9-bc91-4cf7-95b1-1e1247392c50', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-14 11:22:41.681', '2026-09-14 12:16:51.470'),
-  ('ba08a520-3840-4f4d-be39-e6f016f919b6', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-06 22:21:20.745', '2026-09-06 22:22:47.228'),
-  ('be7e0f48-1bff-4588-9445-acb54c019ffb', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'db2e18de-1255-4781-b084-b9609bb8698a', 5, 'CLOSED', '2026-09-12 03:55:32.977', '2026-09-12 11:36:47.514'),
-  ('c2991452-f9eb-4f8c-8a50-7ecedf767af4', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 3, 'CLOSED', '2026-09-15 06:16:20.676', '2026-09-15 06:20:37.035'),
-  ('c7cee964-7257-4e32-9696-b522e1aaa59c', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-12 01:27:01.888', '2026-09-12 01:36:11.851'),
-  ('c9a6f218-f743-4eec-afa0-5fab8b1595c7', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 6, 'CLOSED', '2026-09-15 14:48:12.953', '2026-09-15 15:23:41.709'),
-  ('cc981930-36e1-49f6-b7cc-7b7bf5d44a59', 'fd0f0ec6-8121-4a59-a1d7-8079e68b71c3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 15:35:23.369', '2026-09-16 16:16:15.272'),
-  ('cd891a89-172e-4b24-9b04-ca9c7a36d1d2', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 09:25:58.006', '2026-09-16 09:58:28.769'),
-  ('ce9d5583-8397-43b5-b46d-d191a7bffe71', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 6, 'CLOSED', '2026-09-15 15:36:33.851', '2026-09-15 16:12:56.251'),
-  ('d527fd1d-fa07-4e35-98bd-33489caa9d24', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-16 18:21:21.175', '2026-09-16 18:25:06.039'),
-  ('d64b993c-4c1c-4b0b-8d8f-44772f1c64ae', '95da293c-3a74-47db-894d-2cc63506f20c', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-06 07:02:27.350', '2026-09-06 07:17:15.962'),
-  ('d6e4a75d-b9d5-4f73-b7ba-824b9f56d867', '5e09688d-3751-446b-89b1-50b7ea61f21f', 'eaf7089f-7712-4686-8338-940d70a83f4e', 3, 'CLOSED', '2026-09-14 09:40:27.632', '2026-09-14 10:18:56.659'),
-  ('dab0afbd-1956-4832-b68d-5c69f98954b6', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 1, 'CLOSED', '2026-09-07 00:51:11.783', '2026-09-07 01:58:37.787'),
-  ('db4c698f-0c8d-47cf-a98f-ea2edfe14088', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 4, 'CLOSED', '2026-09-14 05:25:28.053', '2026-09-14 07:28:44.331'),
-  ('db5fc7b4-5123-4128-8b84-d7dc071c1e2b', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 15:16:16.315', '2026-09-16 15:57:55.240'),
-  ('ddb1a9fb-7e76-4fb8-8881-506af423d757', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 2, 'CLOSED', '2026-09-10 21:41:27.236', '2026-09-10 21:45:49.641'),
-  ('e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '5e09688d-3751-446b-89b1-50b7ea61f21f', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-15 17:50:35.363', '2026-09-15 18:36:41.128'),
-  ('ed88a3d5-14c4-48ba-93cf-e66ad9e63f6d', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-16 15:15:41.111', '2026-09-16 15:47:58.319'),
-  ('ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 10:04:30.047', '2026-09-16 10:38:35.976'),
-  ('f20b1a16-96f8-4f71-8e8d-e2871b9843b1', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', 'eaf7089f-7712-4686-8338-940d70a83f4e', 5, 'CLOSED', '2026-09-15 06:41:24.526', '2026-09-15 07:29:40.021'),
-  ('f43fd688-862d-400b-8185-ed4ce2df6cf5', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-13 09:04:42.169', '2026-09-13 09:11:18.418'),
-  ('fa3bb691-2e06-4c8d-ae62-347c078910e6', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', NULL, 'CLOSED', '2026-09-13 07:01:22.380', '2026-09-13 08:54:28.076');
-
--- ------------------------------------------------------------------------------
--- Table structure for table `Order`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `Order`;
-CREATE TABLE `Order` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `orderSource` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'DINE_IN_NON_AC',
-  `sessionId` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `tableId` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `captainId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `status` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'ACTIVE',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt` datetime(3) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `Order_captainId_idx` (`captainId`),
-  KEY `Order_createdAt_idx` (`createdAt`),
-  KEY `Order_orderSource_idx` (`orderSource`),
-  KEY `Order_sessionId_idx` (`sessionId`),
-  KEY `Order_sessionId_status_idx` (`sessionId`,`status`),
-  KEY `Order_status_createdAt_idx` (`status`,`createdAt`),
-  KEY `Order_status_idx` (`status`),
-  KEY `Order_tableId_idx` (`tableId`),
-  KEY `Order_tableId_status_idx` (`tableId`,`status`),
-  CONSTRAINT `Order_captainId_fkey` FOREIGN KEY (`captainId`) REFERENCES `User` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `Order_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `TableSession` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `Order_tableId_fkey` FOREIGN KEY (`tableId`) REFERENCES `Table` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `Order` (112 rows)
-INSERT INTO `Order` (`id`, `orderSource`, `sessionId`, `tableId`, `captainId`, `status`, `createdAt`, `updatedAt`) VALUES
-  ('0266325a-2954-4ae8-92c8-8bdbd1eab962', 'DINE_IN_AC', '05341f88-3b29-457c-bcbf-ad4bec4195d8', 'cbcea35a-4533-4ff5-9be8-d81d815d0b3b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:19:54.301', '2026-09-15 17:55:43.842'),
-  ('026d45fb-368c-4094-b571-8884f8203803', 'DINE_IN_AC', '81839e1e-e75f-4022-986a-2bf57f399780', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 06:23:52.522', '2026-09-16 06:26:25.484'),
-  ('0302bdcd-f898-4198-9448-8c07deeb47ef', 'DINE_IN_NON_AC', '818ad85a-5d1e-459f-94e6-563adb28d96b', 'cda9fe13-f599-4116-88df-c918052a4999', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:23:14.128', '2026-09-16 14:47:28.990'),
-  ('04c3687f-ef7b-443c-bb4d-2cc0dfa81d1c', 'DINE_IN_NON_AC', 'ddb1a9fb-7e76-4fb8-8881-506af423d757', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-10 21:41:36.669', '2026-09-10 21:45:49.251'),
-  ('06fc442d-e5a8-4191-a5a6-a69981da9775', 'DINE_IN_NON_AC', 'a0c9132d-07b0-4faf-b539-cd41a0508026', 'c81db452-9936-40ba-9227-2896f25bd758', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 05:57:44.521', '2026-09-16 06:07:05.507'),
-  ('07689189-8d09-4e74-a469-e92b0924c245', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:55:31.576', '2026-09-14 09:37:39.698'),
-  ('0cefd6d9-03eb-4a17-9d0b-fc4232011da6', 'DINE_IN_AC', 'fa3bb691-2e06-4c8d-ae62-347c078910e6', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 07:03:21.468', '2026-09-13 08:54:28.077'),
-  ('0e9f2a44-221a-4df8-be59-17616d6b6136', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:53:46.890', '2026-09-06 20:39:52.422'),
-  ('106e308f-5097-4277-9db4-78d5573faa4b', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'ACTIVE', '2026-09-16 17:24:31.875', '2026-09-16 17:24:31.875'),
-  ('10a72c45-a505-4d66-b2d2-6c8ac0417e81', 'DINE_IN_AC', '661aa2c6-678e-46b7-a56c-512a52068a5e', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:53:47.517', '2026-09-15 17:38:10.729'),
-  ('1227f3f7-1bd4-406a-bbee-15f0541f92ea', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.512', '2026-09-06 07:02:14.564'),
-  ('12edf73f-f2df-4dd0-834a-aa401cf2af4d', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 05:44:42.815', '2026-09-16 05:47:20.205'),
-  ('143d752e-71e1-4319-85ac-cac60169aa16', 'DINE_IN_AC', 'ae2938ed-e543-4cda-a23f-613ffd79b479', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:22:15.792', '2026-09-15 16:55:17.445'),
-  ('18855c06-9278-493c-99f5-5f4368d92eec', 'DINE_IN_NON_AC', 'ae74efec-eff6-4062-a3aa-539e37690db1', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 16:18:56.811', '2026-09-16 16:33:26.731'),
-  ('1bb01ee5-c7dc-43ed-823c-bdf5a97d10ee', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 10:07:12.984', '2026-09-14 10:08:43.959'),
-  ('1cb226b5-c697-419f-9228-0cefc8c94bfb', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.201', '2026-09-06 07:02:39.252'),
-  ('1dc4f930-c33e-4dd5-8f6b-89e7946b3d3c', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.303', '2026-09-06 07:05:27.150'),
-  ('219b654e-1c7b-47db-9fc3-789a3ffc1a98', 'DINE_IN_NON_AC', '88d51b6f-36e9-47c6-97a1-d6ceea3f16fe', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:27:16.784', '2026-09-15 07:00:39.078'),
-  ('224c74a5-43fb-4885-9413-e67882b49bc0', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.288', '2026-09-06 07:02:27.338'),
-  ('240a227b-8476-431b-be1d-c93728677d3f', 'DINE_IN_AC', 'c2991452-f9eb-4f8c-8a50-7ecedf767af4', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 06:16:59.387', '2026-09-15 06:20:37.036'),
-  ('2bdc5dc4-5782-4528-bb42-aad1dfb417a7', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.812', '2026-09-06 07:01:59.871'),
-  ('2c2f43ef-fc96-4850-8406-b7441d044b33', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 14:40:25.568', '2026-09-16 14:49:47.876'),
-  ('3042706e-94fe-4856-b268-33cfebc2fb69', 'DINE_IN_NON_AC', 'be7e0f48-1bff-4588-9445-acb54c019ffb', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'db2e18de-1255-4781-b084-b9609bb8698a', 'COMPLETED', '2026-09-12 03:57:51.148', '2026-09-12 11:36:47.515'),
-  ('30e447dd-8840-41c4-bc9e-214abe9b4331', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.785', '2026-09-06 07:06:37.358'),
-  ('3273ce7e-b40d-438f-a9b8-ca2bc573b06a', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.758', '2026-09-06 07:06:47.363'),
-  ('32d98267-2845-4d49-a2ba-7fe163130c2d', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:57:34.407', '2026-09-06 08:58:41.712'),
-  ('368d235c-7e6f-42cd-89af-fa8964866894', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:31:16.619', '2026-09-14 09:51:44.064'),
-  ('3732fbab-486c-49e1-9477-16cc1dff41e2', 'DINE_IN_NON_AC', '45edc51a-d198-46b5-8b4c-4f59adec5451', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 01:59:46.444', '2026-09-07 02:51:38.554'),
-  ('3828cce7-112d-4ab8-9f78-bc826f075980', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-11 11:14:22.586', '2026-09-11 11:14:26.885'),
-  ('38765ebb-a940-4685-874f-8259174bdefc', 'DINE_IN_AC', 'c9a6f218-f743-4eec-afa0-5fab8b1595c7', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 14:52:44.248', '2026-09-15 15:23:41.710'),
-  ('3975a38e-9536-4730-b381-d4b625dc65f9', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.273', '2026-09-06 07:06:25.582'),
-  ('3e27bd01-8fcb-4f76-860b-03e8e11ed02e', 'DINE_IN_AC', '1bd2c241-4ae5-4e7c-b90d-15e53b48d8ab', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 01:22:49.429', '2026-09-12 01:35:35.958'),
-  ('3fc92ffc-bf98-4d1b-9263-d562f76499ac', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 09:33:28.794', '2026-09-16 09:33:44.543'),
-  ('3ff30b67-fa48-420b-b84b-ebd7734c024d', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.529', '2026-09-06 07:06:10.991'),
-  ('401419e2-4d3e-4142-b73b-1cd91bc61513', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-15 11:07:16.983', '2026-09-15 11:07:29.600'),
-  ('40495842-26c1-4318-b6f4-e7c2e56207f0', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:55:48.352', '2026-09-16 15:57:49.085'),
-  ('438bf346-9f05-4f18-8df4-2bb9d088c7bb', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 17:29:53.073', '2026-09-16 18:14:37.846'),
-  ('44982d5d-1b30-4fbd-ad4b-c9aec2451874', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.262', '2026-09-06 07:06:30.528'),
-  ('44e85e5e-1dfa-46dc-af2d-081239936e8e', 'DINE_IN_AC', '98b3a572-7c5a-47a2-b31d-d86fc09afb0d', 'c56f28a9-bc91-4cf7-95b1-1e1247392c50', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:26:19.530', '2026-09-14 10:01:35.342'),
-  ('479d3a73-77cd-4fce-9df7-55673ee1fd66', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 08:39:20.791', '2026-09-15 08:39:28.092'),
-  ('49f21bf8-15c1-45a9-a806-2ea930fd10cb', 'DINE_IN_NON_AC', '8a909874-08c4-4534-99f4-4b5a27eb21b8', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 07:01:12.257', '2026-09-15 07:01:34.062'),
-  ('4a8caccd-29d0-4b88-89e3-46b890797333', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.227', '2026-09-06 07:05:49.629'),
-  ('4f1eca99-e5a8-439a-a8b7-0dc4822ee949', 'DINE_IN_NON_AC', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:13:20.417', '2026-09-16 10:49:29.220'),
-  ('4fc1d330-7318-4f47-b5ff-75874958539f', 'DINE_IN_NON_AC', 'd527fd1d-fa07-4e35-98bd-33489caa9d24', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 18:21:48.982', '2026-09-16 18:25:06.040'),
-  ('502f594a-e6f9-4df6-80f0-4f179f7f4324', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.324', '2026-09-06 07:05:53.514'),
-  ('5e32d051-1283-4133-b17c-3a102bac35ab', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 13:45:05.477', '2026-09-15 13:52:26.643'),
-  ('61681c7f-93b1-42c5-b298-8a0edad1d0a1', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.251', '2026-09-06 07:06:33.673'),
-  ('63bd6940-87e9-4f4d-b55d-f8a293577867', 'SWIGGY', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:53:46.909', '2026-09-06 08:58:57.393'),
-  ('64c91495-04eb-4375-becd-f35f38bbcf0b', 'DINE_IN_NON_AC', 'c7cee964-7257-4e32-9696-b522e1aaa59c', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 01:27:25.070', '2026-09-12 01:36:11.852'),
-  ('66098beb-d77e-49f4-9531-87764bf155a8', 'DINE_IN_AC', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '5e09688d-3751-446b-89b1-50b7ea61f21f', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:53:19.839', '2026-09-15 18:36:41.129'),
-  ('67285fdf-ca6c-4b86-b6b2-528eaf6f566e', 'DINE_IN_NON_AC', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:57:12.661', '2026-09-16 15:35:55.795'),
-  ('68781e5a-c057-446a-a28b-728cb490364a', 'DINE_IN_AC', 'b775b41a-50f2-442e-9949-d0dee94ecb8d', 'c56f28a9-bc91-4cf7-95b1-1e1247392c50', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 11:27:45.544', '2026-09-14 12:16:51.470'),
-  ('68c71f77-1e53-4650-9e6a-7908062bf954', 'DINE_IN_AC', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:09:03.886', '2026-09-16 17:03:55.835'),
-  ('695aaeec-71a1-4906-97cd-43055c034c25', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:57:45.822', '2026-09-06 08:58:37.985'),
-  ('6a322f8d-2e0f-45f2-9949-88d235be7ead', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.740', '2026-09-06 07:06:50.707'),
-  ('6cc5c184-25ba-4d47-a97e-5db73f8d6fb5', 'DINE_IN_NON_AC', '042b45c8-e416-4cd0-920f-43acd92a3849', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-15 05:07:49.339', '2026-09-15 05:57:25.257'),
-  ('6e0e5fd0-4096-402d-8000-dc96b38775cf', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-13 00:03:42.235', '2026-09-13 03:15:20.194'),
-  ('6e848799-d857-4ef1-b684-a657eb167ff6', 'DINE_IN_NON_AC', '4c823d29-65bc-45cc-b88e-896e1df9f3cd', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-05 23:39:42.219', '2026-09-05 23:58:23.856'),
-  ('6fe5525c-8acf-453e-abc8-97b0da2167b2', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:46:06.286', '2026-09-14 09:05:42.993'),
-  ('70cd6b1d-6bb8-40ca-8eac-be5dfd6ac491', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:43:43.244', '2026-09-14 09:05:14.935'),
-  ('71a04a61-698e-4998-abd7-c2f084d39b67', 'SWIGGY', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 09:37:08.225', '2026-09-10 21:33:22.818'),
-  ('742aed24-2f43-467b-afbe-85c11a0f8a69', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.539', '2026-09-06 07:06:06.839'),
-  ('76db286e-154d-4fb7-8ae8-4ffb589da93b', 'DINE_IN_NON_AC', '5da7b87f-2d05-42d9-85bc-40497a0e52a8', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:18:07.687', '2026-09-16 15:46:01.911'),
-  ('7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', 'DINE_IN_NON_AC', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'ACTIVE', '2026-09-16 05:31:53.881', '2026-09-16 05:31:53.881'),
-  ('7e4ef495-2fe0-42c5-8da0-55333dc33175', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.830', '2026-09-06 07:05:41.583'),
-  ('81a58bba-6d2f-4db5-a70e-a081d356de36', 'SWIGGY', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:54:03.292', '2026-09-06 08:58:49.337'),
-  ('8248195a-f736-49d3-81d6-6bfdcf1ddfa6', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 03:56:29.465', '2026-09-14 00:33:59.184'),
-  ('861a0f46-65bc-4942-92bf-a97e32fabbe0', 'DINE_IN_AC', '07719768-e557-4f8f-937b-7fccbb143250', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 17:13:56.732', '2026-09-16 17:53:15.833'),
-  ('8aa6b032-f946-4611-a305-a082b676a155', 'DINE_IN_AC', 'db4c698f-0c8d-47cf-a98f-ea2edfe14088', '76c5cd38-2ccb-454c-8186-437797a863a3', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-14 07:25:37.000', '2026-09-14 07:28:44.332'),
-  ('8f8ce3cb-6411-47ea-a30c-fd3d36733a59', 'DINE_IN_AC', 'f43fd688-862d-400b-8185-ed4ce2df6cf5', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 09:05:10.604', '2026-09-13 09:11:18.419'),
-  ('90239342-a0e9-441c-ba9b-74be5986cb42', 'DINE_IN_AC', 'db5fc7b4-5123-4128-8b84-d7dc071c1e2b', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:17:17.337', '2026-09-16 15:57:55.242'),
-  ('93981376-4e4b-46d1-8a67-cadb62e55cb6', 'DINE_IN_AC', 'ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:06:19.166', '2026-09-16 10:38:35.977'),
-  ('956ef519-bda5-49b6-918e-971893ecc692', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'ACTIVE', '2026-09-11 11:14:24.643', '2026-09-11 11:14:24.643'),
-  ('983666e9-e4a5-418f-bbae-1d04f2fb4c3d', 'DINE_IN_NON_AC', 'ed88a3d5-14c4-48ba-93cf-e66ad9e63f6d', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:15:49.426', '2026-09-16 15:47:58.320'),
-  ('9b879dc2-6f90-4187-8bee-dd7d78b9512f', 'DINE_IN_NON_AC', '1199a584-f231-46f0-a926-9c651bc3b59c', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:17:14.642', '2026-09-02 12:18:59.737'),
-  ('9dcf52d3-fbfa-4180-b489-efae5a4bc893', 'DINE_IN_NON_AC', 'cc981930-36e1-49f6-b7cc-7b7bf5d44a59', 'fd0f0ec6-8121-4a59-a1d7-8079e68b71c3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:38:33.619', '2026-09-16 16:16:15.273'),
-  ('9f2216a3-1073-4dcf-822e-11965ae3129b', 'DINE_IN_NON_AC', '79296c8a-e296-47d6-add1-b8f0b47ae55d', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 11:50:12.426', '2026-09-12 12:29:05.113'),
-  ('9f74f28c-b4f2-4d36-ac23-4ebcedd6a7f3', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 14:49:59.187', '2026-09-15 15:00:47.399'),
-  ('9fd850e4-0645-43db-865f-1148510047ed', 'DINE_IN_AC', 'd64b993c-4c1c-4b0b-8d8f-44772f1c64ae', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 07:16:07.274', '2026-09-06 07:17:15.961'),
-  ('a0e0fd08-ae28-4534-a7ed-a84ef7e572f0', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 15:22:27.052', '2026-09-15 15:30:17.999'),
-  ('a34dae2a-2af1-4b0a-ae8d-3efbdbcc61f5', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 13:42:43.276', '2026-09-16 14:09:05.026'),
-  ('a3d77bef-5cc5-4e7c-9514-99730f5d2740', 'SELF_PICKUP', NULL, NULL, '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:38:38.560', '2026-09-16 14:43:43.627'),
-  ('ab7d208f-ac92-4c82-8454-596b59352c40', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:55:00.482', '2026-09-06 08:58:45.684'),
-  ('ad95c7ea-abed-4d96-99d1-71dc7c7ffd57', 'DINE_IN_NON_AC', 'f20b1a16-96f8-4f71-8e8d-e2871b9843b1', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:41:34.251', '2026-09-15 07:29:40.022'),
-  ('b0a3caa6-ce30-45d4-8257-b7aaad91586c', 'DINE_IN_AC', '0a664a20-7359-40c2-814d-97e6972acf95', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 22:21:57.231', '2026-09-06 22:22:42.168'),
-  ('b0a5dbc8-9043-42b6-a4ac-9327a60ad65a', 'DINE_IN_AC', 'ce9d5583-8397-43b5-b46d-d191a7bffe71', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:38:06.626', '2026-09-15 16:12:56.252'),
-  ('b36c890f-a12b-4ac4-bc87-3bb98ae8dd99', 'DINE_IN_NON_AC', '2b5fa717-7893-45ba-b6bb-125c5971a588', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:04:55.548', '2026-09-02 12:06:12.006'),
-  ('b7d8bd69-6a46-4003-bec8-aa63310dc9cc', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.235', '2026-09-06 07:01:45.288'),
-  ('b96fc702-e6cb-483d-8320-4db3afefe6e1', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 18:16:38.069', '2026-09-16 18:17:08.170'),
-  ('baf4674a-14f0-4514-a430-911bcb1f16f0', 'DINE_IN_NON_AC', '7a70439f-7722-436f-88a4-77418f406291', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-13 17:19:56.055', '2026-09-14 00:08:14.824'),
-  ('c15e1781-15dc-4c97-88a2-d58b9e7c4080', 'DINE_IN_AC', 'cd891a89-172e-4b24-9b04-ca9c7a36d1d2', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 09:26:12.222', '2026-09-16 09:58:28.770'),
-  ('c46ef776-90c4-4ef5-aaba-afd67b878e5b', 'DINE_IN_NON_AC', 'ba08a520-3840-4f4d-be39-e6f016f919b6', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 22:22:18.387', '2026-09-06 22:22:47.225'),
-  ('c55a51b5-ea60-4758-9fd1-e28abde5dea3', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 15:41:57.154', '2026-09-15 15:45:20.634'),
-  ('cbfc3d53-05f9-4a3a-96d6-5f85e639eee1', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'ACTIVE', '2026-09-16 01:44:55.869', '2026-09-16 01:44:55.869'),
-  ('d7d42867-7a75-48d1-b0f2-ca1b82742f80', 'ZOMATO', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 09:29:41.972', '2026-09-07 09:30:36.886'),
-  ('db43d8cb-8368-4470-9d13-0baf8880a704', 'DINE_IN_AC', 'd6e4a75d-b9d5-4f73-b7ba-824b9f56d867', '5e09688d-3751-446b-89b1-50b7ea61f21f', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:41:17.397', '2026-09-14 10:18:56.660'),
-  ('dd1d0fb5-96fb-4b2a-9a29-54d4664de2cc', 'DINE_IN_AC', '5723eda4-a410-4a8d-9516-b00364c7a308', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:01:26.563', '2026-09-16 10:04:12.011'),
-  ('dfd92537-0508-4192-abd2-4ee00c2b372e', 'DINE_IN_AC', '4ebe80d7-b953-4e55-a344-a955125604b2', '76c5cd38-2ccb-454c-8186-437797a863a3', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:08:52.281', '2026-09-14 09:48:51.347'),
-  ('e2254539-afd7-4862-8ba2-468e11cb12e9', 'DINE_IN_AC', '4c3ca8fc-3db9-42c8-9870-ec73177f4339', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 17:35:30.611', '2026-09-16 18:16:09.432'),
-  ('e6e8e5ea-7898-445a-84a5-9b572fadacc9', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.238', '2026-09-06 07:05:04.863');
-
-INSERT INTO `Order` (`id`, `orderSource`, `sessionId`, `tableId`, `captainId`, `status`, `createdAt`, `updatedAt`) VALUES
-  ('ef380228-cf9a-43f3-82b1-bfe6873a97a7', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.770', '2026-09-06 07:06:42.107'),
-  ('ef565302-8a74-4f8a-8e03-6b33d7fa2705', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'ACTIVE', '2026-09-16 01:43:11.992', '2026-09-16 01:43:11.992'),
-  ('f08c14e4-5872-40df-b494-9be98ec7737f', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.313', '2026-09-06 07:05:57.588'),
-  ('f138ce06-7bba-4068-b668-4d23943b1ae9', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:54:03.274', '2026-09-06 08:58:52.927'),
-  ('f1692b4f-f653-4cc0-a724-521786bd182b', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.218', '2026-09-06 07:05:10.072'),
-  ('f73d5a64-f57f-4836-919c-ec8ed6a46a87', 'DINE_IN_NON_AC', '6b8d7082-7735-46f7-a8d1-600ed5dda13f', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 09:37:47.650', '2026-09-10 21:33:01.696'),
-  ('f9967dcd-6aea-4158-977f-1f309a15cc20', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:00.133', '2026-09-06 07:05:37.270'),
-  ('fbacd722-ed8e-4de3-9c10-6433cfd57f1f', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.840', '2026-09-06 07:06:21.559'),
-  ('fc3b0ab2-d05a-4da1-b3dc-31a40c6b3c23', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.854', '2026-09-06 07:06:15.420'),
-  ('fce6d9f3-7f55-4b6e-834a-fc72f818603b', 'DINE_IN_AC', 'adb0a83f-3745-487a-8e48-ecfb1fa52b35', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 10:55:05.221', '2026-09-14 12:15:21.667'),
-  ('fd126ea1-fad8-4fe5-b6c1-0c23028052b9', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.550', '2026-09-06 07:06:02.258'),
-  ('fd6f8f01-839c-45b6-a0f0-c197e4bc42e2', 'DINE_IN_NON_AC', 'dab0afbd-1956-4832-b68d-5c69f98954b6', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 00:51:19.101', '2026-09-07 01:58:37.784');
-
--- ------------------------------------------------------------------------------
--- Table structure for table `MenuItem`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `MenuItem`;
-CREATE TABLE `MenuItem` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `name` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `categoryId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `menuType` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `price` decimal(65,30) NOT NULL,
-  `description` text COLLATE utf8mb4_bin,
-  `active` tinyint(1) NOT NULL DEFAULT '1',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt` datetime(3) NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `MenuItem_name_categoryId_menuType_key` (`name`,`categoryId`,`menuType`),
-  KEY `MenuItem_active_idx` (`active`),
-  KEY `MenuItem_categoryId_active_idx` (`categoryId`,`active`),
-  KEY `MenuItem_categoryId_idx` (`categoryId`),
-  KEY `MenuItem_menuType_active_idx` (`menuType`,`active`),
-  KEY `MenuItem_menuType_idx` (`menuType`),
-  CONSTRAINT `MenuItem_categoryId_fkey` FOREIGN KEY (`categoryId`) REFERENCES `Category` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `MenuItem` (493 rows)
+-- Data for table `MenuItem` (493 rows)
 INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `description`, `active`, `createdAt`, `updatedAt`) VALUES
   ('00f2e3a5-5192-468f-bb0b-eefce6237535', 'MINT MOJITO', '72303203-31fd-48a2-9cbe-f737e5c8f1be', 'SWIGGY', '140.000000000000000000000000000000', NULL, 0, '2026-09-12 11:45:04.039', '2026-09-13 00:50:06.027'),
   ('0195692e-f149-4fdc-b4c9-9caff9a259a3', 'Malai Kofta', '83209621-268d-41ec-acfb-0471abe45028', 'AC', '270.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.064', '2026-09-13 00:36:19.818'),
@@ -873,7 +811,6 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
   ('330b7888-39a7-4fab-bb31-659c6980edfd', 'EXTRA GHEE', '9b4faaa7-c423-42b9-8f11-8c588a42d591', 'NON_AC', '30.000000000000000000000000000000', NULL, 1, '2026-09-13 05:19:57.015', '2026-09-13 05:19:57.015'),
   ('33ec1934-220e-4027-a3b8-fe860db94017', 'Paneer Kolhapuri', '637dcb4d-04d3-4358-99ac-27dbb37c83f8', 'NON_AC', '210.000000000000000000000000000000', NULL, 1, '2026-09-13 03:19:39.177', '2026-09-13 03:19:39.177'),
   ('33feb86e-54fb-4d66-bda4-95a9d11b8d19', 'TOMATO SALAD', '02deb6a1-ea81-4e3d-9051-d33415ee532a', 'AC', '45.000000000000000000000000000000', NULL, 1, '2026-09-13 04:37:45.130', '2026-09-13 04:37:45.130'),
-  ('341dae8e-184d-471e-8414-d5c6ab5a2d06', 'Gulab Jamun', 'd497faee-4a68-4b05-9d43-9173faf42afe', 'AC', '100.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.254', '2026-09-13 00:39:05.609'),
   ('343d8545-019c-4ffb-9b3f-6a722d771cc7', 'VEG. TAWA MASALA', '6614b2e2-2430-411a-bf17-10e9ba01f422', 'AC', '240.000000000000000000000000000000', NULL, 1, '2026-09-13 02:51:04.130', '2026-09-13 02:51:04.130'),
   ('3546279e-f1ea-4abc-9c6d-2bfdc5df448d', 'PANEER TIKKA BIRYANI', '31a551fc-0ef7-4b3e-ba2c-81fc30943856', 'NON_AC', '200.000000000000000000000000000000', NULL, 1, '2026-09-13 04:05:30.669', '2026-09-13 04:05:30.669'),
   ('357cc3a5-2bf5-482f-a32e-671c0cd9ec7b', 'PANEER PAHADI', '637dcb4d-04d3-4358-99ac-27dbb37c83f8', 'NON_AC', '240.000000000000000000000000000000', NULL, 1, '2026-09-13 03:11:31.495', '2026-09-13 03:11:31.495'),
@@ -907,7 +844,6 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
   ('4367c84c-3fc4-4094-b646-36afcf1a8e6c', 'SPL. KATHIYAWADI GOTALA', '1a4b0d90-c910-415c-9927-48e9e5947372', 'NON_AC', '250.000000000000000000000000000000', NULL, 1, '2026-09-13 05:13:11.409', '2026-09-13 05:13:11.409'),
   ('44528d77-6abe-4d0a-b926-0b720a819411', 'PLAIN LACHHA PAROTHA', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'NON_AC', '45.000000000000000000000000000000', NULL, 1, '2026-09-13 01:29:36.498', '2026-09-13 01:29:36.498'),
   ('449c91b3-973f-4986-afbe-95dbe8180fc2', 'TAWA PARATHA', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'AC', '50.000000000000000000000000000000', NULL, 1, '2026-09-13 01:33:13.587', '2026-09-13 01:33:13.587'),
-  ('46031c37-d85f-4445-bd66-237033df9dcc', 'Butter Naan', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'NON_AC', '50.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.078', '2026-09-13 00:49:24.535'),
   ('4698b023-e381-4ee5-bb72-56ea694c8ec3', 'JEERA ALOO', 'f7d03d67-540b-4083-a7ff-70917b07f340', 'NON_AC', '130.000000000000000000000000000000', NULL, 1, '2026-09-13 01:47:32.193', '2026-09-13 01:47:32.193'),
   ('46ab6571-829f-490f-b8c9-c24b9c68ff07', 'KAJU CURRY', 'dd30cd24-9b6a-49ce-9a3e-d1098f6081d9', 'NON_AC', '220.000000000000000000000000000000', NULL, 1, '2026-09-13 03:24:37.585', '2026-09-13 03:24:37.585'),
   ('46ca1b86-55e0-4c23-8655-342b32f81f26', 'Ice Cream', 'd497faee-4a68-4b05-9d43-9173faf42afe', 'SWIGGY', '140.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.289', '2026-09-13 00:53:42.672'),
@@ -1036,7 +972,6 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
   ('8e2dd89f-0044-460a-8bd9-e9a8d533aae9', 'ALOO MUTTER', 'f7d03d67-540b-4083-a7ff-70917b07f340', 'NON_AC', '140.000000000000000000000000000000', NULL, 1, '2026-09-13 01:47:51.234', '2026-09-13 01:47:51.234'),
   ('8f03a964-7c81-48aa-bfda-ed249a2ae0a5', 'SEV TAMOTA', '1a4b0d90-c910-415c-9927-48e9e5947372', 'AC', '170.000000000000000000000000000000', NULL, 1, '2026-09-13 04:44:11.671', '2026-09-13 04:44:11.671'),
   ('8fb5f77a-3f13-40f4-983a-2e26f95bf9e8', 'VEG.SINGAPORI FRIED RICE', '662c975b-c1ae-47f5-9f51-ba350d6f0593', 'NON_AC', '180.000000000000000000000000000000', NULL, 1, '2026-09-13 03:54:13.592', '2026-09-13 03:54:13.592'),
-  ('8fdbbd5b-4d41-4dc3-ac39-c7bf5f4974e3', 'Butter Naan', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'AC', '80.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.082', '2026-09-13 00:37:57.913'),
   ('905e07c9-0036-4ce8-92c9-4f9c89ba60e7', 'VEG.TAWA PULAV', '31a551fc-0ef7-4b3e-ba2c-81fc30943856', 'AC', '170.000000000000000000000000000000', NULL, 1, '2026-09-13 04:00:27.393', '2026-09-13 04:00:27.393'),
   ('90befcab-2199-40d4-98e1-2459a3ae28e0', 'Garlic Naan', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'SWIGGY', '110.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.123', '2026-09-13 00:52:55.321'),
   ('912d9601-b99d-47b2-bb4f-3e8326abb622', 'KASHMIRI PULAV', '31a551fc-0ef7-4b3e-ba2c-81fc30943856', 'AC', '210.000000000000000000000000000000', '(SWEET )', 1, '2026-09-13 04:02:28.614', '2026-09-13 04:02:28.614'),
@@ -1059,7 +994,6 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
   ('97968e05-aeac-4a7c-89f8-326b9c015f72', 'KAJU MASALA', 'dd30cd24-9b6a-49ce-9a3e-d1098f6081d9', 'NON_AC', '230.000000000000000000000000000000', NULL, 1, '2026-09-13 03:25:07.333', '2026-09-13 03:25:07.333'),
   ('97b580ab-530f-42fb-b77e-1194ffb44cc2', 'Test Item(raj)', '294d7508-3800-47d0-8107-07536c5623d6', 'NON_AC', '80.000000000000000000000000000000', NULL, 0, '2026-09-13 04:32:38.700', '2026-09-13 04:35:16.195'),
   ('97e166c6-aa27-4480-8c46-83ad58598c9c', 'VEG MAHARAJA', '6614b2e2-2430-411a-bf17-10e9ba01f422', 'AC', '260.000000000000000000000000000000', NULL, 1, '2026-09-13 02:53:46.887', '2026-09-13 02:53:46.887'),
-  ('981ffedb-721b-470b-9a43-c93fc9f78255', 'Tandoori Roti', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'AC', '60.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.135', '2026-09-13 00:38:26.383'),
   ('98369935-7f9f-4e88-adc3-0736993fa523', 'PLAIN KHULCHA', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'AC', '60.000000000000000000000000000000', NULL, 1, '2026-09-13 01:30:55.134', '2026-09-13 01:30:55.134'),
   ('98fc24d4-fbb8-460d-8974-b8fbf9c0c4a8', 'Paneer Butter Masala', '637dcb4d-04d3-4358-99ac-27dbb37c83f8', 'NON_AC', '190.000000000000000000000000000000', NULL, 1, '2026-09-13 03:07:11.197', '2026-09-13 03:07:11.197'),
   ('9946a36f-d8b4-4f04-b272-e9d3b70391dd', 'CHEESE KOFTA', 'f7d03d67-540b-4083-a7ff-70917b07f340', 'NON_AC', '200.000000000000000000000000000000', NULL, 1, '2026-09-13 01:46:46.530', '2026-09-13 01:46:46.530'),
@@ -1141,7 +1075,6 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
   ('bd1c6655-c4f3-4cac-9e57-141fb1524e09', 'VEG. JAIPURI', '6614b2e2-2430-411a-bf17-10e9ba01f422', 'AC', '230.000000000000000000000000000000', NULL, 1, '2026-09-13 02:55:29.253', '2026-09-13 02:55:29.253'),
   ('bd40095d-5088-4921-a752-61c4c505e277', 'Tandoori Roti', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'ZOMATO', '75.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.143', '2026-09-13 00:59:04.585'),
   ('be64e984-7d77-4e2a-b5d8-494df49d679e', 'Kadhai Paneer', '637dcb4d-04d3-4358-99ac-27dbb37c83f8', 'AC', '250.000000000000000000000000000000', NULL, 1, '2026-09-13 03:09:30.196', '2026-09-13 03:09:30.196'),
-  ('bf0dfa45-78d7-48e1-8bf9-198de08e70c2', 'GARLIC NAAN', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'AC', '90.000000000000000000000000000000', NULL, 1, '2026-09-13 01:28:53.395', '2026-09-13 01:28:53.395'),
   ('bfa372ea-2fb6-4a23-978e-4dee89dcce82', 'SEV LASANIYA', '1a4b0d90-c910-415c-9927-48e9e5947372', 'AC', '190.000000000000000000000000000000', NULL, 1, '2026-09-13 05:02:02.097', '2026-09-13 05:02:02.097'),
   ('c01d36ba-8e84-43e0-8e7c-bb7918a5ccd8', 'JEERA DAL', '87beb51b-443e-4316-9dab-e92ee89019b9', 'AC', '140.000000000000000000000000000000', NULL, 1, '2026-09-13 04:16:37.908', '2026-09-13 04:16:37.908'),
   ('c063a392-a28b-4ccb-b1e4-2e11778063bd', 'VEG. ANGARA', '6614b2e2-2430-411a-bf17-10e9ba01f422', 'NON_AC', '220.000000000000000000000000000000', NULL, 1, '2026-09-13 02:52:13.097', '2026-09-13 02:52:13.097'),
@@ -1152,7 +1085,6 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
   ('c2499fbd-09d7-42ad-91c1-5ce39c465aa2', 'Malai Kofta', '83209621-268d-41ec-acfb-0471abe45028', 'NON_AC', '240.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.060', '2026-09-13 00:48:21.518'),
   ('c25b21eb-0054-4029-b185-ff57d2b40398', 'VEG. CLEAR SOUP', 'b0bc97a6-2606-4686-a9e8-7a1391dd22f9', 'NON_AC', '110.000000000000000000000000000000', NULL, 1, '2026-09-13 01:24:41.824', '2026-09-13 01:24:41.824'),
   ('c51c25ac-e307-4f7d-9183-d77d9f341433', 'KAJU PULAV', '31a551fc-0ef7-4b3e-ba2c-81fc30943856', 'NON_AC', '200.000000000000000000000000000000', NULL, 1, '2026-09-13 04:04:48.606', '2026-09-13 04:04:48.606'),
-  ('c6b667fd-2233-4c05-871b-43a338e5a27b', 'Tandoori Roti', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'NON_AC', '40.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.131', '2026-09-13 00:47:58.188'),
   ('c6cca9a0-35ed-4dd8-8be0-e6e99527f1f8', 'Spring Roll', '294d7508-3800-47d0-8107-07536c5623d6', 'AC', '190.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:09.945', '2026-09-13 00:29:41.651'),
   ('c735a5e8-c298-4829-b5f0-b170274ec90d', 'ROASTED MASALA PAPAD', '02deb6a1-ea81-4e3d-9051-d33415ee532a', 'NON_AC', '35.000000000000000000000000000000', NULL, 1, '2026-09-13 04:30:56.538', '2026-09-13 04:30:56.538'),
   ('c7a02bc1-3fca-498d-be1e-9ab904679c97', 'ice cream', '294d7508-3800-47d0-8107-07536c5623d6', 'NON_AC', '50.000000000000000000000000000000', NULL, 0, '2026-09-07 09:28:19.354', '2026-09-10 21:34:45.138'),
@@ -1215,7 +1147,6 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
   ('e1a09670-c7fa-41ed-ac00-0bc1e936da4b', 'KHACUMBER SALAD', '02deb6a1-ea81-4e3d-9051-d33415ee532a', 'AC', '70.000000000000000000000000000000', NULL, 1, '2026-09-13 04:38:18.934', '2026-09-13 04:38:18.934'),
   ('e1ee0703-a3c3-42ec-993d-4128689a3124', 'CHEESE ANGORI', 'dd30cd24-9b6a-49ce-9a3e-d1098f6081d9', 'NON_AC', '260.000000000000000000000000000000', NULL, 1, '2026-09-13 03:28:01.591', '2026-09-13 03:28:01.591'),
   ('e299cf9f-94d0-4f08-b5cf-61417cbf9f79', 'Sweet Lassi', '504fac14-ddb8-4398-a2b0-889f5e781270', 'AC', '90.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:10.220', '2026-09-13 00:38:52.391'),
-  ('e2e290e3-aef5-4f87-8fc1-11890e34806b', 'GARLIC NAAN', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'NON_AC', '80.000000000000000000000000000000', NULL, 1, '2026-09-13 01:28:54.789', '2026-09-13 01:28:54.789'),
   ('e31d2e97-c3a0-4103-a5e0-53cbf9d92500', 'Veg Manchurian', '294d7508-3800-47d0-8107-07536c5623d6', 'NON_AC', '180.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:09.924', '2026-09-13 00:47:01.256'),
   ('e3a2d648-6738-48bc-afc5-b9f409467343', 'DAL TADKA', '87beb51b-443e-4316-9dab-e92ee89019b9', 'NON_AC', '150.000000000000000000000000000000', NULL, 1, '2026-09-13 04:08:42.509', '2026-09-13 04:14:14.946'),
   ('e495fee7-e9a9-4037-be0d-2d61ca2c4abd', 'BAJRI ROTLI', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'NON_AC', '45.000000000000000000000000000000', NULL, 1, '2026-09-13 01:34:08.530', '2026-09-13 01:34:08.530'),
@@ -1264,231 +1195,185 @@ INSERT INTO `MenuItem` (`id`, `name`, `categoryId`, `menuType`, `price`, `descri
   ('f9a33272-92a0-4d62-8cfd-266648147fa3', 'Hara Bhara Kebab', '294d7508-3800-47d0-8107-07536c5623d6', 'NON_AC', '180.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:09.958', '2026-09-13 00:45:39.452'),
   ('f9ab6d26-1c28-4804-9948-ac8934ed1014', 'DAL PALAK', '87beb51b-443e-4316-9dab-e92ee89019b9', 'NON_AC', '140.000000000000000000000000000000', NULL, 1, '2026-09-13 04:27:01.965', '2026-09-13 04:27:01.965'),
   ('f9e0bcee-9629-4603-8d7c-2fd52e4717d4', 'MISSI ROTI', 'a29cdebc-54c7-4059-85dc-7f9aab91722f', 'AC', '60.000000000000000000000000000000', NULL, 1, '2026-09-13 01:30:29.255', '2026-09-13 01:30:29.255'),
-  ('fa7dd2da-eb40-4fd1-b0f8-f4a060804631', 'GULAB JAMUN', 'd497faee-4a68-4b05-9d43-9173faf42afe', 'NON_AC', '100.000000000000000000000000000000', '(2 pc)', 1, '2026-09-13 01:39:17.787', '2026-09-13 01:39:17.787'),
   ('faf287af-6cbb-4c81-8c78-3f082446bf74', 'VEG.DHUM BIRYANI', '31a551fc-0ef7-4b3e-ba2c-81fc30943856', 'AC', '190.000000000000000000000000000000', NULL, 1, '2026-09-13 04:05:07.936', '2026-09-13 04:05:07.936'),
   ('fc76e1d0-291e-42b8-97f5-739618a79208', 'KAJU GATHIYA', '1a4b0d90-c910-415c-9927-48e9e5947372', 'NON_AC', '220.000000000000000000000000000000', NULL, 1, '2026-09-13 04:48:09.525', '2026-09-13 04:48:09.525'),
   ('fcd2c809-1c6d-4673-a51a-a34813055f23', 'Dal Tadka', '83209621-268d-41ec-acfb-0471abe45028', 'AC', '210.000000000000000000000000000000', NULL, 0, '2026-09-02 11:23:09.997', '2026-09-13 00:30:50.417'),
   ('ff97813d-d606-4dbf-bc98-673b068d1ccd', 'GREEN SALAD', '02deb6a1-ea81-4e3d-9051-d33415ee532a', 'AC', '70.000000000000000000000000000000', NULL, 1, '2026-09-13 04:37:19.737', '2026-09-13 04:37:19.737');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `KOT`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `KOT`;
-CREATE TABLE `KOT` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `kotNumber` int NOT NULL,
-  `orderId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `sessionId` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `captainId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `status` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'NEW',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `KOT_createdAt_idx` (`createdAt`),
-  KEY `KOT_orderId_idx` (`orderId`),
-  KEY `KOT_sessionId_idx` (`sessionId`),
-  KEY `KOT_status_createdAt_idx` (`status`,`createdAt`),
-  KEY `KOT_status_idx` (`status`),
-  CONSTRAINT `KOT_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `KOT_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `TableSession` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+-- Data for table `TableSession` (53 rows)
+INSERT INTO `TableSession` (`id`, `tableId`, `captainId`, `guestCount`, `status`, `openedAt`, `closedAt`) VALUES
+  ('042b45c8-e416-4cd0-920f-43acd92a3849', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 2, 'CLOSED', '2026-09-15 05:07:45.271', '2026-09-15 05:57:25.255'),
+  ('05341f88-3b29-457c-bcbf-ad4bec4195d8', 'cbcea35a-4533-4ff5-9be8-d81d815d0b3b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-15 17:18:46.588', '2026-09-15 17:55:43.841'),
+  ('07719768-e557-4f8f-937b-7fccbb143250', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 4, 'CLOSED', '2026-09-16 17:11:49.494', '2026-09-16 17:53:15.832'),
+  ('0a664a20-7359-40c2-814d-97e6972acf95', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 2, 'CLOSED', '2026-09-06 22:21:48.060', '2026-09-06 22:22:42.168'),
+  ('1199a584-f231-46f0-a926-9c651bc3b59c', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-02 12:17:10.851', '2026-09-02 12:18:59.738'),
+  ('1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 8, 'CLOSED', '2026-09-16 16:06:03.672', '2026-09-16 17:03:55.834'),
+  ('1bd2c241-4ae5-4e7c-b90d-15e53b48d8ab', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 4, 'CLOSED', '2026-09-12 01:22:12.819', '2026-09-12 01:35:35.956'),
+  ('1f57d1e5-79a0-4d7b-acc0-8c38766494b7', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 4, 'OPEN', '2026-09-16 01:46:58.987', NULL),
+  ('2b5fa717-7893-45ba-b6bb-125c5971a588', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-02 12:04:52.970', '2026-09-02 12:06:12.007'),
+  ('2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 3, 'CLOSED', '2026-09-16 14:55:50.597', '2026-09-16 15:35:55.794'),
+  ('45edc51a-d198-46b5-8b4c-4f59adec5451', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-07 01:59:33.017', '2026-09-07 02:51:38.555'),
+  ('4c3ca8fc-3db9-42c8-9870-ec73177f4339', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 17:33:21.279', '2026-09-16 18:16:09.431'),
+  ('4c823d29-65bc-45cc-b88e-896e1df9f3cd', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 2, 'CLOSED', '2026-09-05 23:39:42.116', '2026-09-05 23:58:23.857'),
+  ('4ebe80d7-b953-4e55-a344-a955125604b2', '76c5cd38-2ccb-454c-8186-437797a863a3', 'eaf7089f-7712-4686-8338-940d70a83f4e', 3, 'CLOSED', '2026-09-14 09:07:44.545', '2026-09-14 09:48:51.346'),
+  ('5723eda4-a410-4a8d-9516-b00364c7a308', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 09:59:17.476', '2026-09-16 10:04:12.010'),
+  ('5da7b87f-2d05-42d9-85bc-40497a0e52a8', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', 'eaf7089f-7712-4686-8338-940d70a83f4e', 1, 'CLOSED', '2026-09-16 15:18:01.287', '2026-09-16 15:46:01.909'),
+  ('661aa2c6-678e-46b7-a56c-512a52068a5e', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 8, 'CLOSED', '2026-09-15 16:51:39.665', '2026-09-15 17:38:10.728'),
+  ('6b8d7082-7735-46f7-a8d1-600ed5dda13f', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 7, 'CLOSED', '2026-09-07 09:37:34.697', '2026-09-10 21:33:01.911'),
+  ('79296c8a-e296-47d6-add1-b8f0b47ae55d', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 4, 'CLOSED', '2026-09-12 11:49:45.407', '2026-09-12 12:29:05.112'),
+  ('7a70439f-7722-436f-88a4-77418f406291', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 4, 'CLOSED', '2026-09-13 09:00:17.690', '2026-09-14 00:08:14.823'),
+  ('81839e1e-e75f-4022-986a-2bf57f399780', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 1, 'CLOSED', '2026-09-16 06:23:42.587', '2026-09-16 06:26:25.483'),
+  ('818ad85a-5d1e-459f-94e6-563adb28d96b', 'cda9fe13-f599-4116-88df-c918052a4999', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 4, 'CLOSED', '2026-09-16 14:22:14.555', '2026-09-16 14:47:28.989'),
+  ('8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 3, 'CLOSED', '2026-09-16 10:12:30.855', '2026-09-16 10:49:29.219'),
+  ('88d51b6f-36e9-47c6-97a1-d6ceea3f16fe', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-15 06:26:25.854', '2026-09-15 07:00:39.077'),
+  ('8a909874-08c4-4534-99f4-4b5a27eb21b8', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-15 07:01:03.887', '2026-09-15 07:01:34.061'),
+  ('98b3a572-7c5a-47a2-b31d-d86fc09afb0d', 'c56f28a9-bc91-4cf7-95b1-1e1247392c50', 'eaf7089f-7712-4686-8338-940d70a83f4e', 3, 'CLOSED', '2026-09-14 09:25:36.208', '2026-09-14 10:01:35.341'),
+  ('a0c9132d-07b0-4faf-b539-cd41a0508026', 'c81db452-9936-40ba-9227-2896f25bd758', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 1, 'CLOSED', '2026-09-16 05:57:11.699', '2026-09-16 06:07:05.506'),
+  ('a2906871-6e32-4537-a9ec-b1680e4edbed', '1ec38bd8-a6f0-4a32-8103-a7057ca4abc3', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-06 07:02:39.263', '2026-09-06 07:02:39.276'),
+  ('adb0a83f-3745-487a-8e48-ecfb1fa52b35', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 3, 'CLOSED', '2026-09-14 10:53:14.665', '2026-09-14 12:15:21.666'),
+  ('ae2938ed-e543-4cda-a23f-613ffd79b479', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 6, 'CLOSED', '2026-09-15 16:19:25.703', '2026-09-15 16:55:17.444'),
+  ('ae74efec-eff6-4062-a3aa-539e37690db1', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 1, 'CLOSED', '2026-09-16 16:18:34.982', '2026-09-16 16:33:26.730'),
+  ('b775b41a-50f2-442e-9949-d0dee94ecb8d', 'c56f28a9-bc91-4cf7-95b1-1e1247392c50', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-14 11:22:41.681', '2026-09-14 12:16:51.470'),
+  ('ba08a520-3840-4f4d-be39-e6f016f919b6', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-06 22:21:20.745', '2026-09-06 22:22:47.228'),
+  ('be7e0f48-1bff-4588-9445-acb54c019ffb', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'db2e18de-1255-4781-b084-b9609bb8698a', 5, 'CLOSED', '2026-09-12 03:55:32.977', '2026-09-12 11:36:47.514'),
+  ('c2991452-f9eb-4f8c-8a50-7ecedf767af4', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 3, 'CLOSED', '2026-09-15 06:16:20.676', '2026-09-15 06:20:37.035'),
+  ('c7cee964-7257-4e32-9696-b522e1aaa59c', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 5, 'CLOSED', '2026-09-12 01:27:01.888', '2026-09-12 01:36:11.851'),
+  ('c9a6f218-f743-4eec-afa0-5fab8b1595c7', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 6, 'CLOSED', '2026-09-15 14:48:12.953', '2026-09-15 15:23:41.709'),
+  ('cc981930-36e1-49f6-b7cc-7b7bf5d44a59', 'fd0f0ec6-8121-4a59-a1d7-8079e68b71c3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 15:35:23.369', '2026-09-16 16:16:15.272'),
+  ('cd891a89-172e-4b24-9b04-ca9c7a36d1d2', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 09:25:58.006', '2026-09-16 09:58:28.769'),
+  ('ce9d5583-8397-43b5-b46d-d191a7bffe71', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 6, 'CLOSED', '2026-09-15 15:36:33.851', '2026-09-15 16:12:56.251'),
+  ('d527fd1d-fa07-4e35-98bd-33489caa9d24', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-16 18:21:21.175', '2026-09-16 18:25:06.039'),
+  ('d64b993c-4c1c-4b0b-8d8f-44772f1c64ae', '95da293c-3a74-47db-894d-2cc63506f20c', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-06 07:02:27.350', '2026-09-06 07:17:15.962'),
+  ('d6e4a75d-b9d5-4f73-b7ba-824b9f56d867', '5e09688d-3751-446b-89b1-50b7ea61f21f', 'eaf7089f-7712-4686-8338-940d70a83f4e', 3, 'CLOSED', '2026-09-14 09:40:27.632', '2026-09-14 10:18:56.659'),
+  ('dab0afbd-1956-4832-b68d-5c69f98954b6', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 1, 'CLOSED', '2026-09-07 00:51:11.783', '2026-09-07 01:58:37.787'),
+  ('db4c698f-0c8d-47cf-a98f-ea2edfe14088', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 4, 'CLOSED', '2026-09-14 05:25:28.053', '2026-09-14 07:28:44.331'),
+  ('db5fc7b4-5123-4128-8b84-d7dc071c1e2b', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 15:16:16.315', '2026-09-16 15:57:55.240'),
+  ('ddb1a9fb-7e76-4fb8-8881-506af423d757', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 2, 'CLOSED', '2026-09-10 21:41:27.236', '2026-09-10 21:45:49.641'),
+  ('e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '5e09688d-3751-446b-89b1-50b7ea61f21f', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-15 17:50:35.363', '2026-09-15 18:36:41.128'),
+  ('ed88a3d5-14c4-48ba-93cf-e66ad9e63f6d', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 2, 'CLOSED', '2026-09-16 15:15:41.111', '2026-09-16 15:47:58.319'),
+  ('ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-16 10:04:30.047', '2026-09-16 10:38:35.976'),
+  ('f20b1a16-96f8-4f71-8e8d-e2871b9843b1', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', 'eaf7089f-7712-4686-8338-940d70a83f4e', 5, 'CLOSED', '2026-09-15 06:41:24.526', '2026-09-15 07:29:40.021'),
+  ('f43fd688-862d-400b-8185-ed4ce2df6cf5', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 2, 'CLOSED', '2026-09-13 09:04:42.169', '2026-09-13 09:11:18.418'),
+  ('fa3bb691-2e06-4c8d-ae62-347c078910e6', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', NULL, 'CLOSED', '2026-09-13 07:01:22.380', '2026-09-13 08:54:28.076');
 
--- Dumping data for table `KOT` (163 rows)
-INSERT INTO `KOT` (`id`, `kotNumber`, `orderId`, `sessionId`, `captainId`, `status`, `createdAt`) VALUES
-  ('0133c138-2bf2-43db-9e36-30ce1351c8d0', 1, 'b0a3caa6-ce30-45d4-8257-b7aaad91586c', '0a664a20-7359-40c2-814d-97e6972acf95', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 22:21:57.335'),
-  ('01ac5931-b00d-4ebb-b4f1-13be38f834fb', 9, '49f21bf8-15c1-45a9-a806-2ea930fd10cb', '8a909874-08c4-4534-99f4-4b5a27eb21b8', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 07:01:12.269'),
-  ('01b26b37-bf81-416a-86ed-7e8348f00280', 58, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:58:02.853'),
-  ('06136184-3311-42a2-98ea-26e2732db7ea', 7, 'ad95c7ea-abed-4d96-99d1-71dc7c7ffd57', 'f20b1a16-96f8-4f71-8e8d-e2871b9843b1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:51:56.178'),
-  ('08c8c623-776b-456c-8a7b-9127ec20cb6f', 61, '438bf346-9f05-4f18-8df4-2bb9d088c7bb', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 17:29:53.079'),
-  ('09544abe-0a05-4050-9e5d-70670b5698b5', 2, 'f9967dcd-6aea-4158-977f-1f309a15cc20', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:00.139'),
-  ('0a319c08-04e2-4b35-8ed0-04052a39581c', 43, '66098beb-d77e-49f4-9531-87764bf155a8', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 18:28:29.973'),
-  ('0b02cdfe-4ece-4827-ba70-3186ac608925', 6, 'f73d5a64-f57f-4836-919c-ec8ed6a46a87', '6b8d7082-7735-46f7-a8d1-600ed5dda13f', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 09:37:47.685'),
-  ('0cb05903-16a6-46f2-9a31-3cd15e5fe8e9', 37, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:13:44.891'),
-  ('0ddf626e-168c-4e08-9ab2-6750dd4f0c8a', 8, '219b654e-1c7b-47db-9fc3-789a3ffc1a98', '88d51b6f-36e9-47c6-97a1-d6ceea3f16fe', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:52:32.531'),
-  ('0e1d9fc5-5d37-497f-b5e1-aa6ba4b96106', 38, '0266325a-2954-4ae8-92c8-8bdbd1eab962', '05341f88-3b29-457c-bcbf-ad4bec4195d8', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:46:27.829'),
-  ('0f5c8be8-2dd1-43bc-8001-ce0864177753', 2, '0cefd6d9-03eb-4a17-9d0b-fc4232011da6', 'fa3bb691-2e06-4c8d-ae62-347c078910e6', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 07:03:34.502'),
-  ('10136713-d4e9-4e0b-a3c6-d23b3ecae52b', 44, '983666e9-e4a5-418f-bbae-1d04f2fb4c3d', 'ed88a3d5-14c4-48ba-93cf-e66ad9e63f6d', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:36:42.457'),
-  ('10718dca-05d7-4d39-85a0-052d85e4f408', 18, 'a0e0fd08-ae28-4534-a7ed-a84ef7e572f0', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 15:22:27.063'),
-  ('10d29e6c-33d4-421c-8053-e13ba144489b', 53, '18855c06-9278-493c-99f5-5f4368d92eec', 'ae74efec-eff6-4062-a3aa-539e37690db1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 16:19:47.615'),
-  ('1113ebcb-efb2-43be-9c45-56a105de4776', 16, '68781e5a-c057-446a-a28b-728cb490364a', 'b775b41a-50f2-442e-9949-d0dee94ecb8d', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 11:27:46.491'),
-  ('11f6700d-6df9-4009-b35c-7982f3dc2bf0', 27, '0302bdcd-f898-4198-9448-8c07deeb47ef', '818ad85a-5d1e-459f-94e6-563adb28d96b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:23:14.132'),
-  ('122c855d-5f0c-422c-83cb-f2f0e6d1284c', 24, '143d752e-71e1-4319-85ac-cac60169aa16', 'ae2938ed-e543-4cda-a23f-613ffd79b479', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:36:07.854'),
-  ('1230165b-5cbe-4bbc-b506-d3ff708fe760', 4, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 05:36:44.259'),
-  ('12f71005-6047-4122-9da5-ba5a8a7fdc2d', 26, 'a34dae2a-2af1-4b0a-ae8d-3efbdbcc61f5', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 13:42:43.293'),
-  ('1428931e-28f9-4a20-b2fa-e367d8cbacdb', 13, '1cb226b5-c697-419f-9228-0cefc8c94bfb', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.207'),
-  ('15531d99-b536-40e6-9fbc-6e7d48c266dd', 34, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:24:13.967'),
-  ('15fe07bc-f046-4209-ba11-19511a8e7153', 4, '8f8ce3cb-6411-47ea-a30c-fd3d36733a59', 'f43fd688-862d-400b-8185-ed4ce2df6cf5', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 09:05:50.846'),
-  ('1600364a-4efe-4484-a51c-61555ae1390a', 32, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:57:12.672'),
-  ('188a66d4-2194-4f3d-a377-32350e5b9d7b', 29, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:09:11.932'),
-  ('1a59e8da-261c-44ac-837f-274573a4750a', 6, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:18:12.620'),
-  ('1c41833b-92f4-4532-be2d-bb4c9798fb1c', 51, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:14:27.660'),
-  ('1cab4f3c-eaa2-4e68-9443-52dc4e5ca562', 35, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:26:23.019'),
-  ('1d6c9785-eb14-4488-a305-7f8524cd50dd', 35, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:09:36.991'),
-  ('1e65b9cd-d9a2-48cd-844e-921988a52b0a', 2, '9b879dc2-6f90-4187-8bee-dd7d78b9512f', '1199a584-f231-46f0-a926-9c651bc3b59c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:17:14.680'),
-  ('1ecc6949-cf20-404f-b330-8eaca27ed90a', 14, '93981376-4e4b-46d1-8a67-cadb62e55cb6', 'ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:06:19.175'),
-  ('232d79a5-7ef5-44aa-818a-781405563cb1', 1, '3e27bd01-8fcb-4f76-860b-03e8e11ed02e', '1bd2c241-4ae5-4e7c-b90d-15e53b48d8ab', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 01:23:02.372'),
-  ('2377fb14-6fb5-49f3-8678-f024751f8487', 11, '224c74a5-43fb-4885-9413-e67882b49bc0', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.293'),
-  ('24c683c6-a0f8-4803-94a5-37672e0296e5', 2, '64c91495-04eb-4375-becd-f35f38bbcf0b', 'c7cee964-7257-4e32-9696-b522e1aaa59c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 01:27:38.039'),
-  ('253fc65c-3cda-41ec-9d4c-c390fed0f924', 7, '2bdc5dc4-5782-4528-bb42-aad1dfb417a7', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.818'),
-  ('27a2c505-9134-49b1-9e83-0f1afb232c1f', 17, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:13:20.421'),
-  ('28bdb04b-0002-424c-a7a5-321fc286ff74', 10, '742aed24-2f43-467b-afbe-85c11a0f8a69', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.541'),
-  ('29c6daf2-6fdc-41e8-9728-2d443d467fc3', 5, '71a04a61-698e-4998-abd7-c2f084d39b67', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 09:37:08.231'),
-  ('29cc60bb-3c9e-498b-89f9-f2783e6bcb37', 6, 'baf4674a-14f0-4514-a430-911bcb1f16f0', '7a70439f-7722-436f-88a4-77418f406291', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-13 17:19:56.989'),
-  ('2ad1bf64-0b64-4b43-b2db-785cd83640cf', 31, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 14:48:55.959'),
-  ('2b2c7577-0b88-4245-8362-a13c64267e9d', 4, '9f2216a3-1073-4dcf-822e-11965ae3129b', '79296c8a-e296-47d6-add1-b8f0b47ae55d', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 11:50:27.364'),
-  ('2b64b0b0-e000-4b98-8a1b-8386158bc3b3', 3, 'fd6f8f01-839c-45b6-a0f0-c197e4bc42e2', 'dab0afbd-1956-4832-b68d-5c69f98954b6', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 00:51:19.138'),
-  ('2c21d6a1-e16a-46fb-9eed-2418bc5ac91f', 55, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:44:59.299'),
-  ('2e90b1fb-96d5-489c-8c72-5c8762cb501c', 2, '70cd6b1d-6bb8-40ca-8eac-be5dfd6ac491', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:43:44.676'),
-  ('2fd84e7a-2fce-4d42-bf53-191b7d76a4af', 4, 'ef380228-cf9a-43f3-82b1-bfe6873a97a7', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.774'),
-  ('34513ed0-13f0-422e-90c5-41e4e2b75099', 25, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:35:41.349'),
-  ('35bcdd27-85f9-4da7-8075-130cae22f4a8', 3, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-16 05:31:53.893'),
-  ('37c1346f-5728-4c07-a200-9ae94c5ef5ad', 4, '07689189-8d09-4e74-a469-e92b0924c245', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:55:32.973'),
-  ('3878fd6d-c468-443e-892a-5901f3a57e34', 24, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:33:14.543'),
-  ('3fd72ccf-0624-45ed-89a1-c0ba9664b093', 17, '38765ebb-a940-4685-874f-8259174bdefc', 'c9a6f218-f743-4eec-afa0-5fab8b1595c7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:15:05.235'),
-  ('405441f1-71f2-4533-af71-3355ed4b8958', 60, '106e308f-5097-4277-9db4-78d5573faa4b', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 17:24:31.879'),
-  ('423289e1-992d-4a7f-8652-b885b3d5ec42', 3, '240a227b-8476-431b-be1d-c93728677d3f', 'c2991452-f9eb-4f8c-8a50-7ecedf767af4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:20:12.209'),
-  ('452e745b-0ff9-4026-94aa-2b7478f7bc0d', 42, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:25:23.495'),
-  ('4863a477-2178-49c9-81d9-a80402e056d3', 4, '3732fbab-486c-49e1-9477-16cc1dff41e2', '45edc51a-d198-46b5-8b4c-4f59adec5451', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 01:59:46.486'),
-  ('497c3248-bbb4-4b77-a465-55cdb7a26152', 11, 'c15e1781-15dc-4c97-88a2-d58b9e7c4080', 'cd891a89-172e-4b24-9b04-ca9c7a36d1d2', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 09:26:12.229'),
-  ('4c39afcc-8140-456c-9163-01e9a4a653da', 38, '983666e9-e4a5-418f-bbae-1d04f2fb4c3d', 'ed88a3d5-14c4-48ba-93cf-e66ad9e63f6d', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:15:49.429'),
-  ('4f3b9fcc-0299-4a00-b6d8-df04e231e9fe', 18, 'ab7d208f-ac92-4c82-8454-596b59352c40', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:55:00.487'),
-  ('4f650b92-3b47-4af8-8730-13cacf2d2199', 47, '40495842-26c1-4318-b6f4-e7c2e56207f0', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:55:48.357'),
-  ('50750dfc-bfc1-4902-bf2c-33994efee4d2', 34, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:08:23.290'),
-  ('545f2979-4558-420a-a588-cde8f21e1751', 22, 'b0a5dbc8-9043-42b6-a4ac-9327a60ad65a', 'ce9d5583-8397-43b5-b46d-d191a7bffe71', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:58:54.700'),
-  ('566e34e0-f6b8-4435-99db-fe86cd9983ab', 25, '143d752e-71e1-4319-85ac-cac60169aa16', 'ae2938ed-e543-4cda-a23f-613ffd79b479', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:38:33.823'),
-  ('57a4ebf5-ffd8-4b43-a671-ddcfec4fd2d7', 1, '6e0e5fd0-4096-402d-8000-dc96b38775cf', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-13 00:03:43.654'),
-  ('5a945c1a-13b2-427a-b8e8-87ed35b656aa', 62, 'e2254539-afd7-4862-8ba2-468e11cb12e9', '4c3ca8fc-3db9-42c8-9870-ec73177f4339', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 17:35:30.614'),
-  ('5ce5ef7a-6e32-44e2-9275-8254af53eebb', 1, '6e848799-d857-4ef1-b684-a657eb167ff6', '4c823d29-65bc-45cc-b88e-896e1df9f3cd', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-05 23:39:42.870'),
-  ('5d253eda-97b9-42de-9636-6b6308b61456', 49, '9dcf52d3-fbfa-4180-b489-efae5a4bc893', 'cc981930-36e1-49f6-b7cc-7b7bf5d44a59', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 16:10:48.625'),
-  ('5dc3b585-374d-456e-ad18-785f0330e813', 42, '66098beb-d77e-49f4-9531-87764bf155a8', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 18:20:52.494'),
-  ('5de010af-4d2c-4507-b7d0-4e856702a6d4', 7, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 06:03:50.862'),
-  ('5f00b26c-6b57-4366-af02-a0cb6d8449e5', 1, 'b36c890f-a12b-4ac4-bc87-3bb98ae8dd99', '2b5fa717-7893-45ba-b6bb-125c5971a588', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:04:55.584'),
-  ('5f8aef6c-33e8-42cc-a39d-2ab8eee3cea0', 2, '240a227b-8476-431b-be1d-c93728677d3f', 'c2991452-f9eb-4f8c-8a50-7ecedf767af4', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 06:16:59.398'),
-  ('609c09c7-44f9-49a7-96f9-15ddc9fb9a3b', 15, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:10:00.714'),
-  ('62777ef2-21b4-497c-b529-f4e10155d8ff', 50, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 16:12:22.182'),
-  ('62db0a64-19ec-43ae-930c-bb387014d86d', 29, 'a3d77bef-5cc5-4e7c-9514-99730f5d2740', NULL, '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:38:38.567'),
-  ('6309d436-1277-4d61-be7f-5a71d226d676', 37, '0266325a-2954-4ae8-92c8-8bdbd1eab962', '05341f88-3b29-457c-bcbf-ad4bec4195d8', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:38:47.306'),
-  ('669fb986-b6b7-4df8-9b3b-548fb15d8665', 9, '1227f3f7-1bd4-406a-bbee-15f0541f92ea', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.518'),
-  ('677eb3d1-df6e-4cce-a63e-fda4c0fd7b09', 12, '3fc92ffc-bf98-4d1b-9263-d562f76499ac', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 09:33:28.800'),
-  ('6a40fba9-2590-4dbf-93d8-c32b1aa58741', 16, '38765ebb-a940-4685-874f-8259174bdefc', 'c9a6f218-f743-4eec-afa0-5fab8b1595c7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:13:19.860'),
-  ('6b0fc346-0ef7-4c29-bfdc-9317f1fb2e13', 11, 'ad95c7ea-abed-4d96-99d1-71dc7c7ffd57', 'f20b1a16-96f8-4f71-8e8d-e2871b9843b1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 07:19:37.038'),
-  ('6e5a4429-b0be-4675-8b3f-33ae940eb76d', 6, '06fc442d-e5a8-4191-a5a6-a69981da9775', 'a0c9132d-07b0-4faf-b539-cd41a0508026', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 06:00:31.066'),
-  ('706cc7ab-b280-4ab7-b11c-b5df991bbe1b', 28, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:53:47.539'),
-  ('70700925-6000-4f41-aa4c-d29b3068685a', 19, 'b0a5dbc8-9043-42b6-a4ac-9327a60ad65a', 'ce9d5583-8397-43b5-b46d-d191a7bffe71', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:38:06.630'),
-  ('72481022-2a9f-412a-9c60-2571cfd5b2b0', 8, 'fbacd722-ed8e-4de3-9c10-6433cfd57f1f', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.844'),
-  ('72b63d51-3a7f-49e4-8bd4-2400c0fa72e1', 33, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 17:22:37.562'),
-  ('762903b3-40ab-403d-84e1-8e13546b4365', 40, '66098beb-d77e-49f4-9531-87764bf155a8', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 18:13:20.024'),
-  ('77a27466-a6cc-4403-ac89-8b56ebf5fabc', 1, '6cc5c184-25ba-4d47-a97e-5db73f8d6fb5', '042b45c8-e416-4cd0-920f-43acd92a3849', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-15 05:07:49.351'),
-  ('77eebc95-9a5e-4b87-a03a-d6f55b9fc1db', 3, '6fe5525c-8acf-453e-abc8-97b0da2167b2', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:46:07.691'),
-  ('7853784f-b34a-4659-af45-b8a819a3581b', 1, 'ef565302-8a74-4f8a-8e03-6b33d7fa2705', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-16 01:43:12.009'),
-  ('7a91c399-ec37-40c8-af06-d5edf65ba74f', 27, '143d752e-71e1-4319-85ac-cac60169aa16', 'ae2938ed-e543-4cda-a23f-613ffd79b479', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 16:47:55.928'),
-  ('7aaf21da-5fe0-4748-b88b-fb3676365f5f', 41, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:22:25.188'),
-  ('7bd08645-f0ae-4194-b8e7-28442a7ef353', 41, '66098beb-d77e-49f4-9531-87764bf155a8', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 18:18:59.903'),
-  ('7d108ee6-011d-4dec-9c40-52c6cdcd5489', 10, 'db43d8cb-8368-4470-9d13-0baf8880a704', 'd6e4a75d-b9d5-4f73-b7ba-824b9f56d867', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:41:18.331'),
-  ('7e407f5b-53d2-4d9a-8d63-46c40008040d', 21, 'c55a51b5-ea60-4758-9fd1-e28abde5dea3', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 15:41:57.162'),
-  ('806c9000-7103-4ec9-b6d1-aadc7238f1a5', 14, '4a8caccd-29d0-4b88-89e3-46b890797333', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.230'),
-  ('807368c5-3d63-4516-947c-8378bf87a579', 48, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:09:03.890'),
-  ('807a893c-f6d1-47f0-9280-b3873d77e6ad', 23, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:29:33.908'),
-  ('81ebccde-0725-4466-91ed-8681a6956404', 63, '861a0f46-65bc-4942-92bf-a97e32fabbe0', '07719768-e557-4f8f-937b-7fccbb143250', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 17:38:32.038'),
-  ('8414a402-3ed7-4aa9-a15e-40f2d2479730', 19, '695aaeec-71a1-4906-97cd-43055c034c25', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:57:45.828'),
-  ('850c6647-3757-42a8-b616-9283f0204d3c', 15, '9fd850e4-0645-43db-865f-1148510047ed', 'd64b993c-4c1c-4b0b-8d8f-44772f1c64ae', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 07:16:07.313'),
-  ('863c5b21-d194-4b3e-ba1a-c794b7c6c0c5', 10, 'ad95c7ea-abed-4d96-99d1-71dc7c7ffd57', 'f20b1a16-96f8-4f71-8e8d-e2871b9843b1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 07:13:57.480'),
-  ('86ed6237-6c1e-4631-87e0-418bbea51253', 56, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:46:34.267'),
-  ('8d3127ab-bfc3-43c2-b02c-31bb4c1ab326', 3, '3042706e-94fe-4856-b268-33cfebc2fb69', 'be7e0f48-1bff-4588-9445-acb54c019ffb', 'db2e18de-1255-4781-b084-b9609bb8698a', 'COMPLETED', '2026-09-12 03:58:04.468');
+-- Data for table `Order` (112 rows)
+INSERT INTO `Order` (`id`, `orderSource`, `sessionId`, `tableId`, `captainId`, `status`, `createdAt`, `updatedAt`) VALUES
+  ('0266325a-2954-4ae8-92c8-8bdbd1eab962', 'DINE_IN_AC', '05341f88-3b29-457c-bcbf-ad4bec4195d8', 'cbcea35a-4533-4ff5-9be8-d81d815d0b3b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:19:54.301', '2026-09-15 17:55:43.842'),
+  ('026d45fb-368c-4094-b571-8884f8203803', 'DINE_IN_AC', '81839e1e-e75f-4022-986a-2bf57f399780', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 06:23:52.522', '2026-09-16 06:26:25.484'),
+  ('0302bdcd-f898-4198-9448-8c07deeb47ef', 'DINE_IN_NON_AC', '818ad85a-5d1e-459f-94e6-563adb28d96b', 'cda9fe13-f599-4116-88df-c918052a4999', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:23:14.128', '2026-09-16 14:47:28.990'),
+  ('04c3687f-ef7b-443c-bb4d-2cc0dfa81d1c', 'DINE_IN_NON_AC', 'ddb1a9fb-7e76-4fb8-8881-506af423d757', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-10 21:41:36.669', '2026-09-10 21:45:49.251'),
+  ('06fc442d-e5a8-4191-a5a6-a69981da9775', 'DINE_IN_NON_AC', 'a0c9132d-07b0-4faf-b539-cd41a0508026', 'c81db452-9936-40ba-9227-2896f25bd758', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 05:57:44.521', '2026-09-16 06:07:05.507'),
+  ('07689189-8d09-4e74-a469-e92b0924c245', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:55:31.576', '2026-09-14 09:37:39.698'),
+  ('0cefd6d9-03eb-4a17-9d0b-fc4232011da6', 'DINE_IN_AC', 'fa3bb691-2e06-4c8d-ae62-347c078910e6', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 07:03:21.468', '2026-09-13 08:54:28.077'),
+  ('0e9f2a44-221a-4df8-be59-17616d6b6136', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:53:46.890', '2026-09-06 20:39:52.422'),
+  ('106e308f-5097-4277-9db4-78d5573faa4b', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'ACTIVE', '2026-09-16 17:24:31.875', '2026-09-16 17:24:31.875'),
+  ('10a72c45-a505-4d66-b2d2-6c8ac0417e81', 'DINE_IN_AC', '661aa2c6-678e-46b7-a56c-512a52068a5e', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:53:47.517', '2026-09-15 17:38:10.729'),
+  ('1227f3f7-1bd4-406a-bbee-15f0541f92ea', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.512', '2026-09-06 07:02:14.564'),
+  ('12edf73f-f2df-4dd0-834a-aa401cf2af4d', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 05:44:42.815', '2026-09-16 05:47:20.205'),
+  ('143d752e-71e1-4319-85ac-cac60169aa16', 'DINE_IN_AC', 'ae2938ed-e543-4cda-a23f-613ffd79b479', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:22:15.792', '2026-09-15 16:55:17.445'),
+  ('18855c06-9278-493c-99f5-5f4368d92eec', 'DINE_IN_NON_AC', 'ae74efec-eff6-4062-a3aa-539e37690db1', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 16:18:56.811', '2026-09-16 16:33:26.731'),
+  ('1bb01ee5-c7dc-43ed-823c-bdf5a97d10ee', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 10:07:12.984', '2026-09-14 10:08:43.959'),
+  ('1cb226b5-c697-419f-9228-0cefc8c94bfb', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.201', '2026-09-06 07:02:39.252'),
+  ('1dc4f930-c33e-4dd5-8f6b-89e7946b3d3c', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.303', '2026-09-06 07:05:27.150'),
+  ('219b654e-1c7b-47db-9fc3-789a3ffc1a98', 'DINE_IN_NON_AC', '88d51b6f-36e9-47c6-97a1-d6ceea3f16fe', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:27:16.784', '2026-09-15 07:00:39.078'),
+  ('224c74a5-43fb-4885-9413-e67882b49bc0', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.288', '2026-09-06 07:02:27.338'),
+  ('240a227b-8476-431b-be1d-c93728677d3f', 'DINE_IN_AC', 'c2991452-f9eb-4f8c-8a50-7ecedf767af4', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 06:16:59.387', '2026-09-15 06:20:37.036'),
+  ('2bdc5dc4-5782-4528-bb42-aad1dfb417a7', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.812', '2026-09-06 07:01:59.871'),
+  ('2c2f43ef-fc96-4850-8406-b7441d044b33', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 14:40:25.568', '2026-09-16 14:49:47.876'),
+  ('3042706e-94fe-4856-b268-33cfebc2fb69', 'DINE_IN_NON_AC', 'be7e0f48-1bff-4588-9445-acb54c019ffb', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'db2e18de-1255-4781-b084-b9609bb8698a', 'COMPLETED', '2026-09-12 03:57:51.148', '2026-09-12 11:36:47.515'),
+  ('30e447dd-8840-41c4-bc9e-214abe9b4331', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.785', '2026-09-06 07:06:37.358'),
+  ('3273ce7e-b40d-438f-a9b8-ca2bc573b06a', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.758', '2026-09-06 07:06:47.363'),
+  ('32d98267-2845-4d49-a2ba-7fe163130c2d', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:57:34.407', '2026-09-06 08:58:41.712'),
+  ('368d235c-7e6f-42cd-89af-fa8964866894', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:31:16.619', '2026-09-14 09:51:44.064'),
+  ('3732fbab-486c-49e1-9477-16cc1dff41e2', 'DINE_IN_NON_AC', '45edc51a-d198-46b5-8b4c-4f59adec5451', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 01:59:46.444', '2026-09-07 02:51:38.554'),
+  ('3828cce7-112d-4ab8-9f78-bc826f075980', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-11 11:14:22.586', '2026-09-11 11:14:26.885'),
+  ('38765ebb-a940-4685-874f-8259174bdefc', 'DINE_IN_AC', 'c9a6f218-f743-4eec-afa0-5fab8b1595c7', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 14:52:44.248', '2026-09-15 15:23:41.710'),
+  ('3975a38e-9536-4730-b381-d4b625dc65f9', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.273', '2026-09-06 07:06:25.582'),
+  ('3e27bd01-8fcb-4f76-860b-03e8e11ed02e', 'DINE_IN_AC', '1bd2c241-4ae5-4e7c-b90d-15e53b48d8ab', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 01:22:49.429', '2026-09-12 01:35:35.958'),
+  ('3fc92ffc-bf98-4d1b-9263-d562f76499ac', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 09:33:28.794', '2026-09-16 09:33:44.543'),
+  ('3ff30b67-fa48-420b-b84b-ebd7734c024d', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.529', '2026-09-06 07:06:10.991'),
+  ('401419e2-4d3e-4142-b73b-1cd91bc61513', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-15 11:07:16.983', '2026-09-15 11:07:29.600'),
+  ('40495842-26c1-4318-b6f4-e7c2e56207f0', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:55:48.352', '2026-09-16 15:57:49.085'),
+  ('438bf346-9f05-4f18-8df4-2bb9d088c7bb', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 17:29:53.073', '2026-09-16 18:14:37.846'),
+  ('44982d5d-1b30-4fbd-ad4b-c9aec2451874', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.262', '2026-09-06 07:06:30.528'),
+  ('44e85e5e-1dfa-46dc-af2d-081239936e8e', 'DINE_IN_AC', '98b3a572-7c5a-47a2-b31d-d86fc09afb0d', 'c56f28a9-bc91-4cf7-95b1-1e1247392c50', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:26:19.530', '2026-09-14 10:01:35.342'),
+  ('479d3a73-77cd-4fce-9df7-55673ee1fd66', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 08:39:20.791', '2026-09-15 08:39:28.092'),
+  ('49f21bf8-15c1-45a9-a806-2ea930fd10cb', 'DINE_IN_NON_AC', '8a909874-08c4-4534-99f4-4b5a27eb21b8', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 07:01:12.257', '2026-09-15 07:01:34.062'),
+  ('4a8caccd-29d0-4b88-89e3-46b890797333', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.227', '2026-09-06 07:05:49.629'),
+  ('4f1eca99-e5a8-439a-a8b7-0dc4822ee949', 'DINE_IN_NON_AC', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:13:20.417', '2026-09-16 10:49:29.220'),
+  ('4fc1d330-7318-4f47-b5ff-75874958539f', 'DINE_IN_NON_AC', 'd527fd1d-fa07-4e35-98bd-33489caa9d24', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 18:21:48.982', '2026-09-16 18:25:06.040'),
+  ('502f594a-e6f9-4df6-80f0-4f179f7f4324', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.324', '2026-09-06 07:05:53.514'),
+  ('5e32d051-1283-4133-b17c-3a102bac35ab', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 13:45:05.477', '2026-09-15 13:52:26.643'),
+  ('61681c7f-93b1-42c5-b298-8a0edad1d0a1', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.251', '2026-09-06 07:06:33.673'),
+  ('63bd6940-87e9-4f4d-b55d-f8a293577867', 'SWIGGY', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:53:46.909', '2026-09-06 08:58:57.393'),
+  ('64c91495-04eb-4375-becd-f35f38bbcf0b', 'DINE_IN_NON_AC', 'c7cee964-7257-4e32-9696-b522e1aaa59c', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 01:27:25.070', '2026-09-12 01:36:11.852'),
+  ('66098beb-d77e-49f4-9531-87764bf155a8', 'DINE_IN_AC', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '5e09688d-3751-446b-89b1-50b7ea61f21f', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:53:19.839', '2026-09-15 18:36:41.129'),
+  ('67285fdf-ca6c-4b86-b6b2-528eaf6f566e', 'DINE_IN_NON_AC', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:57:12.661', '2026-09-16 15:35:55.795'),
+  ('68781e5a-c057-446a-a28b-728cb490364a', 'DINE_IN_AC', 'b775b41a-50f2-442e-9949-d0dee94ecb8d', 'c56f28a9-bc91-4cf7-95b1-1e1247392c50', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 11:27:45.544', '2026-09-14 12:16:51.470'),
+  ('68c71f77-1e53-4650-9e6a-7908062bf954', 'DINE_IN_AC', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:09:03.886', '2026-09-16 17:03:55.835'),
+  ('695aaeec-71a1-4906-97cd-43055c034c25', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:57:45.822', '2026-09-06 08:58:37.985'),
+  ('6a322f8d-2e0f-45f2-9949-88d235be7ead', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.740', '2026-09-06 07:06:50.707'),
+  ('6cc5c184-25ba-4d47-a97e-5db73f8d6fb5', 'DINE_IN_NON_AC', '042b45c8-e416-4cd0-920f-43acd92a3849', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-15 05:07:49.339', '2026-09-15 05:57:25.257'),
+  ('6e0e5fd0-4096-402d-8000-dc96b38775cf', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-13 00:03:42.235', '2026-09-13 03:15:20.194'),
+  ('6e848799-d857-4ef1-b684-a657eb167ff6', 'DINE_IN_NON_AC', '4c823d29-65bc-45cc-b88e-896e1df9f3cd', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-05 23:39:42.219', '2026-09-05 23:58:23.856'),
+  ('6fe5525c-8acf-453e-abc8-97b0da2167b2', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:46:06.286', '2026-09-14 09:05:42.993'),
+  ('70cd6b1d-6bb8-40ca-8eac-be5dfd6ac491', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:43:43.244', '2026-09-14 09:05:14.935'),
+  ('71a04a61-698e-4998-abd7-c2f084d39b67', 'SWIGGY', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 09:37:08.225', '2026-09-10 21:33:22.818'),
+  ('742aed24-2f43-467b-afbe-85c11a0f8a69', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.539', '2026-09-06 07:06:06.839'),
+  ('76db286e-154d-4fb7-8ae8-4ffb589da93b', 'DINE_IN_NON_AC', '5da7b87f-2d05-42d9-85bc-40497a0e52a8', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:18:07.687', '2026-09-16 15:46:01.911'),
+  ('7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', 'DINE_IN_NON_AC', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'ACTIVE', '2026-09-16 05:31:53.881', '2026-09-16 05:31:53.881'),
+  ('7e4ef495-2fe0-42c5-8da0-55333dc33175', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.830', '2026-09-06 07:05:41.583'),
+  ('81a58bba-6d2f-4db5-a70e-a081d356de36', 'SWIGGY', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:54:03.292', '2026-09-06 08:58:49.337'),
+  ('8248195a-f736-49d3-81d6-6bfdcf1ddfa6', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 03:56:29.465', '2026-09-14 00:33:59.184'),
+  ('861a0f46-65bc-4942-92bf-a97e32fabbe0', 'DINE_IN_AC', '07719768-e557-4f8f-937b-7fccbb143250', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 17:13:56.732', '2026-09-16 17:53:15.833'),
+  ('8aa6b032-f946-4611-a305-a082b676a155', 'DINE_IN_AC', 'db4c698f-0c8d-47cf-a98f-ea2edfe14088', '76c5cd38-2ccb-454c-8186-437797a863a3', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-14 07:25:37.000', '2026-09-14 07:28:44.332'),
+  ('8f8ce3cb-6411-47ea-a30c-fd3d36733a59', 'DINE_IN_AC', 'f43fd688-862d-400b-8185-ed4ce2df6cf5', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 09:05:10.604', '2026-09-13 09:11:18.419'),
+  ('90239342-a0e9-441c-ba9b-74be5986cb42', 'DINE_IN_AC', 'db5fc7b4-5123-4128-8b84-d7dc071c1e2b', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:17:17.337', '2026-09-16 15:57:55.242'),
+  ('93981376-4e4b-46d1-8a67-cadb62e55cb6', 'DINE_IN_AC', 'ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:06:19.166', '2026-09-16 10:38:35.977'),
+  ('956ef519-bda5-49b6-918e-971893ecc692', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'ACTIVE', '2026-09-11 11:14:24.643', '2026-09-11 11:14:24.643'),
+  ('983666e9-e4a5-418f-bbae-1d04f2fb4c3d', 'DINE_IN_NON_AC', 'ed88a3d5-14c4-48ba-93cf-e66ad9e63f6d', 'c81db452-9936-40ba-9227-2896f25bd758', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:15:49.426', '2026-09-16 15:47:58.320'),
+  ('9b879dc2-6f90-4187-8bee-dd7d78b9512f', 'DINE_IN_NON_AC', '1199a584-f231-46f0-a926-9c651bc3b59c', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:17:14.642', '2026-09-02 12:18:59.737'),
+  ('9dcf52d3-fbfa-4180-b489-efae5a4bc893', 'DINE_IN_NON_AC', 'cc981930-36e1-49f6-b7cc-7b7bf5d44a59', 'fd0f0ec6-8121-4a59-a1d7-8079e68b71c3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:38:33.619', '2026-09-16 16:16:15.273'),
+  ('9f2216a3-1073-4dcf-822e-11965ae3129b', 'DINE_IN_NON_AC', '79296c8a-e296-47d6-add1-b8f0b47ae55d', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 11:50:12.426', '2026-09-12 12:29:05.113'),
+  ('9f74f28c-b4f2-4d36-ac23-4ebcedd6a7f3', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 14:49:59.187', '2026-09-15 15:00:47.399'),
+  ('9fd850e4-0645-43db-865f-1148510047ed', 'DINE_IN_AC', 'd64b993c-4c1c-4b0b-8d8f-44772f1c64ae', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 07:16:07.274', '2026-09-06 07:17:15.961'),
+  ('a0e0fd08-ae28-4534-a7ed-a84ef7e572f0', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 15:22:27.052', '2026-09-15 15:30:17.999'),
+  ('a34dae2a-2af1-4b0a-ae8d-3efbdbcc61f5', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 13:42:43.276', '2026-09-16 14:09:05.026'),
+  ('a3d77bef-5cc5-4e7c-9514-99730f5d2740', 'SELF_PICKUP', NULL, NULL, '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:38:38.560', '2026-09-16 14:43:43.627'),
+  ('ab7d208f-ac92-4c82-8454-596b59352c40', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:55:00.482', '2026-09-06 08:58:45.684'),
+  ('ad95c7ea-abed-4d96-99d1-71dc7c7ffd57', 'DINE_IN_NON_AC', 'f20b1a16-96f8-4f71-8e8d-e2871b9843b1', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:41:34.251', '2026-09-15 07:29:40.022'),
+  ('b0a3caa6-ce30-45d4-8257-b7aaad91586c', 'DINE_IN_AC', '0a664a20-7359-40c2-814d-97e6972acf95', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 22:21:57.231', '2026-09-06 22:22:42.168'),
+  ('b0a5dbc8-9043-42b6-a4ac-9327a60ad65a', 'DINE_IN_AC', 'ce9d5583-8397-43b5-b46d-d191a7bffe71', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:38:06.626', '2026-09-15 16:12:56.252'),
+  ('b36c890f-a12b-4ac4-bc87-3bb98ae8dd99', 'DINE_IN_NON_AC', '2b5fa717-7893-45ba-b6bb-125c5971a588', '95da293c-3a74-47db-894d-2cc63506f20c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:04:55.548', '2026-09-02 12:06:12.006'),
+  ('b7d8bd69-6a46-4003-bec8-aa63310dc9cc', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.235', '2026-09-06 07:01:45.288'),
+  ('b96fc702-e6cb-483d-8320-4db3afefe6e1', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 18:16:38.069', '2026-09-16 18:17:08.170'),
+  ('baf4674a-14f0-4514-a430-911bcb1f16f0', 'DINE_IN_NON_AC', '7a70439f-7722-436f-88a4-77418f406291', 'fc76ad0f-f4f0-4852-9418-3ddff768a7f4', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-13 17:19:56.055', '2026-09-14 00:08:14.824'),
+  ('c15e1781-15dc-4c97-88a2-d58b9e7c4080', 'DINE_IN_AC', 'cd891a89-172e-4b24-9b04-ca9c7a36d1d2', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 09:26:12.222', '2026-09-16 09:58:28.770'),
+  ('c46ef776-90c4-4ef5-aaba-afd67b878e5b', 'DINE_IN_NON_AC', 'ba08a520-3840-4f4d-be39-e6f016f919b6', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 22:22:18.387', '2026-09-06 22:22:47.225'),
+  ('c55a51b5-ea60-4758-9fd1-e28abde5dea3', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 15:41:57.154', '2026-09-15 15:45:20.634'),
+  ('cbfc3d53-05f9-4a3a-96d6-5f85e639eee1', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'ACTIVE', '2026-09-16 01:44:55.869', '2026-09-16 01:44:55.869'),
+  ('d7d42867-7a75-48d1-b0f2-ca1b82742f80', 'ZOMATO', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 09:29:41.972', '2026-09-07 09:30:36.886'),
+  ('db43d8cb-8368-4470-9d13-0baf8880a704', 'DINE_IN_AC', 'd6e4a75d-b9d5-4f73-b7ba-824b9f56d867', '5e09688d-3751-446b-89b1-50b7ea61f21f', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:41:17.397', '2026-09-14 10:18:56.660'),
+  ('dd1d0fb5-96fb-4b2a-9a29-54d4664de2cc', 'DINE_IN_AC', '5723eda4-a410-4a8d-9516-b00364c7a308', '76c5cd38-2ccb-454c-8186-437797a863a3', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:01:26.563', '2026-09-16 10:04:12.011'),
+  ('dfd92537-0508-4192-abd2-4ee00c2b372e', 'DINE_IN_AC', '4ebe80d7-b953-4e55-a344-a955125604b2', '76c5cd38-2ccb-454c-8186-437797a863a3', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:08:52.281', '2026-09-14 09:48:51.347'),
+  ('e2254539-afd7-4862-8ba2-468e11cb12e9', 'DINE_IN_AC', '4c3ca8fc-3db9-42c8-9870-ec73177f4339', '184a22a8-b018-4646-82a1-b1e41b4d7782', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 17:35:30.611', '2026-09-16 18:16:09.432'),
+  ('e6e8e5ea-7898-445a-84a5-9b572fadacc9', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.238', '2026-09-06 07:05:04.863');
 
-INSERT INTO `KOT` (`id`, `kotNumber`, `orderId`, `sessionId`, `captainId`, `status`, `createdAt`) VALUES
-  ('8f611034-5d1b-4faa-beb8-883d07549c9b', 5, 'b7d8bd69-6a46-4003-bec8-aa63310dc9cc', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.240'),
-  ('949aed46-3ca4-45f8-86cf-afd0e69196a3', 39, '90239342-a0e9-441c-ba9b-74be5986cb42', 'db5fc7b4-5123-4128-8b84-d7dc071c1e2b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:17:17.339'),
-  ('95a856a6-4d91-475f-9106-a2c8cde197c8', 5, '06fc442d-e5a8-4191-a5a6-a69981da9775', 'a0c9132d-07b0-4faf-b539-cd41a0508026', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 05:57:44.525'),
-  ('98bb8bc9-8d2f-4a51-a83d-693c23029a44', 14, '38765ebb-a940-4685-874f-8259174bdefc', 'c9a6f218-f743-4eec-afa0-5fab8b1595c7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 14:52:44.251'),
-  ('9b825845-b3bd-4fe0-9d45-d4a06a0ca573', 20, '93981376-4e4b-46d1-8a67-cadb62e55cb6', 'ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:23:19.672'),
-  ('9c333d64-c8ec-4a75-bacd-4292c06dba9e', 6, '44982d5d-1b30-4fbd-ad4b-c9aec2451874', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.264'),
-  ('a03ed88e-f671-4d76-893d-55ed8d171c1e', 18, '93981376-4e4b-46d1-8a67-cadb62e55cb6', 'ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:17:27.396'),
-  ('a11f547a-f48d-4e60-b445-2f9dbe505fef', 64, 'e2254539-afd7-4862-8ba2-468e11cb12e9', '4c3ca8fc-3db9-42c8-9870-ec73177f4339', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 18:15:09.449'),
-  ('a22681c3-1ecc-42fc-905c-5142fb331b45', 28, '0302bdcd-f898-4198-9448-8c07deeb47ef', '818ad85a-5d1e-459f-94e6-563adb28d96b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:27:51.348'),
-  ('a36b4ff4-da23-4e88-8eee-178808217617', 22, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:27:57.377'),
-  ('a49918fb-cfe3-4ccd-ac7a-767108e695a3', 46, '90239342-a0e9-441c-ba9b-74be5986cb42', 'db5fc7b4-5123-4128-8b84-d7dc071c1e2b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:40:45.523'),
-  ('a5048d8d-25ed-4200-826e-974d875cd14b', 26, '143d752e-71e1-4319-85ac-cac60169aa16', 'ae2938ed-e543-4cda-a23f-613ffd79b479', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:46:12.210'),
-  ('aa9f1abc-a5a1-4304-9c9c-ad43105cf0ab', 1, '04c3687f-ef7b-443c-bb4d-2cc0dfa81d1c', 'ddb1a9fb-7e76-4fb8-8881-506af423d757', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-10 21:41:38.052'),
-  ('ab67588a-f027-4335-a9b5-111312a8542c', 17, 'f138ce06-7bba-4068-b668-4d23943b1ae9', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:54:03.278'),
-  ('aefe8c16-50d4-44b9-b1fb-55c6fca047c5', 40, '76db286e-154d-4fb7-8ae8-4ffb589da93b', '5da7b87f-2d05-42d9-85bc-40497a0e52a8', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:18:07.693'),
-  ('b19215f5-f076-479b-ba03-f51a201503f8', 14, 'fce6d9f3-7f55-4b6e-834a-fc72f818603b', 'adb0a83f-3745-487a-8e48-ecfb1fa52b35', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 10:55:06.181'),
-  ('b1b7e842-756f-480b-a572-fecc35faabc3', 31, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:17:24.658'),
-  ('b6b0aa0a-ec4b-49d3-8a64-d62a0c42867d', 5, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:08:53.211'),
-  ('b865268a-b074-415b-ab36-19af90440b17', 13, 'dd1d0fb5-96fb-4b2a-9a29-54d4664de2cc', '5723eda4-a410-4a8d-9516-b00364c7a308', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:01:26.569'),
-  ('b9544646-34b1-4ffe-8aae-725ce0526748', 8, '06fc442d-e5a8-4191-a5a6-a69981da9775', 'a0c9132d-07b0-4faf-b539-cd41a0508026', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 06:06:02.686'),
-  ('ba279abd-9376-434e-869b-84320d9fc9dd', 39, '66098beb-d77e-49f4-9531-87764bf155a8', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:53:19.844'),
-  ('bad837c7-b332-4c94-9eeb-f2545820db06', 11, 'db43d8cb-8368-4470-9d13-0baf8880a704', 'd6e4a75d-b9d5-4f73-b7ba-824b9f56d867', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:41:37.994'),
-  ('bdafe4d8-95d9-4e6d-b15c-dbc41f4948f5', 30, '2c2f43ef-fc96-4850-8406-b7441d044b33', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 14:40:25.620'),
-  ('c1ec571c-5179-4899-81df-08aba3380216', 16, '0e9f2a44-221a-4df8-be59-17616d6b6136', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:53:46.894'),
-  ('c44e4abd-24a8-4e91-beff-29ba93fbfba4', 1, '8aa6b032-f946-4611-a305-a082b676a155', 'db4c698f-0c8d-47cf-a98f-ea2edfe14088', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-14 07:25:37.955'),
-  ('c469d9c1-fe09-4c31-89a4-c39fcadce385', 9, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 06:08:11.856'),
-  ('c5c4ee78-46f0-4ffd-9b27-6f1939aa65a1', 13, '44e85e5e-1dfa-46dc-af2d-081239936e8e', '98b3a572-7c5a-47a2-b31d-d86fc09afb0d', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:45:09.465'),
-  ('c5fb875d-1504-440b-b264-f74aa5274434', 36, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:28:22.642'),
-  ('c6f96059-be2c-44b3-b48d-82eff6061a8d', 65, '4fc1d330-7318-4f47-b5ff-75874958539f', 'd527fd1d-fa07-4e35-98bd-33489caa9d24', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 18:21:48.985'),
-  ('c9673fbf-7fea-4b9a-b03e-800d51ea0f2e', 2, 'cbfc3d53-05f9-4a3a-96d6-5f85e639eee1', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-16 01:44:55.874'),
-  ('c99e06c9-32c8-411d-8648-ca083e5ed986', 45, '9dcf52d3-fbfa-4180-b489-efae5a4bc893', 'cc981930-36e1-49f6-b7cc-7b7bf5d44a59', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:38:33.623'),
-  ('ca4fe8d6-8cd5-46a0-ab3e-b0e5188121fe', 21, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:25:58.130'),
-  ('ce7200c4-5a7c-443a-abca-01e6a0c75e58', 30, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:12:55.545'),
-  ('cea6d52e-8d66-4096-af0d-04e768a20e12', 57, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:53:58.487'),
-  ('d26a160c-99d2-4f9e-add6-548dc3eefd4e', 12, '5e32d051-1283-4133-b17c-3a102bac35ab', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 13:45:05.491'),
-  ('d59ee6f0-e65b-4348-b0bb-5b772cda344d', 20, 'b0a5dbc8-9043-42b6-a4ac-9327a60ad65a', 'ce9d5583-8397-43b5-b46d-d191a7bffe71', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:40:54.007'),
-  ('d6f97476-f26c-4a85-950e-1c8c29098c53', 10, '026d45fb-368c-4094-b571-8884f8203803', '81839e1e-e75f-4022-986a-2bf57f399780', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 06:23:52.525'),
-  ('d82153a6-876c-4aed-9f95-9b50d1024fa7', 5, '219b654e-1c7b-47db-9fc3-789a3ffc1a98', '88d51b6f-36e9-47c6-97a1-d6ceea3f16fe', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:40:51.539'),
-  ('d82ce735-aeeb-4123-92fa-b48a21f04fe1', 54, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:27:10.873'),
-  ('d881c049-f2db-4a41-8afd-420defce66cd', 43, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:26:23.242'),
-  ('d8f1846d-b710-4842-a694-8481a3f43d74', 19, '93981376-4e4b-46d1-8a67-cadb62e55cb6', 'ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:23:00.104'),
-  ('d91e5838-ac3d-450b-8344-8502c3246a26', 12, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:43:58.931'),
-  ('d9e1c002-672f-4830-8cda-f88daa8b51f5', 7, '44e85e5e-1dfa-46dc-af2d-081239936e8e', '98b3a572-7c5a-47a2-b31d-d86fc09afb0d', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:26:20.468'),
-  ('d9e47833-0855-4f22-b3d9-a1fe1761ae44', 2, 'c46ef776-90c4-4ef5-aaba-afd67b878e5b', 'ba08a520-3840-4f4d-be39-e6f016f919b6', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 22:22:18.493'),
-  ('dc43e79e-f49b-4458-9d93-ee8cb38aacdd', 33, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:58:59.759'),
-  ('dda4ad43-dcbc-4672-81e9-f82966706799', 16, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:10:36.571'),
-  ('e21150c4-6203-404e-895e-6387f4324aca', 13, '9f74f28c-b4f2-4d36-ac23-4ebcedd6a7f3', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 14:49:59.213'),
-  ('e2ec9fb2-aca5-4c2e-8936-6b41facfc20f', 15, '38765ebb-a940-4685-874f-8259174bdefc', 'c9a6f218-f743-4eec-afa0-5fab8b1595c7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:02:34.524'),
-  ('e5f520c8-dc49-46c1-a1b7-da564f669893', 8, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:29:51.763'),
-  ('e75cae91-1b6f-412e-986a-672acb142a8a', 15, 'fce6d9f3-7f55-4b6e-834a-fc72f818603b', 'adb0a83f-3745-487a-8e48-ecfb1fa52b35', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 11:03:51.549'),
-  ('eadf8405-b1d8-405a-af25-a699e02ff473', 5, '8f8ce3cb-6411-47ea-a30c-fd3d36733a59', 'f43fd688-862d-400b-8185-ed4ce2df6cf5', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 09:06:25.455'),
-  ('f26a1e8e-fe60-4e3b-9a5f-477463ef745c', 3, '8f8ce3cb-6411-47ea-a30c-fd3d36733a59', 'f43fd688-862d-400b-8185-ed4ce2df6cf5', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 09:05:11.542'),
-  ('f2e23f51-6c98-47c5-b1a2-67c82bc771ca', 32, '0266325a-2954-4ae8-92c8-8bdbd1eab962', '05341f88-3b29-457c-bcbf-ad4bec4195d8', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:19:54.305'),
-  ('f3fd675a-87ca-4395-81f6-917e79689606', 59, '861a0f46-65bc-4942-92bf-a97e32fabbe0', '07719768-e557-4f8f-937b-7fccbb143250', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 17:13:56.739'),
-  ('f4b59b2e-e8b0-401f-b8cc-34422fa60d45', 12, 'f08c14e4-5872-40df-b494-9be98ec7737f', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.315'),
-  ('f793ffeb-1bfd-43aa-9afd-f274d183c8b7', 3, '6a322f8d-2e0f-45f2-9949-88d235be7ead', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.747'),
-  ('f995114e-2ef3-4e4a-bfa1-15a17db7b1bc', 36, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:10:45.659'),
-  ('fa37a6be-4cd8-4865-ab63-2ed135a913bf', 23, '143d752e-71e1-4319-85ac-cac60169aa16', 'ae2938ed-e543-4cda-a23f-613ffd79b479', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:22:15.799'),
-  ('fac80c9b-7ab3-412e-a1d5-f20bb341ec11', 6, 'ad95c7ea-abed-4d96-99d1-71dc7c7ffd57', 'f20b1a16-96f8-4f71-8e8d-e2871b9843b1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:41:34.254'),
-  ('fb8136f8-03e7-4e56-bddf-cfb0a69f15c4', 4, '219b654e-1c7b-47db-9fc3-789a3ffc1a98', '88d51b6f-36e9-47c6-97a1-d6ceea3f16fe', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:27:16.790'),
-  ('fcf5bb00-b73f-411a-800d-bcc91428b141', 52, '18855c06-9278-493c-99f5-5f4368d92eec', 'ae74efec-eff6-4062-a3aa-539e37690db1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 16:18:56.816'),
-  ('fdbcd08b-9b9f-4001-9359-46bf14aa8b2c', 17, '68781e5a-c057-446a-a28b-728cb490364a', 'b775b41a-50f2-442e-9949-d0dee94ecb8d', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 11:59:00.094'),
-  ('feac164c-ff68-452b-8d26-7b824aa8763a', 9, '368d235c-7e6f-42cd-89af-fa8964866894', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:31:18.021');
+INSERT INTO `Order` (`id`, `orderSource`, `sessionId`, `tableId`, `captainId`, `status`, `createdAt`, `updatedAt`) VALUES
+  ('ef380228-cf9a-43f3-82b1-bfe6873a97a7', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.770', '2026-09-06 07:06:42.107'),
+  ('ef565302-8a74-4f8a-8e03-6b33d7fa2705', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'ACTIVE', '2026-09-16 01:43:11.992', '2026-09-16 01:43:11.992'),
+  ('f08c14e4-5872-40df-b494-9be98ec7737f', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.313', '2026-09-06 07:05:57.588'),
+  ('f138ce06-7bba-4068-b668-4d23943b1ae9', 'SELF_PICKUP', NULL, NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:54:03.274', '2026-09-06 08:58:52.927'),
+  ('f1692b4f-f653-4cc0-a724-521786bd182b', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.218', '2026-09-06 07:05:10.072'),
+  ('f73d5a64-f57f-4836-919c-ec8ed6a46a87', 'DINE_IN_NON_AC', '6b8d7082-7735-46f7-a8d1-600ed5dda13f', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 09:37:47.650', '2026-09-10 21:33:01.696'),
+  ('f9967dcd-6aea-4158-977f-1f309a15cc20', 'SELF_PICKUP', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:00.133', '2026-09-06 07:05:37.270'),
+  ('fbacd722-ed8e-4de3-9c10-6433cfd57f1f', 'SWIGGY', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.840', '2026-09-06 07:06:21.559'),
+  ('fc3b0ab2-d05a-4da1-b3dc-31a40c6b3c23', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.854', '2026-09-06 07:06:15.420'),
+  ('fce6d9f3-7f55-4b6e-834a-fc72f818603b', 'DINE_IN_AC', 'adb0a83f-3745-487a-8e48-ecfb1fa52b35', '4dd12042-17ec-41f6-8d0d-740873d8655e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 10:55:05.221', '2026-09-14 12:15:21.667'),
+  ('fd126ea1-fad8-4fe5-b6c1-0c23028052b9', 'ZOMATO', NULL, NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.550', '2026-09-06 07:06:02.258'),
+  ('fd6f8f01-839c-45b6-a0f0-c197e4bc42e2', 'DINE_IN_NON_AC', 'dab0afbd-1956-4832-b68d-5c69f98954b6', '5deb3cf5-e7a8-4e73-a18d-63cc1c252633', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 00:51:19.101', '2026-09-07 01:58:37.784');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `OrderItem`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `OrderItem`;
-CREATE TABLE `OrderItem` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `orderId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `menuItemId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `itemNameSnapshot` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `priceSnapshot` decimal(65,30) NOT NULL,
-  `quantity` int NOT NULL,
-  `originalQuantity` int DEFAULT NULL,
-  `notes` text COLLATE utf8mb4_bin,
-  `kotId` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `status` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'PENDING',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `OrderItem_kotId_idx` (`kotId`),
-  KEY `OrderItem_kotId_status_idx` (`kotId`,`status`),
-  KEY `OrderItem_menuItemId_idx` (`menuItemId`),
-  KEY `OrderItem_orderId_idx` (`orderId`),
-  KEY `OrderItem_orderId_status_idx` (`orderId`,`status`),
-  KEY `OrderItem_status_idx` (`status`),
-  CONSTRAINT `OrderItem_kotId_fkey` FOREIGN KEY (`kotId`) REFERENCES `KOT` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `OrderItem_menuItemId_fkey` FOREIGN KEY (`menuItemId`) REFERENCES `MenuItem` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `OrderItem_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `OrderItem` (313 rows)
+-- Data for table `OrderItem` (313 rows)
 INSERT INTO `OrderItem` (`id`, `orderId`, `menuItemId`, `itemNameSnapshot`, `priceSnapshot`, `quantity`, `originalQuantity`, `notes`, `kotId`, `status`, `createdAt`) VALUES
   ('005b4156-b156-400f-bf8a-f5655a4b09aa', '70cd6b1d-6bb8-40ca-8eac-be5dfd6ac491', '24fb3d2d-d585-4ed7-a568-fc5344ba7d4d', 'DAL FRY BUTTER', '140.000000000000000000000000000000', 1, NULL, NULL, '2e90b1fb-96d5-489c-8c72-5c8762cb501c', 'SERVED', '2026-09-14 08:43:43.734'),
   ('01917b87-a20a-4d79-9241-3300f30e81d3', '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '4b662fa3-87ae-46f6-8b19-59a14d0e014f', 'EXTRA BUTTER', '20.000000000000000000000000000000', 1, 1, NULL, 'c469d9c1-fe09-4c31-89a4-c39fcadce385', 'SERVED', '2026-09-16 06:08:11.857'),
@@ -1810,25 +1695,7 @@ INSERT INTO `OrderItem` (`id`, `orderId`, `menuItemId`, `itemNameSnapshot`, `pri
   ('ff56a2c9-d013-48e6-99e5-b58b6cb4ca44', '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '26c327ed-0322-4d4f-8fdf-dee68bf99fba', 'BUTTER CHAPATI', '17.000000000000000000000000000000', 6, 6, NULL, 'ce7200c4-5a7c-443a-abca-01e6a0c75e58', 'SERVED', '2026-09-15 17:12:55.548'),
   ('ffc96abe-b8d2-4b0b-9886-f6baeab85bf6', '742aed24-2f43-467b-afbe-85c11a0f8a69', 'ce236514-e545-44eb-b2a7-a3ea02f2a550', 'Paneer Tikka', '280.000000000000000000000000000000', 3, NULL, NULL, '28bdb04b-0002-424c-a7a5-321fc286ff74', 'SERVED', '2026-09-06 07:02:14.540');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `OrderItemHistory`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `OrderItemHistory`;
-CREATE TABLE `OrderItemHistory` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `orderItemId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `changeType` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `oldQuantity` int NOT NULL,
-  `newQuantity` int NOT NULL,
-  `reason` text COLLATE utf8mb4_bin,
-  `changedBy` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `OrderItemHistory_orderItemId_idx` (`orderItemId`),
-  CONSTRAINT `OrderItemHistory_orderItemId_fkey` FOREIGN KEY (`orderItemId`) REFERENCES `OrderItem` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `OrderItemHistory` (27 rows)
+-- Data for table `OrderItemHistory` (27 rows)
 INSERT INTO `OrderItemHistory` (`id`, `orderItemId`, `changeType`, `oldQuantity`, `newQuantity`, `reason`, `changedBy`, `createdAt`) VALUES
   ('05639612-c8fd-4197-ac26-d6e835049e06', 'dedc1e73-8864-432e-98e9-0a739edf9658', 'CANCELLED', 1, 0, 'Cancelled by kitchen', 'eaf7089f-7712-4686-8338-940d70a83f4e', '2026-09-16 06:01:01.768'),
   ('110146c4-a4bd-4f7b-95e3-5d422b189946', '70d13794-087f-4fc7-925d-9b5c90f3510a', 'CANCELLED', 1, 0, 'Cancelled by kitchen', 'eaf7089f-7712-4686-8338-940d70a83f4e', '2026-09-16 10:28:19.397'),
@@ -1858,45 +1725,175 @@ INSERT INTO `OrderItemHistory` (`id`, `orderItemId`, `changeType`, `oldQuantity`
   ('f32aebd8-f1f9-405a-a6f3-a11c01247e87', '1b28c038-8b03-4904-ac92-37018183a817', 'CANCELLED', 1, 0, 'Cancelled by kitchen', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '2026-09-16 05:37:38.441'),
   ('fe4effd9-7651-4e97-9330-0884ee84fece', '6bb5ea06-e16f-4ac5-906f-70e079303341', 'CANCELLED', 1, 0, 'Cancelled by kitchen', 'eaf7089f-7712-4686-8338-940d70a83f4e', '2026-09-16 15:09:34.216');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `Bill`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `Bill`;
-CREATE TABLE `Bill` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `billNumber` int NOT NULL AUTO_INCREMENT,
-  `orderId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `sessionId` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `tableId` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `customerName` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `customerPhone` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `subtotal` decimal(65,30) NOT NULL,
-  `sgstPercent` decimal(65,30) NOT NULL DEFAULT '2.500000000000000000000000000000',
-  `cgstPercent` decimal(65,30) NOT NULL DEFAULT '2.500000000000000000000000000000',
-  `sgstAmount` decimal(65,30) NOT NULL DEFAULT '0.000000000000000000000000000000',
-  `cgstAmount` decimal(65,30) NOT NULL DEFAULT '0.000000000000000000000000000000',
-  `discount` decimal(65,30) NOT NULL DEFAULT '0.000000000000000000000000000000',
-  `total` decimal(65,30) NOT NULL,
-  `roundOff` decimal(65,30) NOT NULL DEFAULT '0.000000000000000000000000000000',
-  `version` int NOT NULL DEFAULT '1',
-  `status` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'DRAFT',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `finalizedAt` datetime(3) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `Bill_billNumber_key` (`billNumber`),
-  UNIQUE KEY `Bill_orderId_key` (`orderId`),
-  KEY `Bill_createdAt_idx` (`createdAt`),
-  KEY `Bill_createdAt_status_idx` (`status`,`createdAt`),
-  KEY `Bill_sessionId_idx` (`sessionId`),
-  KEY `Bill_status_createdAt_idx` (`status`,`createdAt`),
-  KEY `Bill_status_idx` (`status`),
-  KEY `Bill_tableId_idx` (`tableId`),
-  KEY `Bill_tableId_status_idx` (`tableId`,`status`),
-  CONSTRAINT `Bill_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `Bill_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `TableSession` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+-- Data for table `KOT` (163 rows)
+INSERT INTO `KOT` (`id`, `kotNumber`, `orderId`, `sessionId`, `captainId`, `status`, `createdAt`) VALUES
+  ('0133c138-2bf2-43db-9e36-30ce1351c8d0', 1, 'b0a3caa6-ce30-45d4-8257-b7aaad91586c', '0a664a20-7359-40c2-814d-97e6972acf95', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 22:21:57.335'),
+  ('01ac5931-b00d-4ebb-b4f1-13be38f834fb', 9, '49f21bf8-15c1-45a9-a806-2ea930fd10cb', '8a909874-08c4-4534-99f4-4b5a27eb21b8', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 07:01:12.269'),
+  ('01b26b37-bf81-416a-86ed-7e8348f00280', 58, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:58:02.853'),
+  ('06136184-3311-42a2-98ea-26e2732db7ea', 7, 'ad95c7ea-abed-4d96-99d1-71dc7c7ffd57', 'f20b1a16-96f8-4f71-8e8d-e2871b9843b1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:51:56.178'),
+  ('08c8c623-776b-456c-8a7b-9127ec20cb6f', 61, '438bf346-9f05-4f18-8df4-2bb9d088c7bb', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 17:29:53.079'),
+  ('09544abe-0a05-4050-9e5d-70670b5698b5', 2, 'f9967dcd-6aea-4158-977f-1f309a15cc20', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:00.139'),
+  ('0a319c08-04e2-4b35-8ed0-04052a39581c', 43, '66098beb-d77e-49f4-9531-87764bf155a8', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 18:28:29.973'),
+  ('0b02cdfe-4ece-4827-ba70-3186ac608925', 6, 'f73d5a64-f57f-4836-919c-ec8ed6a46a87', '6b8d7082-7735-46f7-a8d1-600ed5dda13f', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 09:37:47.685'),
+  ('0cb05903-16a6-46f2-9a31-3cd15e5fe8e9', 37, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:13:44.891'),
+  ('0ddf626e-168c-4e08-9ab2-6750dd4f0c8a', 8, '219b654e-1c7b-47db-9fc3-789a3ffc1a98', '88d51b6f-36e9-47c6-97a1-d6ceea3f16fe', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:52:32.531'),
+  ('0e1d9fc5-5d37-497f-b5e1-aa6ba4b96106', 38, '0266325a-2954-4ae8-92c8-8bdbd1eab962', '05341f88-3b29-457c-bcbf-ad4bec4195d8', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:46:27.829'),
+  ('0f5c8be8-2dd1-43bc-8001-ce0864177753', 2, '0cefd6d9-03eb-4a17-9d0b-fc4232011da6', 'fa3bb691-2e06-4c8d-ae62-347c078910e6', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 07:03:34.502'),
+  ('10136713-d4e9-4e0b-a3c6-d23b3ecae52b', 44, '983666e9-e4a5-418f-bbae-1d04f2fb4c3d', 'ed88a3d5-14c4-48ba-93cf-e66ad9e63f6d', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:36:42.457'),
+  ('10718dca-05d7-4d39-85a0-052d85e4f408', 18, 'a0e0fd08-ae28-4534-a7ed-a84ef7e572f0', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 15:22:27.063'),
+  ('10d29e6c-33d4-421c-8053-e13ba144489b', 53, '18855c06-9278-493c-99f5-5f4368d92eec', 'ae74efec-eff6-4062-a3aa-539e37690db1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 16:19:47.615'),
+  ('1113ebcb-efb2-43be-9c45-56a105de4776', 16, '68781e5a-c057-446a-a28b-728cb490364a', 'b775b41a-50f2-442e-9949-d0dee94ecb8d', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 11:27:46.491'),
+  ('11f6700d-6df9-4009-b35c-7982f3dc2bf0', 27, '0302bdcd-f898-4198-9448-8c07deeb47ef', '818ad85a-5d1e-459f-94e6-563adb28d96b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:23:14.132'),
+  ('122c855d-5f0c-422c-83cb-f2f0e6d1284c', 24, '143d752e-71e1-4319-85ac-cac60169aa16', 'ae2938ed-e543-4cda-a23f-613ffd79b479', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:36:07.854'),
+  ('1230165b-5cbe-4bbc-b506-d3ff708fe760', 4, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 05:36:44.259'),
+  ('12f71005-6047-4122-9da5-ba5a8a7fdc2d', 26, 'a34dae2a-2af1-4b0a-ae8d-3efbdbcc61f5', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 13:42:43.293'),
+  ('1428931e-28f9-4a20-b2fa-e367d8cbacdb', 13, '1cb226b5-c697-419f-9228-0cefc8c94bfb', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.207'),
+  ('15531d99-b536-40e6-9fbc-6e7d48c266dd', 34, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:24:13.967'),
+  ('15fe07bc-f046-4209-ba11-19511a8e7153', 4, '8f8ce3cb-6411-47ea-a30c-fd3d36733a59', 'f43fd688-862d-400b-8185-ed4ce2df6cf5', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 09:05:50.846'),
+  ('1600364a-4efe-4484-a51c-61555ae1390a', 32, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:57:12.672'),
+  ('188a66d4-2194-4f3d-a377-32350e5b9d7b', 29, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:09:11.932'),
+  ('1a59e8da-261c-44ac-837f-274573a4750a', 6, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:18:12.620'),
+  ('1c41833b-92f4-4532-be2d-bb4c9798fb1c', 51, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:14:27.660'),
+  ('1cab4f3c-eaa2-4e68-9443-52dc4e5ca562', 35, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:26:23.019'),
+  ('1d6c9785-eb14-4488-a305-7f8524cd50dd', 35, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:09:36.991'),
+  ('1e65b9cd-d9a2-48cd-844e-921988a52b0a', 2, '9b879dc2-6f90-4187-8bee-dd7d78b9512f', '1199a584-f231-46f0-a926-9c651bc3b59c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:17:14.680'),
+  ('1ecc6949-cf20-404f-b330-8eaca27ed90a', 14, '93981376-4e4b-46d1-8a67-cadb62e55cb6', 'ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:06:19.175'),
+  ('232d79a5-7ef5-44aa-818a-781405563cb1', 1, '3e27bd01-8fcb-4f76-860b-03e8e11ed02e', '1bd2c241-4ae5-4e7c-b90d-15e53b48d8ab', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 01:23:02.372'),
+  ('2377fb14-6fb5-49f3-8678-f024751f8487', 11, '224c74a5-43fb-4885-9413-e67882b49bc0', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.293'),
+  ('24c683c6-a0f8-4803-94a5-37672e0296e5', 2, '64c91495-04eb-4375-becd-f35f38bbcf0b', 'c7cee964-7257-4e32-9696-b522e1aaa59c', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 01:27:38.039'),
+  ('253fc65c-3cda-41ec-9d4c-c390fed0f924', 7, '2bdc5dc4-5782-4528-bb42-aad1dfb417a7', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.818'),
+  ('27a2c505-9134-49b1-9e83-0f1afb232c1f', 17, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:13:20.421'),
+  ('28bdb04b-0002-424c-a7a5-321fc286ff74', 10, '742aed24-2f43-467b-afbe-85c11a0f8a69', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.541'),
+  ('29c6daf2-6fdc-41e8-9728-2d443d467fc3', 5, '71a04a61-698e-4998-abd7-c2f084d39b67', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 09:37:08.231'),
+  ('29cc60bb-3c9e-498b-89f9-f2783e6bcb37', 6, 'baf4674a-14f0-4514-a430-911bcb1f16f0', '7a70439f-7722-436f-88a4-77418f406291', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-13 17:19:56.989'),
+  ('2ad1bf64-0b64-4b43-b2db-785cd83640cf', 31, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 14:48:55.959'),
+  ('2b2c7577-0b88-4245-8362-a13c64267e9d', 4, '9f2216a3-1073-4dcf-822e-11965ae3129b', '79296c8a-e296-47d6-add1-b8f0b47ae55d', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-12 11:50:27.364'),
+  ('2b64b0b0-e000-4b98-8a1b-8386158bc3b3', 3, 'fd6f8f01-839c-45b6-a0f0-c197e4bc42e2', 'dab0afbd-1956-4832-b68d-5c69f98954b6', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 00:51:19.138'),
+  ('2c21d6a1-e16a-46fb-9eed-2418bc5ac91f', 55, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:44:59.299'),
+  ('2e90b1fb-96d5-489c-8c72-5c8762cb501c', 2, '70cd6b1d-6bb8-40ca-8eac-be5dfd6ac491', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:43:44.676'),
+  ('2fd84e7a-2fce-4d42-bf53-191b7d76a4af', 4, 'ef380228-cf9a-43f3-82b1-bfe6873a97a7', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.774'),
+  ('34513ed0-13f0-422e-90c5-41e4e2b75099', 25, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:35:41.349'),
+  ('35bcdd27-85f9-4da7-8075-130cae22f4a8', 3, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-16 05:31:53.893'),
+  ('37c1346f-5728-4c07-a200-9ae94c5ef5ad', 4, '07689189-8d09-4e74-a469-e92b0924c245', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:55:32.973'),
+  ('3878fd6d-c468-443e-892a-5901f3a57e34', 24, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:33:14.543'),
+  ('3fd72ccf-0624-45ed-89a1-c0ba9664b093', 17, '38765ebb-a940-4685-874f-8259174bdefc', 'c9a6f218-f743-4eec-afa0-5fab8b1595c7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:15:05.235'),
+  ('405441f1-71f2-4533-af71-3355ed4b8958', 60, '106e308f-5097-4277-9db4-78d5573faa4b', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 17:24:31.879'),
+  ('423289e1-992d-4a7f-8652-b885b3d5ec42', 3, '240a227b-8476-431b-be1d-c93728677d3f', 'c2991452-f9eb-4f8c-8a50-7ecedf767af4', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:20:12.209'),
+  ('452e745b-0ff9-4026-94aa-2b7478f7bc0d', 42, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:25:23.495'),
+  ('4863a477-2178-49c9-81d9-a80402e056d3', 4, '3732fbab-486c-49e1-9477-16cc1dff41e2', '45edc51a-d198-46b5-8b4c-4f59adec5451', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-07 01:59:46.486'),
+  ('497c3248-bbb4-4b77-a465-55cdb7a26152', 11, 'c15e1781-15dc-4c97-88a2-d58b9e7c4080', 'cd891a89-172e-4b24-9b04-ca9c7a36d1d2', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 09:26:12.229'),
+  ('4c39afcc-8140-456c-9163-01e9a4a653da', 38, '983666e9-e4a5-418f-bbae-1d04f2fb4c3d', 'ed88a3d5-14c4-48ba-93cf-e66ad9e63f6d', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:15:49.429'),
+  ('4f3b9fcc-0299-4a00-b6d8-df04e231e9fe', 18, 'ab7d208f-ac92-4c82-8454-596b59352c40', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:55:00.487'),
+  ('4f650b92-3b47-4af8-8730-13cacf2d2199', 47, '40495842-26c1-4318-b6f4-e7c2e56207f0', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:55:48.357'),
+  ('50750dfc-bfc1-4902-bf2c-33994efee4d2', 34, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:08:23.290'),
+  ('545f2979-4558-420a-a588-cde8f21e1751', 22, 'b0a5dbc8-9043-42b6-a4ac-9327a60ad65a', 'ce9d5583-8397-43b5-b46d-d191a7bffe71', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:58:54.700'),
+  ('566e34e0-f6b8-4435-99db-fe86cd9983ab', 25, '143d752e-71e1-4319-85ac-cac60169aa16', 'ae2938ed-e543-4cda-a23f-613ffd79b479', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:38:33.823'),
+  ('57a4ebf5-ffd8-4b43-a671-ddcfec4fd2d7', 1, '6e0e5fd0-4096-402d-8000-dc96b38775cf', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-13 00:03:43.654'),
+  ('5a945c1a-13b2-427a-b8e8-87ed35b656aa', 62, 'e2254539-afd7-4862-8ba2-468e11cb12e9', '4c3ca8fc-3db9-42c8-9870-ec73177f4339', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 17:35:30.614'),
+  ('5ce5ef7a-6e32-44e2-9275-8254af53eebb', 1, '6e848799-d857-4ef1-b684-a657eb167ff6', '4c823d29-65bc-45cc-b88e-896e1df9f3cd', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-05 23:39:42.870'),
+  ('5d253eda-97b9-42de-9636-6b6308b61456', 49, '9dcf52d3-fbfa-4180-b489-efae5a4bc893', 'cc981930-36e1-49f6-b7cc-7b7bf5d44a59', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 16:10:48.625'),
+  ('5dc3b585-374d-456e-ad18-785f0330e813', 42, '66098beb-d77e-49f4-9531-87764bf155a8', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 18:20:52.494'),
+  ('5de010af-4d2c-4507-b7d0-4e856702a6d4', 7, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 06:03:50.862'),
+  ('5f00b26c-6b57-4366-af02-a0cb6d8449e5', 1, 'b36c890f-a12b-4ac4-bc87-3bb98ae8dd99', '2b5fa717-7893-45ba-b6bb-125c5971a588', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-02 12:04:55.584'),
+  ('5f8aef6c-33e8-42cc-a39d-2ab8eee3cea0', 2, '240a227b-8476-431b-be1d-c93728677d3f', 'c2991452-f9eb-4f8c-8a50-7ecedf767af4', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 06:16:59.398'),
+  ('609c09c7-44f9-49a7-96f9-15ddc9fb9a3b', 15, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:10:00.714'),
+  ('62777ef2-21b4-497c-b529-f4e10155d8ff', 50, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 16:12:22.182'),
+  ('62db0a64-19ec-43ae-930c-bb387014d86d', 29, 'a3d77bef-5cc5-4e7c-9514-99730f5d2740', NULL, '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:38:38.567'),
+  ('6309d436-1277-4d61-be7f-5a71d226d676', 37, '0266325a-2954-4ae8-92c8-8bdbd1eab962', '05341f88-3b29-457c-bcbf-ad4bec4195d8', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:38:47.306'),
+  ('669fb986-b6b7-4df8-9b3b-548fb15d8665', 9, '1227f3f7-1bd4-406a-bbee-15f0541f92ea', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:14.518'),
+  ('677eb3d1-df6e-4cce-a63e-fda4c0fd7b09', 12, '3fc92ffc-bf98-4d1b-9263-d562f76499ac', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 09:33:28.800'),
+  ('6a40fba9-2590-4dbf-93d8-c32b1aa58741', 16, '38765ebb-a940-4685-874f-8259174bdefc', 'c9a6f218-f743-4eec-afa0-5fab8b1595c7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:13:19.860'),
+  ('6b0fc346-0ef7-4c29-bfdc-9317f1fb2e13', 11, 'ad95c7ea-abed-4d96-99d1-71dc7c7ffd57', 'f20b1a16-96f8-4f71-8e8d-e2871b9843b1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 07:19:37.038'),
+  ('6e5a4429-b0be-4675-8b3f-33ae940eb76d', 6, '06fc442d-e5a8-4191-a5a6-a69981da9775', 'a0c9132d-07b0-4faf-b539-cd41a0508026', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 06:00:31.066'),
+  ('706cc7ab-b280-4ab7-b11c-b5df991bbe1b', 28, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:53:47.539'),
+  ('70700925-6000-4f41-aa4c-d29b3068685a', 19, 'b0a5dbc8-9043-42b6-a4ac-9327a60ad65a', 'ce9d5583-8397-43b5-b46d-d191a7bffe71', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:38:06.630'),
+  ('72481022-2a9f-412a-9c60-2571cfd5b2b0', 8, 'fbacd722-ed8e-4de3-9c10-6433cfd57f1f', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:59.844'),
+  ('72b63d51-3a7f-49e4-8bd4-2400c0fa72e1', 33, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 17:22:37.562'),
+  ('762903b3-40ab-403d-84e1-8e13546b4365', 40, '66098beb-d77e-49f4-9531-87764bf155a8', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 18:13:20.024'),
+  ('77a27466-a6cc-4403-ac89-8b56ebf5fabc', 1, '6cc5c184-25ba-4d47-a97e-5db73f8d6fb5', '042b45c8-e416-4cd0-920f-43acd92a3849', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-15 05:07:49.351'),
+  ('77eebc95-9a5e-4b87-a03a-d6f55b9fc1db', 3, '6fe5525c-8acf-453e-abc8-97b0da2167b2', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 08:46:07.691'),
+  ('7853784f-b34a-4659-af45-b8a819a3581b', 1, 'ef565302-8a74-4f8a-8e03-6b33d7fa2705', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-16 01:43:12.009'),
+  ('7a91c399-ec37-40c8-af06-d5edf65ba74f', 27, '143d752e-71e1-4319-85ac-cac60169aa16', 'ae2938ed-e543-4cda-a23f-613ffd79b479', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 16:47:55.928'),
+  ('7aaf21da-5fe0-4748-b88b-fb3676365f5f', 41, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:22:25.188'),
+  ('7bd08645-f0ae-4194-b8e7-28442a7ef353', 41, '66098beb-d77e-49f4-9531-87764bf155a8', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 18:18:59.903'),
+  ('7d108ee6-011d-4dec-9c40-52c6cdcd5489', 10, 'db43d8cb-8368-4470-9d13-0baf8880a704', 'd6e4a75d-b9d5-4f73-b7ba-824b9f56d867', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:41:18.331'),
+  ('7e407f5b-53d2-4d9a-8d63-46c40008040d', 21, 'c55a51b5-ea60-4758-9fd1-e28abde5dea3', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 15:41:57.162'),
+  ('806c9000-7103-4ec9-b6d1-aadc7238f1a5', 14, '4a8caccd-29d0-4b88-89e3-46b890797333', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:39.230'),
+  ('807368c5-3d63-4516-947c-8378bf87a579', 48, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:09:03.890'),
+  ('807a893c-f6d1-47f0-9280-b3873d77e6ad', 23, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:29:33.908'),
+  ('81ebccde-0725-4466-91ed-8681a6956404', 63, '861a0f46-65bc-4942-92bf-a97e32fabbe0', '07719768-e557-4f8f-937b-7fccbb143250', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 17:38:32.038'),
+  ('8414a402-3ed7-4aa9-a15e-40f2d2479730', 19, '695aaeec-71a1-4906-97cd-43055c034c25', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:57:45.828'),
+  ('850c6647-3757-42a8-b616-9283f0204d3c', 15, '9fd850e4-0645-43db-865f-1148510047ed', 'd64b993c-4c1c-4b0b-8d8f-44772f1c64ae', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 07:16:07.313'),
+  ('863c5b21-d194-4b3e-ba1a-c794b7c6c0c5', 10, 'ad95c7ea-abed-4d96-99d1-71dc7c7ffd57', 'f20b1a16-96f8-4f71-8e8d-e2871b9843b1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 07:13:57.480'),
+  ('86ed6237-6c1e-4631-87e0-418bbea51253', 56, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:46:34.267'),
+  ('8d3127ab-bfc3-43c2-b02c-31bb4c1ab326', 3, '3042706e-94fe-4856-b268-33cfebc2fb69', 'be7e0f48-1bff-4588-9445-acb54c019ffb', 'db2e18de-1255-4781-b084-b9609bb8698a', 'COMPLETED', '2026-09-12 03:58:04.468');
 
--- Dumping data for table `Bill` (110 rows)
+INSERT INTO `KOT` (`id`, `kotNumber`, `orderId`, `sessionId`, `captainId`, `status`, `createdAt`) VALUES
+  ('8f611034-5d1b-4faa-beb8-883d07549c9b', 5, 'b7d8bd69-6a46-4003-bec8-aa63310dc9cc', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.240'),
+  ('949aed46-3ca4-45f8-86cf-afd0e69196a3', 39, '90239342-a0e9-441c-ba9b-74be5986cb42', 'db5fc7b4-5123-4128-8b84-d7dc071c1e2b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:17:17.339'),
+  ('95a856a6-4d91-475f-9106-a2c8cde197c8', 5, '06fc442d-e5a8-4191-a5a6-a69981da9775', 'a0c9132d-07b0-4faf-b539-cd41a0508026', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 05:57:44.525'),
+  ('98bb8bc9-8d2f-4a51-a83d-693c23029a44', 14, '38765ebb-a940-4685-874f-8259174bdefc', 'c9a6f218-f743-4eec-afa0-5fab8b1595c7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 14:52:44.251'),
+  ('9b825845-b3bd-4fe0-9d45-d4a06a0ca573', 20, '93981376-4e4b-46d1-8a67-cadb62e55cb6', 'ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:23:19.672'),
+  ('9c333d64-c8ec-4a75-bacd-4292c06dba9e', 6, '44982d5d-1b30-4fbd-ad4b-c9aec2451874', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:45.264'),
+  ('a03ed88e-f671-4d76-893d-55ed8d171c1e', 18, '93981376-4e4b-46d1-8a67-cadb62e55cb6', 'ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:17:27.396'),
+  ('a11f547a-f48d-4e60-b445-2f9dbe505fef', 64, 'e2254539-afd7-4862-8ba2-468e11cb12e9', '4c3ca8fc-3db9-42c8-9870-ec73177f4339', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 18:15:09.449'),
+  ('a22681c3-1ecc-42fc-905c-5142fb331b45', 28, '0302bdcd-f898-4198-9448-8c07deeb47ef', '818ad85a-5d1e-459f-94e6-563adb28d96b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:27:51.348'),
+  ('a36b4ff4-da23-4e88-8eee-178808217617', 22, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:27:57.377'),
+  ('a49918fb-cfe3-4ccd-ac7a-767108e695a3', 46, '90239342-a0e9-441c-ba9b-74be5986cb42', 'db5fc7b4-5123-4128-8b84-d7dc071c1e2b', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:40:45.523'),
+  ('a5048d8d-25ed-4200-826e-974d875cd14b', 26, '143d752e-71e1-4319-85ac-cac60169aa16', 'ae2938ed-e543-4cda-a23f-613ffd79b479', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:46:12.210'),
+  ('aa9f1abc-a5a1-4304-9c9c-ad43105cf0ab', 1, '04c3687f-ef7b-443c-bb4d-2cc0dfa81d1c', 'ddb1a9fb-7e76-4fb8-8881-506af423d757', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-10 21:41:38.052'),
+  ('ab67588a-f027-4335-a9b5-111312a8542c', 17, 'f138ce06-7bba-4068-b668-4d23943b1ae9', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:54:03.278'),
+  ('aefe8c16-50d4-44b9-b1fb-55c6fca047c5', 40, '76db286e-154d-4fb7-8ae8-4ffb589da93b', '5da7b87f-2d05-42d9-85bc-40497a0e52a8', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:18:07.693'),
+  ('b19215f5-f076-479b-ba03-f51a201503f8', 14, 'fce6d9f3-7f55-4b6e-834a-fc72f818603b', 'adb0a83f-3745-487a-8e48-ecfb1fa52b35', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 10:55:06.181'),
+  ('b1b7e842-756f-480b-a572-fecc35faabc3', 31, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:17:24.658'),
+  ('b6b0aa0a-ec4b-49d3-8a64-d62a0c42867d', 5, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:08:53.211'),
+  ('b865268a-b074-415b-ab36-19af90440b17', 13, 'dd1d0fb5-96fb-4b2a-9a29-54d4664de2cc', '5723eda4-a410-4a8d-9516-b00364c7a308', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:01:26.569'),
+  ('b9544646-34b1-4ffe-8aae-725ce0526748', 8, '06fc442d-e5a8-4191-a5a6-a69981da9775', 'a0c9132d-07b0-4faf-b539-cd41a0508026', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 06:06:02.686'),
+  ('ba279abd-9376-434e-869b-84320d9fc9dd', 39, '66098beb-d77e-49f4-9531-87764bf155a8', 'e9aa9699-7cc6-42f6-8e9e-3b33b224ea1a', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:53:19.844'),
+  ('bad837c7-b332-4c94-9eeb-f2545820db06', 11, 'db43d8cb-8368-4470-9d13-0baf8880a704', 'd6e4a75d-b9d5-4f73-b7ba-824b9f56d867', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:41:37.994'),
+  ('bdafe4d8-95d9-4e6d-b15c-dbc41f4948f5', 30, '2c2f43ef-fc96-4850-8406-b7441d044b33', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 14:40:25.620'),
+  ('c1ec571c-5179-4899-81df-08aba3380216', 16, '0e9f2a44-221a-4df8-be59-17616d6b6136', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 08:53:46.894'),
+  ('c44e4abd-24a8-4e91-beff-29ba93fbfba4', 1, '8aa6b032-f946-4611-a305-a082b676a155', 'db4c698f-0c8d-47cf-a98f-ea2edfe14088', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-14 07:25:37.955'),
+  ('c469d9c1-fe09-4c31-89a4-c39fcadce385', 9, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 06:08:11.856'),
+  ('c5c4ee78-46f0-4ffd-9b27-6f1939aa65a1', 13, '44e85e5e-1dfa-46dc-af2d-081239936e8e', '98b3a572-7c5a-47a2-b31d-d86fc09afb0d', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:45:09.465'),
+  ('c5fb875d-1504-440b-b264-f74aa5274434', 36, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:28:22.642'),
+  ('c6f96059-be2c-44b3-b48d-82eff6061a8d', 65, '4fc1d330-7318-4f47-b5ff-75874958539f', 'd527fd1d-fa07-4e35-98bd-33489caa9d24', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 18:21:48.985'),
+  ('c9673fbf-7fea-4b9a-b03e-800d51ea0f2e', 2, 'cbfc3d53-05f9-4a3a-96d6-5f85e639eee1', NULL, '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-16 01:44:55.874'),
+  ('c99e06c9-32c8-411d-8648-ca083e5ed986', 45, '9dcf52d3-fbfa-4180-b489-efae5a4bc893', 'cc981930-36e1-49f6-b7cc-7b7bf5d44a59', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:38:33.623'),
+  ('ca4fe8d6-8cd5-46a0-ab3e-b0e5188121fe', 21, '4f1eca99-e5a8-439a-a8b7-0dc4822ee949', '8727528c-2d2b-4a75-97a3-d8c944fbe50a', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 10:25:58.130'),
+  ('ce7200c4-5a7c-443a-abca-01e6a0c75e58', 30, '10a72c45-a505-4d66-b2d2-6c8ac0417e81', '661aa2c6-678e-46b7-a56c-512a52068a5e', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:12:55.545'),
+  ('cea6d52e-8d66-4096-af0d-04e768a20e12', 57, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:53:58.487'),
+  ('d26a160c-99d2-4f9e-add6-548dc3eefd4e', 12, '5e32d051-1283-4133-b17c-3a102bac35ab', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 13:45:05.491'),
+  ('d59ee6f0-e65b-4348-b0bb-5b772cda344d', 20, 'b0a5dbc8-9043-42b6-a4ac-9327a60ad65a', 'ce9d5583-8397-43b5-b46d-d191a7bffe71', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:40:54.007'),
+  ('d6f97476-f26c-4a85-950e-1c8c29098c53', 10, '026d45fb-368c-4094-b571-8884f8203803', '81839e1e-e75f-4022-986a-2bf57f399780', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 06:23:52.525'),
+  ('d82153a6-876c-4aed-9f95-9b50d1024fa7', 5, '219b654e-1c7b-47db-9fc3-789a3ffc1a98', '88d51b6f-36e9-47c6-97a1-d6ceea3f16fe', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:40:51.539'),
+  ('d82ce735-aeeb-4123-92fa-b48a21f04fe1', 54, '68c71f77-1e53-4650-9e6a-7908062bf954', '1b0d1dde-6a3c-43dd-88c5-e8ce799c0d21', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 16:27:10.873'),
+  ('d881c049-f2db-4a41-8afd-420defce66cd', 43, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 15:26:23.242'),
+  ('d8f1846d-b710-4842-a694-8481a3f43d74', 19, '93981376-4e4b-46d1-8a67-cadb62e55cb6', 'ef7ca345-0a98-4e82-9614-1a0fcd2462a0', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:23:00.104'),
+  ('d91e5838-ac3d-450b-8344-8502c3246a26', 12, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:43:58.931'),
+  ('d9e1c002-672f-4830-8cda-f88daa8b51f5', 7, '44e85e5e-1dfa-46dc-af2d-081239936e8e', '98b3a572-7c5a-47a2-b31d-d86fc09afb0d', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:26:20.468'),
+  ('d9e47833-0855-4f22-b3d9-a1fe1761ae44', 2, 'c46ef776-90c4-4ef5-aaba-afd67b878e5b', 'ba08a520-3840-4f4d-be39-e6f016f919b6', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'COMPLETED', '2026-09-06 22:22:18.493'),
+  ('dc43e79e-f49b-4458-9d93-ee8cb38aacdd', 33, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 14:58:59.759'),
+  ('dda4ad43-dcbc-4672-81e9-f82966706799', 16, '7b3b3c84-e153-4c11-8b68-d1e0f64ef7a1', '1f57d1e5-79a0-4d7b-acc0-8c38766494b7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 10:10:36.571'),
+  ('e21150c4-6203-404e-895e-6387f4324aca', 13, '9f74f28c-b4f2-4d36-ac23-4ebcedd6a7f3', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 14:49:59.213'),
+  ('e2ec9fb2-aca5-4c2e-8936-6b41facfc20f', 15, '38765ebb-a940-4685-874f-8259174bdefc', 'c9a6f218-f743-4eec-afa0-5fab8b1595c7', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 15:02:34.524'),
+  ('e5f520c8-dc49-46c1-a1b7-da564f669893', 8, 'dfd92537-0508-4192-abd2-4ee00c2b372e', '4ebe80d7-b953-4e55-a344-a955125604b2', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:29:51.763'),
+  ('e75cae91-1b6f-412e-986a-672acb142a8a', 15, 'fce6d9f3-7f55-4b6e-834a-fc72f818603b', 'adb0a83f-3745-487a-8e48-ecfb1fa52b35', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 11:03:51.549'),
+  ('eadf8405-b1d8-405a-af25-a699e02ff473', 5, '8f8ce3cb-6411-47ea-a30c-fd3d36733a59', 'f43fd688-862d-400b-8185-ed4ce2df6cf5', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 09:06:25.455'),
+  ('f26a1e8e-fe60-4e3b-9a5f-477463ef745c', 3, '8f8ce3cb-6411-47ea-a30c-fd3d36733a59', 'f43fd688-862d-400b-8185-ed4ce2df6cf5', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-13 09:05:11.542'),
+  ('f2e23f51-6c98-47c5-b1a2-67c82bc771ca', 32, '0266325a-2954-4ae8-92c8-8bdbd1eab962', '05341f88-3b29-457c-bcbf-ad4bec4195d8', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 17:19:54.305'),
+  ('f3fd675a-87ca-4395-81f6-917e79689606', 59, '861a0f46-65bc-4942-92bf-a97e32fabbe0', '07719768-e557-4f8f-937b-7fccbb143250', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 17:13:56.739'),
+  ('f4b59b2e-e8b0-401f-b8cc-34422fa60d45', 12, 'f08c14e4-5872-40df-b494-9be98ec7737f', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:02:27.315'),
+  ('f793ffeb-1bfd-43aa-9afd-f274d183c8b7', 3, '6a322f8d-2e0f-45f2-9949-88d235be7ead', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-06 07:01:24.747'),
+  ('f995114e-2ef3-4e4a-bfa1-15a17db7b1bc', 36, '67285fdf-ca6c-4b86-b6b2-528eaf6f566e', '2f5fb8ac-e340-47b0-8763-ae1f66d0babc', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-16 15:10:45.659'),
+  ('fa37a6be-4cd8-4865-ab63-2ed135a913bf', 23, '143d752e-71e1-4319-85ac-cac60169aa16', 'ae2938ed-e543-4cda-a23f-613ffd79b479', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-15 16:22:15.799'),
+  ('fac80c9b-7ab3-412e-a1d5-f20bb341ec11', 6, 'ad95c7ea-abed-4d96-99d1-71dc7c7ffd57', 'f20b1a16-96f8-4f71-8e8d-e2871b9843b1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:41:34.254'),
+  ('fb8136f8-03e7-4e56-bddf-cfb0a69f15c4', 4, '219b654e-1c7b-47db-9fc3-789a3ffc1a98', '88d51b6f-36e9-47c6-97a1-d6ceea3f16fe', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-15 06:27:16.790'),
+  ('fcf5bb00-b73f-411a-800d-bcc91428b141', 52, '18855c06-9278-493c-99f5-5f4368d92eec', 'ae74efec-eff6-4062-a3aa-539e37690db1', 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-16 16:18:56.816'),
+  ('fdbcd08b-9b9f-4001-9359-46bf14aa8b2c', 17, '68781e5a-c057-446a-a28b-728cb490364a', 'b775b41a-50f2-442e-9949-d0dee94ecb8d', '51d1a066-caa4-4ace-bf7d-a9aee5e47539', 'COMPLETED', '2026-09-14 11:59:00.094'),
+  ('feac164c-ff68-452b-8d26-7b824aa8763a', 9, '368d235c-7e6f-42cd-89af-fa8964866894', NULL, 'eaf7089f-7712-4686-8338-940d70a83f4e', 'COMPLETED', '2026-09-14 09:31:18.021');
+
+-- Data for table `Bill` (110 rows)
 INSERT INTO `Bill` (`id`, `billNumber`, `orderId`, `sessionId`, `tableId`, `customerName`, `customerPhone`, `subtotal`, `sgstPercent`, `cgstPercent`, `sgstAmount`, `cgstAmount`, `discount`, `total`, `roundOff`, `version`, `status`, `createdAt`, `finalizedAt`) VALUES
   ('0249228f-4b41-4b03-ae54-2fcd7f2bbbce', 37, 'b0a3caa6-ce30-45d4-8257-b7aaad91586c', '0a664a20-7359-40c2-814d-97e6972acf95', '95da293c-3a74-47db-894d-2cc63506f20c', NULL, NULL, '90.000000000000000000000000000000', '2.500000000000000000000000000000', '2.500000000000000000000000000000', '2.250000000000000000000000000000', '2.250000000000000000000000000000', '0.000000000000000000000000000000', '95.000000000000000000000000000000', '0.500000000000000000000000000000', 1, 'FINALIZED', '2026-09-06 22:22:01.912', '2026-09-06 22:22:42.160'),
   ('035708a8-fdeb-4499-945d-0fea1e5d03cf', 51, '64c91495-04eb-4375-becd-f35f38bbcf0b', 'c7cee964-7257-4e32-9696-b522e1aaa59c', '0115e427-4d14-4a8c-a9ab-3cb416c66f6c', NULL, NULL, '240.000000000000000000000000000000', '2.500000000000000000000000000000', '2.500000000000000000000000000000', '6.000000000000000000000000000000', '6.000000000000000000000000000000', '0.000000000000000000000000000000', '252.000000000000000000000000000000', '0.000000000000000000000000000000', 1, 'FINALIZED', '2026-09-12 01:34:33.678', '2026-09-12 01:36:10.919'),
@@ -2011,57 +2008,16 @@ INSERT INTO `Bill` (`id`, `billNumber`, `orderId`, `sessionId`, `tableId`, `cust
   ('f35c5549-a615-4429-82e4-f78436d9942b', 15, 'fbacd722-ed8e-4de3-9c10-6433cfd57f1f', NULL, NULL, NULL, NULL, '840.000000000000000000000000000000', '2.500000000000000000000000000000', '2.500000000000000000000000000000', '21.000000000000000000000000000000', '21.000000000000000000000000000000', '0.000000000000000000000000000000', '882.000000000000000000000000000000', '0.000000000000000000000000000000', 1, 'FINALIZED', '2026-09-06 07:01:59.846', '2026-09-06 07:06:21.553'),
   ('fa7eb4c9-8efd-4959-b452-d24c907e7966', 71, '07689189-8d09-4e74-a469-e92b0924c245', NULL, NULL, NULL, NULL, '420.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '0.000000000000000000000000000000', '20.000000000000000000000000000000', '400.000000000000000000000000000000', '0.000000000000000000000000000000', 1, 'FINALIZED', '2026-09-14 08:55:33.903', '2026-09-14 09:37:38.755');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `BillAmendment`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `BillAmendment`;
-CREATE TABLE `BillAmendment` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `billId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `version` int NOT NULL,
-  `changes` json NOT NULL,
-  `reason` text COLLATE utf8mb4_bin NOT NULL,
-  `modifiedBy` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `originalTotal` decimal(65,30) NOT NULL,
-  `newSubtotal` decimal(65,30) NOT NULL,
-  `newSgstAmount` decimal(65,30) NOT NULL,
-  `newCgstAmount` decimal(65,30) NOT NULL,
-  `newDiscount` decimal(65,30) NOT NULL DEFAULT '0.000000000000000000000000000000',
-  `newTotal` decimal(65,30) NOT NULL,
-  `difference` decimal(65,30) NOT NULL,
-  `paymentStatus` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'PENDING',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `BillAmendment_billId_idx` (`billId`),
-  CONSTRAINT `BillAmendment_billId_fkey` FOREIGN KEY (`billId`) REFERENCES `Bill` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+-- Ensure AUTO_INCREMENT starts after highest existing billNumber (124)
+ALTER TABLE `Bill` AUTO_INCREMENT = 125;
 
--- Dumping data for table `BillAmendment` (3 rows)
+-- Data for table `BillAmendment` (3 rows)
 INSERT INTO `BillAmendment` (`id`, `billId`, `version`, `changes`, `reason`, `modifiedBy`, `originalTotal`, `newSubtotal`, `newSgstAmount`, `newCgstAmount`, `newDiscount`, `newTotal`, `difference`, `paymentStatus`, `createdAt`) VALUES
   ('fc2a7644-2691-4a2c-9510-1aaf28f72902', 'b41dbca1-bc28-4f8a-93d8-61354eae23ed', 2, '[{"newQty":2,"oldQty":1,"itemName":"Paneer Tikka"}]', 'Customer correction', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '1386', '1570', '39.25', '39.25', '0', '1649', '263', 'PENDING', '2026-09-06 05:09:03.449'),
   ('c20505c4-5607-461b-8e9c-d9fd10879cc7', 'b41dbca1-bc28-4f8a-93d8-61354eae23ed', 3, '[{"newQty":3,"oldQty":2,"itemName":"Paneer Tikka"}]', 'Customer added 1 more', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '1386', '1820', '45.5', '45.5', '0', '1911', '525', 'PENDING', '2026-09-06 05:13:09.660'),
   ('af08192b-78e0-4824-9dfe-d676543ea2a1', '5ffc4da1-4855-4d8f-9b41-66f5b12ed115', 2, '[{"newQty":2,"oldQty":4,"itemName":"Spring Roll"}]', 'Captain entered wrong quantity', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', '1680', '1290', '29.75', '29.75', '100', '1250', '-430', 'PENDING', '2026-09-07 15:03:56.815');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `Payment`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `Payment`;
-CREATE TABLE `Payment` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `billId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `method` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `amount` decimal(65,30) NOT NULL,
-  `status` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'PAID',
-  `paidAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `Payment_billId_key` (`billId`),
-  KEY `Payment_method_idx` (`method`),
-  KEY `Payment_paidAt_idx` (`paidAt`),
-  KEY `Payment_status_paidAt_idx` (`status`,`paidAt`),
-  CONSTRAINT `Payment_billId_fkey` FOREIGN KEY (`billId`) REFERENCES `Bill` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- Dumping data for table `Payment` (106 rows)
+-- Data for table `Payment` (106 rows)
 INSERT INTO `Payment` (`id`, `billId`, `method`, `amount`, `status`, `paidAt`) VALUES
   ('0023f49b-3c34-400b-9bb1-628ee3aa4791', '8f6793ac-5f46-4978-b82c-59110f6de720', 'CASH', '20.000000000000000000000000000000', 'PAID', '2026-09-15 08:39:28.063'),
   ('05b9e42e-f35d-4736-93f3-e76d6afa128d', '03f4cd71-97a2-43c3-bc39-d4a32ba21282', 'UPI', '882.000000000000000000000000000000', 'PAID', '2026-09-06 07:06:06.837'),
@@ -2172,56 +2128,68 @@ INSERT INTO `Payment` (`id`, `billId`, `method`, `amount`, `status`, `paidAt`) V
   ('fb04067e-789e-4586-965e-4a78403b37fb', '5cc067c6-479f-4dc1-95dc-cc7a257ba4ab', 'UPI', '320.000000000000000000000000000000', 'PAID', '2026-09-16 14:43:43.622'),
   ('fdecdb70-7211-49ce-a180-7f9362742861', '57657ad4-dd04-41f6-a540-af39074f65ca', 'CASH', '369.000000000000000000000000000000', 'PAID', '2026-09-14 09:05:13.987');
 
--- ------------------------------------------------------------------------------
--- Table structure for table `OnlineOrder`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `OnlineOrder`;
-CREATE TABLE `OnlineOrder` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `platform` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `externalOrderId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `customerName` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `items` json NOT NULL,
-  `subtotal` decimal(65,30) NOT NULL,
-  `discount` decimal(65,30) NOT NULL DEFAULT '0.000000000000000000000000000000',
-  `charges` decimal(65,30) NOT NULL DEFAULT '0.000000000000000000000000000000',
-  `total` decimal(65,30) NOT NULL,
-  `paymentStatus` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'PAID',
-  `status` varchar(191) COLLATE utf8mb4_bin NOT NULL DEFAULT 'NEW',
-  `notes` text COLLATE utf8mb4_bin,
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt` datetime(3) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `OnlineOrder_createdAt_idx` (`createdAt`),
-  KEY `OnlineOrder_platform_idx` (`platform`),
-  KEY `OnlineOrder_platform_status_idx` (`platform`,`status`),
-  KEY `OnlineOrder_status_createdAt_idx` (`status`,`createdAt`),
-  KEY `OnlineOrder_status_idx` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
 -- No data rows for table `OnlineOrder`
 
--- ------------------------------------------------------------------------------
--- Table structure for table `AuditLog`
--- ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS `AuditLog`;
-CREATE TABLE `AuditLog` (
-  `id` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `userId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `action` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `entity` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `entityId` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-  `before` json DEFAULT NULL,
-  `after` json DEFAULT NULL,
-  `reason` text COLLATE utf8mb4_bin,
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `AuditLog_createdAt_idx` (`createdAt`),
-  KEY `AuditLog_entity_idx` (`entity`),
-  KEY `AuditLog_userId_idx` (`userId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+-- Data for table `Supplier` (11 rows)
+INSERT INTO `Supplier` (`id`, `name`, `phone`, `address`, `active`, `createdAt`) VALUES
+  ('4192a2bb-c0bb-41ee-852d-55474b42f6fd', 'Fruits & Vegetables', NULL, NULL, 1, '2026-09-06 18:27:37.321'),
+  ('4ed515f0-9f2a-4793-8ea1-578f3d6ff0ea', 'Groceries & Staples', NULL, NULL, 1, '2026-09-06 18:27:37.331'),
+  ('8a6066ae-4b57-447e-8acf-d51b90f4f8f7', 'Spices & Masalas', NULL, NULL, 1, '2026-09-06 18:27:37.339'),
+  ('93b94a1e-eefb-456b-9574-5647949b72f8', 'Dairy & Bakery', NULL, NULL, 1, '2026-09-06 18:27:37.346'),
+  ('af51f0c9-a8b2-42b3-933b-bd81bb1f29e9', 'Cooking Essentials', NULL, NULL, 1, '2026-09-06 18:27:37.353'),
+  ('c433c372-87a5-4083-9f25-275da36082e1', 'Beverages', NULL, NULL, 1, '2026-09-06 18:27:37.359'),
+  ('ec85341a-ca6b-42ca-af03-b71ed2a61fb2', 'Packaged Foods', NULL, NULL, 1, '2026-09-06 18:27:37.365'),
+  ('2a6e7b49-039d-4040-8a54-b055da4b0022', 'Utensils', NULL, NULL, 1, '2026-09-06 18:27:37.370'),
+  ('88a90893-6eac-4628-b779-a6d984d754db', 'Disposables', NULL, NULL, 1, '2026-09-06 18:27:37.376'),
+  ('1b8855aa-e924-41e2-954b-e18171fe4911', 'General Essentials', NULL, NULL, 1, '2026-09-06 18:27:37.382'),
+  ('b23809bb-8fa0-44c8-8b33-b277b0421e1c', 'Others', NULL, NULL, 1, '2026-09-06 18:27:37.388');
 
--- Dumping data for table `AuditLog` (23 rows)
+-- Data for table `PurchaseEntry` (5 rows)
+INSERT INTO `PurchaseEntry` (`id`, `supplierId`, `purchaseNumber`, `totalAmount`, `purchaseDate`, `addToInventory`, `status`, `createdAt`) VALUES
+  ('83ce4182-6b46-4185-8234-a0e8212353d8', '4ed515f0-9f2a-4793-8ea1-578f3d6ff0ea', 'PO-002', '3300', '2026-09-06 00:00:00.000', 1, 'ACTIVE', '2026-09-06 05:09:03.375'),
+  ('de7104cf-7e8c-451a-9ce5-3a90dafbb03b', '4ed515f0-9f2a-4793-8ea1-578f3d6ff0ea', 'PO-VERIFY', '2375', '2026-09-06 00:00:00.000', 1, 'ACTIVE', '2026-09-06 05:13:09.588'),
+  ('72f8bc06-bf9f-40af-b561-d87e3f697183', '4192a2bb-c0bb-41ee-852d-55474b42f6fd', NULL, '1700', '2026-09-06 00:00:00.000', 1, 'ACTIVE', '2026-09-06 05:30:02.260'),
+  ('f44aec7f-5dca-4819-90c4-9c308b638ac9', '4192a2bb-c0bb-41ee-852d-55474b42f6fd', '123123', '2250', '2026-09-07 00:00:00.000', 1, 'ACTIVE', '2026-09-07 11:15:02.092'),
+  ('44aa6c7a-a3ae-41b3-b312-28d54f637886', '4192a2bb-c0bb-41ee-852d-55474b42f6fd', 'sgs82', '1200', '2026-09-11 00:00:00.000', 1, 'CANCELLED', '2026-09-11 03:08:47.926');
+
+-- Data for table `PurchaseItem` (5 rows)
+INSERT INTO `PurchaseItem` (`id`, `purchaseId`, `name`, `quantity`, `unit`, `rate`, `amount`) VALUES
+  ('47ef04a7-d2de-4d58-a5c8-bd671c6f89a2', '83ce4182-6b46-4185-8234-a0e8212353d8', 'Fresh Paneer', '15', 'kg', '220', '3300'),
+  ('29055a7c-191e-494f-b780-62285686c4db', 'de7104cf-7e8c-451a-9ce5-3a90dafbb03b', 'Basmati Rice', '25', 'kg', '95', '2375'),
+  ('0427772c-7883-461d-b369-cef861613bee', '72f8bc06-bf9f-40af-b561-d87e3f697183', 'potato', '50', 'kg', '34', '1700'),
+  ('af1c1a22-4496-45fe-9bd7-02fa0a91e116', 'f44aec7f-5dca-4819-90c4-9c308b638ac9', 'potato', '150', 'kg', '15', '2250'),
+  ('b66fb00e-e566-4f22-b4af-10f5867efe0e', '44aa6c7a-a3ae-41b3-b312-28d54f637886', 'tomato', '100', 'kg', '12', '1200');
+
+-- Data for table `InventoryItem` (5 rows)
+INSERT INTO `InventoryItem` (`id`, `name`, `currentStock`, `unit`, `lowStockThreshold`, `updatedAt`) VALUES
+  ('0b24da2f-40d0-43ce-a2b3-bb8a823f271d', 'Fresh Paneer', '12', 'kg', '0', '2026-09-06 05:09:03.430'),
+  ('d88e51db-1e4d-4dc9-a112-3013abbf7d3c', 'Basmati Rice', '30', 'kg', '0', '2026-09-06 05:13:09.641'),
+  ('c119bb97-498b-4d93-ae23-bddd9589a8e5', 'potato', '150', 'kg', '10', '2026-09-07 11:15:02.112'),
+  ('cecf961c-2373-4a24-9159-dee90e81a012', 'tomato', '0', 'kg', '0', '2026-09-11 12:37:43.260'),
+  ('ac4a4cb7-98a7-4e63-bf06-50b3af65e25b', 'Step4 Test Item 1789145492410', '50', 'KG', '10', '2026-09-11 16:51:32.411');
+
+-- Data for table `InventoryTransaction` (14 rows)
+INSERT INTO `InventoryTransaction` (`id`, `inventoryItemId`, `type`, `quantity`, `referenceId`, `notes`, `createdAt`) VALUES
+  ('d5cf6fe6-f36e-47fa-87dd-21d64fe6a5b5', '0b24da2f-40d0-43ce-a2b3-bb8a823f271d', 'PURCHASE', '15', '83ce4182-6b46-4185-8234-a0e8212353d8', 'Purchase PO-002', '2026-09-06 05:09:03.381'),
+  ('a817835e-7325-4ae2-8391-37a86679bd3b', '0b24da2f-40d0-43ce-a2b3-bb8a823f271d', 'MANUAL_ADJUSTMENT', '-3', NULL, '[Used] 3kg used in kitchen', '2026-09-06 05:09:03.432'),
+  ('4dd676a6-f94a-4b76-997b-4b45a81438fb', 'd88e51db-1e4d-4dc9-a112-3013abbf7d3c', 'PURCHASE', '25', 'de7104cf-7e8c-451a-9ce5-3a90dafbb03b', 'Purchase PO-VERIFY', '2026-09-06 05:13:09.592'),
+  ('95a09a58-af9d-4eff-ab8e-c6e76ad4aa0a', 'd88e51db-1e4d-4dc9-a112-3013abbf7d3c', 'MANUAL_ADJUSTMENT', '-5', NULL, '[Used] Kitchen consumption', '2026-09-06 05:13:09.631'),
+  ('03fa01c5-49f1-4a9b-950d-cafcd4e03655', 'd88e51db-1e4d-4dc9-a112-3013abbf7d3c', 'MANUAL_ADJUSTMENT', '10', NULL, '[Buyed Inventory] Local market purchase', '2026-09-06 05:13:09.643'),
+  ('cb5c20d4-2530-4dca-92cb-39b9b118f3fe', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'PURCHASE', '50', '72f8bc06-bf9f-40af-b561-d87e3f697183', 'Purchase 72f8bc06-bf9f-40af-b561-d87e3f697183', '2026-09-06 05:30:02.266'),
+  ('c3084085-7f95-4823-bb65-d03df56e9b35', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'MANUAL_ADJUSTMENT', '-5', NULL, '[Used]', '2026-09-06 05:30:53.861'),
+  ('0ef3b2bc-6b9c-4dd3-852a-158157686746', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'MANUAL_ADJUSTMENT', '-10', NULL, '[Used]', '2026-09-06 05:31:14.375'),
+  ('8fd39d2a-5cc6-4751-8590-233e2f9c4158', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'MANUAL_ADJUSTMENT', '-20', NULL, '[Used]', '2026-09-06 17:52:23.528'),
+  ('0ac62b38-c2fc-4613-8855-95454bf52647', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'MANUAL_ADJUSTMENT', '-7', NULL, '[Used]', '2026-09-06 17:52:30.866'),
+  ('cb7f3bc9-ff88-4e5e-b098-376d046e5aa5', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'MANUAL_ADJUSTMENT', '-8', NULL, '[Used]', '2026-09-06 18:37:34.106'),
+  ('81719ecd-9bc6-41f4-b9f7-e058a496d6a9', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', 'PURCHASE', '150', 'f44aec7f-5dca-4819-90c4-9c308b638ac9', 'Purchase 123123', '2026-09-07 11:15:02.119'),
+  ('dedb05a7-a2f2-4ac2-8828-c0c1f3be3c7b', 'cecf961c-2373-4a24-9159-dee90e81a012', 'PURCHASE', '100', '44aa6c7a-a3ae-41b3-b312-28d54f637886', 'Purchase sgs82', '2026-09-11 03:08:48.253'),
+  ('4370d080-941f-4413-a278-daee83f76916', 'cecf961c-2373-4a24-9159-dee90e81a012', 'PURCHASE_REVERSAL', '-100', '44aa6c7a-a3ae-41b3-b312-28d54f637886', 'Purchase reversal - sgs82', '2026-09-11 12:37:43.726');
+
+-- Data for table `Settings` (1 rows)
+INSERT INTO `Settings` (`id`, `restaurantName`, `address`, `phone`, `gstin`, `sgstPercent`, `cgstPercent`, `includePurchasesInReports`, `updatedAt`) VALUES
+  ('dad25155-2a70-42cd-b12f-e99b6bd2a89f', 'Maharaj Veg Villa', 'Paravdi bypass Triveni square, opp. Hotel maroon, Godhra', NULL, NULL, '2.5', '2.5', 1, '2026-09-16 02:15:14.918');
+
+-- Data for table `AuditLog` (23 rows)
 INSERT INTO `AuditLog` (`id`, `userId`, `action`, `entity`, `entityId`, `before`, `after`, `reason`, `createdAt`) VALUES
   ('11590525-0e51-48c0-8cc3-59bb89e1ec08', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'CREATE', 'PURCHASE', 'f44aec7f-5dca-4819-90c4-9c308b638ac9', NULL, '{"itemCount": 1, "supplierId": "4192a2bb-c0bb-41ee-852d-55474b42f6fd", "totalAmount": 2250, "addToInventory": true}', NULL, '2026-09-07 05:45:02.123'),
   ('1a1b7e82-e9c0-46ce-b32c-177ec17cda4d', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'UPDATE', 'INVENTORY', 'c119bb97-498b-4d93-ae23-bddd9589a8e5', '{"name": "potato", "unit": "kg", "threshold": 0}', '{"name": "potato", "unit": "kg", "threshold": 10}', NULL, '2026-09-06 12:22:08.065'),
@@ -2247,7 +2215,56 @@ INSERT INTO `AuditLog` (`id`, `userId`, `action`, `entity`, `entityId`, `before`
   ('e6ac1044-0be0-4a48-9199-bc1802997341', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'ADJUST', 'INVENTORY', '0b24da2f-40d0-43ce-a2b3-bb8a823f271d', '{"stock": 15}', '{"stock": 12}', '[Used] 3kg used in kitchen', '2026-09-05 23:39:03.433'),
   ('ed9ca6c2-dda1-4088-9d66-bd4940117936', '785dbf6f-e7c6-4e34-90de-e30c1f52ced7', 'ADJUST', 'INVENTORY', 'd88e51db-1e4d-4dc9-a112-3013abbf7d3c', '{"stock": 20}', '{"stock": 30}', '[Buyed Inventory] Local market purchase', '2026-09-05 23:43:09.643');
 
+-- ------------------------------------------------------------------------------
+-- 4. FOREIGN KEY CONSTRAINTS (Applied after all data is inserted)
+-- ------------------------------------------------------------------------------
+-- AddForeignKey
+ALTER TABLE `UserPermission` ADD CONSTRAINT `UserPermission_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `RefreshToken` ADD CONSTRAINT `RefreshToken_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `MenuItem` ADD CONSTRAINT `MenuItem_categoryId_fkey` FOREIGN KEY (`categoryId`) REFERENCES `Category`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `TableSession` ADD CONSTRAINT `TableSession_tableId_fkey` FOREIGN KEY (`tableId`) REFERENCES `Table`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `TableSession` ADD CONSTRAINT `TableSession_captainId_fkey` FOREIGN KEY (`captainId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `Order` ADD CONSTRAINT `Order_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `TableSession`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `Order` ADD CONSTRAINT `Order_tableId_fkey` FOREIGN KEY (`tableId`) REFERENCES `Table`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `Order` ADD CONSTRAINT `Order_captainId_fkey` FOREIGN KEY (`captainId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `OrderItem` ADD CONSTRAINT `OrderItem_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `OrderItem` ADD CONSTRAINT `OrderItem_menuItemId_fkey` FOREIGN KEY (`menuItemId`) REFERENCES `MenuItem`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `OrderItem` ADD CONSTRAINT `OrderItem_kotId_fkey` FOREIGN KEY (`kotId`) REFERENCES `KOT`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `OrderItemHistory` ADD CONSTRAINT `OrderItemHistory_orderItemId_fkey` FOREIGN KEY (`orderItemId`) REFERENCES `OrderItem`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `KOT` ADD CONSTRAINT `KOT_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `KOT` ADD CONSTRAINT `KOT_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `TableSession`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `Bill` ADD CONSTRAINT `Bill_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `Bill` ADD CONSTRAINT `Bill_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `TableSession`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `BillAmendment` ADD CONSTRAINT `BillAmendment_billId_fkey` FOREIGN KEY (`billId`) REFERENCES `Bill`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `Payment` ADD CONSTRAINT `Payment_billId_fkey` FOREIGN KEY (`billId`) REFERENCES `Bill`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `PurchaseEntry` ADD CONSTRAINT `PurchaseEntry_supplierId_fkey` FOREIGN KEY (`supplierId`) REFERENCES `Supplier`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `PurchaseItem` ADD CONSTRAINT `PurchaseItem_purchaseId_fkey` FOREIGN KEY (`purchaseId`) REFERENCES `PurchaseEntry`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+-- AddForeignKey
+ALTER TABLE `InventoryTransaction` ADD CONSTRAINT `InventoryTransaction_inventoryItemId_fkey` FOREIGN KEY (`inventoryItemId`) REFERENCES `InventoryItem`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- ------------------------------------------------------------------------------
+-- 5. COMMIT & RESTORE SESSION VARIABLES
+-- ------------------------------------------------------------------------------
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;
 
--- Dump completed successfully on 2026-09-17T06:50:30.194Z
+-- Dump completed successfully on 2026-09-17T10:19:41.964Z
