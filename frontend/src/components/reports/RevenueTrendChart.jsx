@@ -98,7 +98,7 @@ export default function RevenueTrendChart({ timeline = [], isSingleDay = false }
               {metric === 'revenue' ? 'Sales & Revenue Trend' : 'Order Volume Trend'}
             </h3>
             <p className="text-[11px] text-text-secondary dark:text-slate-400">
-              {isSingleDay ? 'Hour-by-hour performance today' : 'Daily sales progression over period'}
+              {isSingleDay ? 'Hour-by-hour performance breakdown' : 'Daily sales progression over period'}
             </p>
           </div>
         </div>

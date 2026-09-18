@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { parseDateRange } from '../utils/dateUtils.js';
 
 export const getAll = async (filters = {}) => {
   const { platform, status, startDate, endDate, from, to, limit, take, page, all } = filters || {};
@@ -9,17 +10,8 @@ export const getAll = async (filters = {}) => {
   const startParam = startDate || from;
   const endParam = endDate || to;
   if (startParam || endParam) {
-    where.createdAt = {};
-    if (startParam) {
-      const s = new Date(startParam);
-      s.setHours(0, 0, 0, 0);
-      where.createdAt.gte = s;
-    }
-    if (endParam) {
-      const e = new Date(endParam);
-      e.setHours(23, 59, 59, 999);
-      where.createdAt.lte = e;
-    }
+    const { start, end } = parseDateRange(startParam, endParam);
+    where.createdAt = { gte: start, lte: end };
   }
 
   const queryOptions = {

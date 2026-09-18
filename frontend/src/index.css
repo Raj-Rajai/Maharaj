@@ -194,3 +194,224 @@ html {
   scroll-behavior: smooth;
 }
 
+/* ==========================================================================
+   7-Inch Tablet (6.0" x 3.5") Responsive & Touch Ergonomics
+   Supports both Landscape (Height ~400-550px) & Portrait (Width ~480-600px)
+   ========================================================================== */
+
+/* Fast touch response (removes 300ms tap delay on Android / iOS tablets) */
+button,
+a,
+input,
+select,
+textarea,
+[role="button"],
+.touch-tap {
+  touch-action: manipulation;
+}
+
+/* Smooth inertial touch scrolling across all overflow containers */
+.touch-scroll,
+.overflow-y-auto,
+.overflow-x-auto,
+main {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Landscape / Short Viewport Optimizations (Height <= 620px or Landscape <= 1024px) */
+@media (max-height: 620px) {
+  .tablet-header-compact {
+    height: 3rem !important; /* 48px header on short screens */
+  }
+
+  .tablet-compact-pad {
+    padding-top: 0.625rem !important;
+  }
+
+  .tablet-modal-container {
+    padding: 0.375rem !important;
+  }
+
+  .tablet-modal-content {
+    max-height: 96vh !important;
+  }
+
+  .tablet-modal-header {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    padding-left: 0.875rem !important;
+    padding-right: 0.875rem !important;
+  }
+
+  .tablet-modal-body {
+    padding-top: 0.625rem !important;
+    padding-bottom: 0.625rem !important;
+    padding-left: 0.875rem !important;
+    padding-right: 0.875rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .tablet-modal-footer {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    padding-left: 0.875rem !important;
+    padding-right: 0.875rem !important;
+  }
+
+  /* Compact form spacing in landscape */
+  .tablet-form-gap {
+    gap: 0.5rem !important;
+  }
+}
+
+/* ==========================================================================
+   Tablet & Mobile Ergonomics
+   Uses native responsive scaling without CSS zoom, ensuring 100% accurate
+   touch coordinates and full unclipped scrolling down to the last pixel.
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .tablet-compact-pad {
+    padding-top: 0.5rem !important;
+  }
+}
+
+/* In short landscape viewports (height <= 650px) */
+@media (max-height: 650px) {
+  .tablet-compact-pad {
+    padding-top: 0.375rem !important;
+  }
+}
+
+/* Tablet Landscape Specific (Width >= 500px, Height <= 700px, Orientation: Landscape) */
+@media (min-width: 500px) and (orientation: landscape) {
+  /* Force side-by-side split view for Order and TakeAway pages in landscape */
+  .tablet-order-split {
+    flex-direction: row !important;
+  }
+
+  .tablet-order-menu {
+    display: flex !important;
+    flex: 3 !important;
+    min-height: 0 !important;
+  }
+
+  .tablet-order-cart {
+    display: flex !important;
+    flex: 2 !important;
+    min-height: 0 !important;
+  }
+
+  /* Hide the mobile view switcher tab in landscape because both panels are visible */
+  .tablet-order-switcher {
+    display: none !important;
+  }
+
+  /* In landscape, the left sidebar is visible, so hide the bottom navigation bar */
+  .tablet-bottom-nav-landscape-hide {
+    display: none !important;
+  }
+
+  /* Show persistent left sidebar in landscape */
+  .tablet-sidebar-landscape-show {
+    display: flex !important;
+  }
+
+  /* Side-by-side ordering panel support */
+  .tablet-landscape-split {
+    display: flex !important;
+    flex-direction: row !important;
+  }
+
+  /* Compact grid adjustments for landscape */
+  .tablet-landscape-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .tablet-landscape-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .tablet-landscape-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Tablet Portrait Specific (Width <= 768px, Height >= 650px) */
+@media (max-width: 768px) and (orientation: portrait) {
+  /* Modals expand to utilize full comfortable portrait width */
+  .tablet-modal-content {
+    width: 96vw !important;
+    max-width: 96vw !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  /* Touch-friendly button heights */
+  .tablet-touch-btn {
+    min-height: 42px !important;
+  }
+}
+
+/* Universal compact table cell styling for tablet */
+@media (max-width: 1024px) {
+  .tablet-table-cell {
+    padding-left: 0.625rem !important;
+    padding-right: 0.625rem !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    font-size: 0.8125rem !important;
+  }
+}
+
+/* ==========================================================================
+   Tablet Tab Bar & Category Pills Styling (Portrait & Landscape)
+   ========================================================================== */
+.tablet-tabs-container,
+.tablet-tab-bar {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  touch-action: pan-x;
+  scroll-behavior: smooth;
+  gap: 0.375rem;
+}
+
+.tablet-tabs-container::-webkit-scrollbar,
+.tablet-tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.tablet-tab-pill {
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+  transition: all 0.15s ease-in-out;
+}
+
+/* In short landscape viewports (height <= 620px), keep tabs compact vertically */
+@media (max-height: 620px) {
+  .tablet-tab-pill {
+    min-height: 32px !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* In portrait viewports (width <= 768px), ensure comfortable tap targets */
+@media (max-width: 768px) and (orientation: portrait) {
+  .tablet-tab-pill {
+    min-height: 38px !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+}
+
+

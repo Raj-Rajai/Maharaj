@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { UtensilsCrossed, Plus, Edit2, Trash2, Check, X, CopyPlus } from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
+import Pagination from '../components/ui/Pagination';
 import { useAuth } from '../context/AuthContext';
 import { useOnRouteActive } from '../components/common/RouteKeepAlive';
 import { menuBlue, acBlue, nonAcBlue, swiggyIcon, zomatoIcon } from '../assets';
@@ -44,6 +45,8 @@ export default function MenuPage() {
   const [loading, setLoading] = useState(true);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [selectedCat, setSelectedCat] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [catModal, setCatModal] = useState(null);
   const [itemModal, setItemModal] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', displayOrder: 0 });
@@ -136,6 +139,7 @@ export default function MenuPage() {
   const handleMenuTypeChange = (newType) => {
     setMenuType(newType);
     setSelectedCat('ALL');
+    setCurrentPage(1);
     fetchItems(newType);
   };
 
@@ -288,7 +292,14 @@ export default function MenuPage() {
     }
   };
 
-  const filteredItems = items.filter(i => selectedCat === 'ALL' || i.categoryId === selectedCat);
+  const filteredItems = useMemo(() => {
+    return items.filter(i => selectedCat === 'ALL' || i.categoryId === selectedCat);
+  }, [items, selectedCat]);
+
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredItems.slice(start, start + pageSize);
+  }, [filteredItems, currentPage, pageSize]);
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
   if (availableTabs.length === 0) return <div className="p-8 text-center text-text-secondary">You do not have permission to view any menus.</div>;
@@ -318,12 +329,12 @@ export default function MenuPage() {
         </div>
       </div>
 
-      <div className="flex bg-slate-200/80 dark:bg-slate-800/80 p-1 rounded-xl border border-border dark:border-slate-700 gap-1 overflow-x-auto no-scrollbar">
+      <div className="tablet-tab-bar bg-slate-200/80 dark:bg-slate-800/80 p-1 rounded-xl border border-border dark:border-slate-700 gap-1">
         {availableTabs.map(t => (
           <button
             key={t.id}
             onClick={() => handleMenuTypeChange(t.id)}
-            className={`min-w-[120px] sm:min-w-0 flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
+            className={`min-w-[110px] sm:min-w-0 flex-1 tablet-tab-pill gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer ${
               menuType === t.id ? 'bg-primary text-white shadow-xs' : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-700/60'
             }`}
           >
@@ -343,7 +354,7 @@ export default function MenuPage() {
           <h2 className="text-xs sm:text-sm font-semibold text-text dark:text-slate-100">Categories</h2>
           {canCreateCategory && (
             <button onClick={() => { setCatForm({ name: '', displayOrder: categories.length }); setCatModal('new'); }}
-              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary-light cursor-pointer shadow-xs">
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary-light cursor-pointer shadow-xs min-h-[36px]">
               <Plus size={14} /> Add Category
             </button>
           )}
@@ -370,12 +381,12 @@ export default function MenuPage() {
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border-b border-border dark:border-slate-800 bg-surface/50 dark:bg-slate-800/50">
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            <button onClick={() => setSelectedCat('ALL')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${selectedCat === 'ALL' ? 'bg-primary text-white' : 'bg-white dark:bg-slate-800 text-text-secondary dark:text-slate-300 border border-border dark:border-slate-700 hover:bg-surface dark:hover:bg-slate-700'}`}>
+          <div className="tablet-tab-bar py-0.5">
+            <button onClick={() => { setSelectedCat('ALL'); setCurrentPage(1); }} className={`tablet-tab-pill px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${selectedCat === 'ALL' ? 'bg-primary text-white font-semibold' : 'bg-white dark:bg-slate-800 text-text-secondary dark:text-slate-300 border border-border dark:border-slate-700 hover:bg-surface dark:hover:bg-slate-700'}`}>
               All Items ({items.length})
             </button>
             {categories.map((c) => (
-              <button key={c.id} onClick={() => setSelectedCat(c.id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${selectedCat === c.id ? 'bg-primary text-white' : 'bg-white dark:bg-slate-800 text-text-secondary dark:text-slate-300 border border-border dark:border-slate-700 hover:bg-surface dark:hover:bg-slate-700'}`}>
+              <button key={c.id} onClick={() => { setSelectedCat(c.id); setCurrentPage(1); }} className={`tablet-tab-pill px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${selectedCat === c.id ? 'bg-primary text-white font-semibold' : 'bg-white dark:bg-slate-800 text-text-secondary dark:text-slate-300 border border-border dark:border-slate-700 hover:bg-surface dark:hover:bg-slate-700'}`}>
                 {c.name}
               </button>
             ))}
@@ -394,28 +405,31 @@ export default function MenuPage() {
             <table className="w-full text-sm min-w-[540px]">
               <thead className="bg-surface dark:bg-slate-800/80 border-b border-border dark:border-slate-800">
                 <tr className="text-left text-text-secondary dark:text-slate-400 text-xs">
-                  <th className="px-4 py-3 font-semibold">Item Name</th><th className="px-4 py-3 font-semibold">Category</th><th className="px-4 py-3 font-semibold">Price (₹)</th><th className="px-4 py-3 font-semibold">Status</th>
-                  {(canEditCurrent || canDeleteCurrent) && <th className="px-4 py-3 font-semibold text-right">Actions</th>}
+                  <th className="px-4 py-3 tablet-table-cell font-semibold">Item Name</th>
+                  <th className="px-4 py-3 tablet-table-cell font-semibold">Category</th>
+                  <th className="px-4 py-3 tablet-table-cell font-semibold">Price (₹)</th>
+                  <th className="px-4 py-3 tablet-table-cell font-semibold">Status</th>
+                  {(canEditCurrent || canDeleteCurrent) && <th className="px-4 py-3 tablet-table-cell font-semibold text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border dark:divide-slate-800">
-                {filteredItems.map(item => (
+                {paginatedItems.map(item => (
                   <tr key={item.id} className="hover:bg-surface/50 dark:hover:bg-slate-800/50">
-                    <td className="px-4 py-3 font-medium text-text dark:text-slate-100">
+                    <td className="px-4 py-3 tablet-table-cell font-medium text-text dark:text-slate-100">
                       <div>{item.name}</div>
                       {item.description && <div className="text-xs text-text-secondary dark:text-slate-400 font-normal truncate max-w-xs">{item.description}</div>}
                     </td>
-                    <td className="px-4 py-3 text-text-secondary dark:text-slate-400 text-xs">{item.category?.name || '-'}</td>
-                    <td className="px-4 py-3 font-mono font-bold text-text dark:text-slate-100">₹{parseFloat(item.price).toFixed(2)}</td>
-                    <td className="px-4 py-3"><Badge variant={item.active ? 'success' : 'danger'}>{item.active ? 'Active' : 'Inactive'}</Badge></td>
+                    <td className="px-4 py-3 tablet-table-cell text-text-secondary dark:text-slate-400 text-xs">{item.category?.name || '-'}</td>
+                    <td className="px-4 py-3 tablet-table-cell font-mono font-bold text-text dark:text-slate-100">₹{parseFloat(item.price).toFixed(2)}</td>
+                    <td className="px-4 py-3 tablet-table-cell"><Badge variant={item.active ? 'success' : 'danger'}>{item.active ? 'Active' : 'Inactive'}</Badge></td>
                     {(canEditCurrent || canDeleteCurrent) && (
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 tablet-table-cell text-right">
                         <div className="flex items-center justify-end gap-2">
                           {canEditCurrent && (
-                            <button onClick={() => openEditItemModal(item)} className="p-1.5 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 cursor-pointer" title="Edit Item"><Edit2 size={14} /></button>
+                            <button onClick={() => openEditItemModal(item)} className="p-1.5 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 cursor-pointer min-h-[36px] min-w-[36px] inline-flex items-center justify-center" title="Edit Item"><Edit2 size={14} /></button>
                           )}
                           {canEditCurrent && (
-                            <button onClick={() => toggleItem(item.id, item.active)} className={`text-xs px-2 py-1 rounded font-medium border cursor-pointer ${item.active ? 'text-danger dark:text-rose-400 border-danger/30 dark:border-rose-500/30 hover:bg-danger/10 dark:hover:bg-rose-950/40' : 'text-success dark:text-emerald-400 border-success/30 dark:border-emerald-500/30 hover:bg-success/10 dark:hover:bg-emerald-950/40'}`}>
+                            <button onClick={() => toggleItem(item.id, item.active)} className={`text-xs px-2.5 py-1 rounded font-medium border cursor-pointer min-h-[34px] inline-flex items-center justify-center ${item.active ? 'text-danger dark:text-rose-400 border-danger/30 dark:border-rose-500/30 hover:bg-danger/10 dark:hover:bg-rose-950/40' : 'text-success dark:text-emerald-400 border-success/30 dark:border-emerald-500/30 hover:bg-success/10 dark:hover:bg-emerald-950/40'}`}>
                               {item.active ? 'Disable' : 'Enable'}
                             </button>
                           )}
@@ -430,6 +444,19 @@ export default function MenuPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {!itemsLoading && filteredItems.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredItems.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            pageSizeOptions={[10, 25, 50, 100]}
+          />
         )}
       </div>
 

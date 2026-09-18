@@ -1,5 +1,6 @@
 import prisma, { rawQuery } from '../utils/prisma.js';
 import { emitKotCreated, emitKotUpdated } from '../utils/socket.js';
+import { parseDateRange } from '../utils/dateUtils.js';
 
 export const create = async (orderId, captainId, sessionId = null) => {
   const order = await prisma.order.findUnique({
@@ -65,14 +66,9 @@ export const getAll = async (filters) => {
   }
 
   if (startDate || endDate) {
-    if (startDate) {
-      conditions.push('k.createdAt >= ?');
-      params.push(new Date(startDate));
-    }
-    if (endDate) {
-      conditions.push('k.createdAt <= ?');
-      params.push(new Date(endDate));
-    }
+    const { start, end } = parseDateRange(startDate, endDate);
+    conditions.push('k.createdAt >= ? AND k.createdAt <= ?');
+    params.push(start, end);
   } else if (!status) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

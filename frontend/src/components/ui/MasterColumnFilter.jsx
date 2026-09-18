@@ -107,19 +107,27 @@ export default function MasterColumnFilter({
 
   if (!isOpen) return null;
 
-  const popoverWidth = 280;
-  const popoverHeight = 400;
-  let top = (anchorRect?.bottom || 100) + 6;
+  const popoverWidth = Math.min(280, typeof window !== 'undefined' ? window.innerWidth - 24 : 280);
+  const winHeight = typeof window !== 'undefined' ? window.innerHeight : 600;
+  const winWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
+  const maxHeight = Math.min(380, winHeight - 24);
+
+  let top = (anchorRect?.bottom || 100) + 4;
   let left = anchorRect?.left || 100;
 
-  if (top + popoverHeight > window.innerHeight && (anchorRect?.top || 200) - popoverHeight > 10) {
-    top = (anchorRect?.top || 200) - popoverHeight - 6;
+  if (top + maxHeight > winHeight) {
+    const aboveTop = (anchorRect?.top || 200) - maxHeight - 4;
+    if (aboveTop >= 8) {
+      top = aboveTop;
+    } else {
+      top = Math.max(8, winHeight - maxHeight - 8);
+    }
   }
-  if (left + popoverWidth > window.innerWidth - 16) {
-    left = window.innerWidth - popoverWidth - 16;
+  if (left + popoverWidth > winWidth - 12) {
+    left = Math.max(8, winWidth - popoverWidth - 12);
   }
-  if (left < 16) {
-    left = 16;
+  if (left < 12) {
+    left = 12;
   }
 
   const sortLabels = {
@@ -130,7 +138,6 @@ export default function MasterColumnFilter({
 
   return (
     <>
-
       <div className="fixed inset-0 z-40 cursor-default" onClick={onClose} />
 
       <div
@@ -139,8 +146,9 @@ export default function MasterColumnFilter({
           position: 'fixed',
           top: `${top}px`,
           left: `${left}px`,
+          maxHeight: `${maxHeight}px`,
         }}
-        className="z-50 w-72 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 text-text dark:text-slate-100 text-xs p-3 space-y-2.5 font-sans animate-in fade-in zoom-in-95 duration-100"
+        className="z-50 w-72 max-w-[calc(100vw-24px)] bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 text-text dark:text-slate-100 text-xs p-3 font-sans animate-in fade-in zoom-in-95 duration-100 flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
 
@@ -183,14 +191,14 @@ export default function MasterColumnFilter({
           </button>
         </div>
 
-        {targetCellValue && (
+        {targetCellValue !== null && targetCellValue !== undefined && (
           <button
             onClick={() => handleFilterOnlyThis(targetCellValue)}
             className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-medium hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors"
-            title={`Filter table to only show ${targetCellValue}`}
+            title={`Filter table to only show ${targetCellValue || '(Blank)'}`}
           >
             <span className="truncate">
-              ⚡ Filter only: <strong>{targetCellValue}</strong>
+              ⚡ Filter only: <strong>{targetCellValue || '(Blank)'}</strong>
             </span>
             <Check size={13} className="shrink-0 ml-1.5" />
           </button>
@@ -234,7 +242,7 @@ export default function MasterColumnFilter({
           </span>
         </div>
 
-        <div className="max-h-40 overflow-y-auto space-y-0.5 pr-1 divide-y divide-slate-50 dark:divide-slate-800 border border-border/50 dark:border-slate-800 rounded-lg p-1 bg-slate-50/50 dark:bg-slate-800/50">
+        <div className="max-h-32 sm:max-h-44 flex-1 overflow-y-auto space-y-0.5 pr-1 divide-y divide-slate-50 dark:divide-slate-800 border border-border/50 dark:border-slate-800 rounded-lg p-1 bg-slate-50/50 dark:bg-slate-800/50">
           {filteredItems.map(({ value, label, count, icon }) => {
             const isChecked = tempSelected.has(value);
             return (

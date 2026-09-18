@@ -23,16 +23,16 @@ export default function CaptainLayout({ children }) {
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'C';
 
   return (
-    <div className="flex flex-col h-screen bg-surface dark:bg-slate-950 transition-colors duration-200 overflow-hidden">
+    <div className="flex flex-col h-screen h-[100dvh] bg-surface dark:bg-slate-950 transition-colors duration-200 overflow-hidden">
       {/* Header */}
-      <header className="h-14 sm:h-16 bg-white dark:bg-slate-900 border-b border-border dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 shrink-0 z-30">
+      <header className="h-14 sm:h-16 tablet-header-compact bg-white dark:bg-slate-900 border-b border-border dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 shrink-0 z-30">
         <h1 className="text-base sm:text-lg font-bold text-primary-dark dark:text-white truncate">
           Maharaj Veg Villa
         </h1>
 
         <div className="flex items-center gap-2 sm:gap-4">
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex tablet-sidebar-landscape-show items-center gap-1">
             {navItems.map(({ to, logo, label }) => (
               <NavLink
                 key={to}
@@ -81,12 +81,12 @@ export default function CaptainLayout({ children }) {
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6 pb-20 md:pb-6 bg-surface dark:bg-slate-950 transition-colors duration-200">
+      <main className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-3.5 md:p-5 pb-20 sm:pb-24 md:pb-6 tablet-compact-pad bg-surface dark:bg-slate-950 transition-colors duration-200">
         {children}
       </main>
 
       {/* Mobile Bottom Bar for Captains (< md) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-border dark:border-slate-800 flex items-center justify-around px-2 py-1 pb-safe shadow-lg">
+      <nav className="md:hidden tablet-bottom-nav-landscape-hide shrink-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-border dark:border-slate-800 flex items-center justify-around px-2 py-1 pb-safe shadow-lg">
         {navItems.map(({ to, logo, label }) => (
           <NavLink
             key={to}

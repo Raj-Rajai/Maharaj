@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useOnRouteActive } from '../components/common/RouteKeepAlive';
 import { inventoryBlue } from '../assets';
 import MasterColumnFilter from '../components/ui/MasterColumnFilter';
+import Pagination from '../components/ui/Pagination';
 
 const INVENTORY_COLUMNS = [
   { key: 'name', label: 'Item Name', sortType: 'text' },
@@ -27,6 +28,12 @@ export default function InventoryPage() {
   const [columnFilters, setColumnFilters] = useState({});
   const [columnSort, setColumnSort] = useState(null);
   const [activeFilterPopover, setActiveFilterPopover] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [columnFilters, columnSort]);
 
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -246,6 +253,11 @@ export default function InventoryPage() {
     return list;
   }, [itemsWithMeta, columnFilters, columnSort]);
 
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return displayedItems.slice(start, start + pageSize);
+  }, [displayedItems, currentPage, pageSize]);
+
   const openFilterForHeader = (colKey, colLabel, element, sortType) => {
     const rect = element.getBoundingClientRect();
     setActiveFilterPopover({
@@ -391,7 +403,7 @@ export default function InventoryPage() {
                   const isFiltered = columnFilters[col.key] && columnFilters[col.key].size > 0;
                   const isSorted = columnSort?.columnKey === col.key;
                   return (
-                    <th key={col.key} className="px-5 py-4 font-medium relative group/th">
+                    <th key={col.key} className="px-5 py-4 tablet-table-cell font-medium relative group/th">
                       <div className="flex items-center justify-between gap-1.5 select-none">
                         <span>{col.label}</span>
                         <button
@@ -412,12 +424,12 @@ export default function InventoryPage() {
                     </th>
                   );
                 })}
-                <th className="px-5 py-4 font-medium text-right text-text-secondary dark:text-slate-400">Actions</th>
+                <th className="px-5 py-4 tablet-table-cell font-medium text-right text-text-secondary dark:text-slate-400">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border dark:divide-slate-800">
               {displayedItems.length > 0 ? (
-                displayedItems.map((row) => {
+                paginatedItems.map((row) => {
                   const item = row.item;
                   const stock = row.rawCurrentStock;
                   const threshold = row.rawLowStockThreshold;
@@ -426,7 +438,7 @@ export default function InventoryPage() {
                   return (
                     <tr key={item.id} className={`hover:bg-surface/50 dark:hover:bg-slate-800/50 transition-colors ${isLow ? 'bg-red-50/50 dark:bg-red-950/20 hover:bg-red-50 dark:hover:bg-red-950/30' : ''}`}>
 
-                      <td className="px-5 py-4 font-medium text-text dark:text-slate-100 relative group/cell">
+                      <td className="px-5 py-4 tablet-table-cell font-medium text-text dark:text-slate-100 relative group/cell">
                         <div className="flex items-center justify-between gap-1.5">
                           <span>{row.name}</span>
                           <button
@@ -442,7 +454,7 @@ export default function InventoryPage() {
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 font-mono font-medium text-text dark:text-slate-100 relative group/cell">
+                      <td className="px-5 py-4 tablet-table-cell font-mono font-medium text-text dark:text-slate-100 relative group/cell">
                         <div className="flex items-center justify-between gap-1.5">
                           <span>{row.currentStock}</span>
                           <button
@@ -458,7 +470,7 @@ export default function InventoryPage() {
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 text-text-secondary dark:text-slate-300 relative group/cell">
+                      <td className="px-5 py-4 tablet-table-cell text-text-secondary dark:text-slate-300 relative group/cell">
                         <div className="flex items-center justify-between gap-1.5">
                           <span>{row.unit}</span>
                           <button
@@ -474,7 +486,7 @@ export default function InventoryPage() {
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 font-mono text-text-secondary dark:text-slate-300 relative group/cell">
+                      <td className="px-5 py-4 tablet-table-cell font-mono text-text-secondary dark:text-slate-300 relative group/cell">
                         <div className="flex items-center justify-between gap-1.5">
                           <span>{row.lowStockThreshold}</span>
                           <button
@@ -490,7 +502,7 @@ export default function InventoryPage() {
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 relative group/cell">
+                      <td className="px-5 py-4 tablet-table-cell relative group/cell">
                         <div className="flex items-center justify-between gap-1.5">
                           {isLow ? (
                             <Badge variant="danger" className="flex items-center w-fit gap-1">
@@ -512,7 +524,7 @@ export default function InventoryPage() {
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 text-right">
+                      <td className="px-5 py-4 tablet-table-cell text-right">
                         <div className="inline-flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => openHistory(item)}
@@ -585,6 +597,19 @@ export default function InventoryPage() {
             </tbody>
           </table>
         </div>
+        {!loading && displayedItems.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={displayedItems.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            pageSizeOptions={[10, 25, 50, 100]}
+          />
+        )}
       </div>
 
       <MasterColumnFilter

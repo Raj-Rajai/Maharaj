@@ -749,7 +749,7 @@ export default function ReportsPage() {
 
         {/* Date Filter Presets & Date Picker */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full lg:w-auto">
-          <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 shadow-xs overflow-x-auto no-scrollbar w-full sm:w-auto">
+          <div className="tablet-tab-bar bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 shadow-xs w-full sm:w-auto">
             {[
               { label: 'Today', key: 'today' },
               { label: 'Yesterday', key: 'yesterday' },
@@ -761,9 +761,9 @@ export default function ReportsPage() {
                 key={p.key}
                 type="button"
                 onClick={() => setPreset(p.key)}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                className={`tablet-tab-pill px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer ${
                   activePreset === p.key
-                    ? 'bg-primary text-white shadow-xs'
+                    ? 'bg-primary text-white shadow-xs font-semibold'
                     : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
                 }`}
               >
@@ -798,18 +798,18 @@ export default function ReportsPage() {
       </div>
 
       {/* Quick Channel Segment Filter */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 p-2 rounded-xl border border-border dark:border-slate-800 shadow-xs">
-        <div className="flex items-center gap-2 text-xs font-semibold text-text-secondary dark:text-slate-400 px-2">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-slate-900 p-2 rounded-xl border border-border dark:border-slate-800 shadow-xs">
+        <div className="flex items-center gap-2 text-xs font-semibold text-text-secondary dark:text-slate-400 px-2 shrink-0">
           <Filter size={15} className="text-primary dark:text-blue-400" />
           <span>Channel View:</span>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="tablet-tab-bar flex-1 justify-start sm:justify-end py-0.5">
           <button
             type="button"
             onClick={() => setSelectedSegment('all')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+            className={`tablet-tab-pill gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
               selectedSegment === 'all'
-                ? 'bg-primary text-white shadow-xs'
+                ? 'bg-primary text-white shadow-xs font-semibold'
                 : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 bg-white dark:bg-slate-900 border border-border/60 dark:border-slate-800'
             }`}
           >
@@ -820,9 +820,9 @@ export default function ReportsPage() {
           <button
             type="button"
             onClick={() => setSelectedSegment('dinein')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+            className={`tablet-tab-pill gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
               selectedSegment === 'dinein'
-                ? 'bg-primary text-white shadow-xs'
+                ? 'bg-primary text-white shadow-xs font-semibold'
                 : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 bg-white dark:bg-slate-900 border border-border/60 dark:border-slate-800'
             }`}
           >
@@ -833,9 +833,9 @@ export default function ReportsPage() {
           <button
             type="button"
             onClick={() => setSelectedSegment('takeaway')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+            className={`tablet-tab-pill gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
               selectedSegment === 'takeaway'
-                ? 'bg-primary text-white shadow-xs'
+                ? 'bg-primary text-white shadow-xs font-semibold'
                 : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 bg-white dark:bg-slate-900 border border-border/60 dark:border-slate-800'
             }`}
           >
@@ -957,7 +957,7 @@ export default function ReportsPage() {
       ) : (
         <div className="space-y-6">
           {/* Top KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Card className="hover:border-success/40 transition-colors">
               <div className="flex items-start justify-between">
                 <div>
@@ -1059,7 +1059,7 @@ export default function ReportsPage() {
               <h3 className="text-sm font-bold text-text dark:text-slate-100">Channel Revenue Summary</h3>
               <span className="text-xs text-text-secondary dark:text-slate-400">Direct breakdown across AC, Non-AC & Online deliveries</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
               <Card className="hover:border-blue-400/40 transition-colors">
                 <div className="flex items-start justify-between">
                   <div>

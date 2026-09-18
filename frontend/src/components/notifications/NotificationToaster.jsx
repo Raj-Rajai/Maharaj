@@ -10,14 +10,14 @@ export default function NotificationToaster() {
   if (!activePopups || activePopups.length === 0) return null;
 
   return (
-    <div className="fixed top-16 sm:top-20 right-3 sm:right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-sm w-[calc(100vw-24px)] sm:w-96">
+    <div className="fixed top-13 sm:top-16 right-2.5 sm:right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-xs sm:max-w-sm w-[calc(100vw-20px)] sm:w-84">
       <style>{`
         @keyframes notifDrainBar {
           from { width: 100%; }
           to { width: 0%; }
         }
       `}</style>
-      {activePopups.map(({ id, notification }) => {
+      {activePopups.slice(-2).map(({ id, notification }) => {
         const isKot = notification.type === 'KOT';
 
         const handleView = () => {

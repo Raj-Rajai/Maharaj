@@ -22,6 +22,7 @@ import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../context/AuthContext';
 import { acBlue, nonAcBlue, takeAwayBlue, swiggyIcon, zomatoIcon, billBlue, tableBlue } from '../assets';
 import MasterColumnFilter from '../components/ui/MasterColumnFilter';
+import Pagination from '../components/ui/Pagination';
 import { useRouteActive } from '../components/common/RouteKeepAlive';
 import useRealtime from '../hooks/useRealtime';
 
@@ -79,11 +80,41 @@ export const getBillCategoryAndType = (bill) => {
   };
 };
 
+export const getBillPaymentMode = (bill) => {
+  if (!bill || bill.status === 'CANCELLED') {
+    return '';
+  }
+
+  if (Array.isArray(bill.payments) && bill.payments.length > 0) {
+    const formatted = bill.payments
+      .map((p) => {
+        const m = String(p.method || '').trim().toUpperCase();
+        if (m === 'CASH') return 'Cash';
+        if (m === 'CARD') return 'Card';
+        if (m === 'UPI' || m === 'ONLINE') return 'Online';
+        return p.method || '';
+      })
+      .filter(Boolean);
+
+    const unique = [...new Set(formatted)];
+    if (unique.length > 0) return unique.join(', ');
+  }
+
+  const raw = bill.payment?.method || bill.paymentMethod;
+  if (!raw) return '';
+
+  const upper = String(raw).trim().toUpperCase();
+  if (upper === 'CASH') return 'Cash';
+  if (upper === 'CARD') return 'Card';
+  if (upper === 'UPI' || upper === 'ONLINE') return 'Online';
+  return String(raw);
+};
+
 const TABLE_COLUMNS = [
   { key: 'billNumber', label: 'Bill #', sortType: 'number' },
   { key: 'category', label: 'Category', sortType: 'text' },
   { key: 'type', label: 'Type', sortType: 'text' },
-  { key: 'user', label: 'User', sortType: 'text' },
+  { key: 'paymentMode', label: 'Payment Mode', sortType: 'text' },
   { key: 'amount', label: 'Amount', sortType: 'number' },
   { key: 'time', label: 'Time', sortType: 'date' },
   { key: 'status', label: 'Status', sortType: 'text' },
@@ -617,6 +648,12 @@ export default function BillsPage() {
   const [columnFilters, setColumnFilters] = useState({});
   const [columnSort, setColumnSort] = useState(null);
   const [activeFilterPopover, setActiveFilterPopover] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, startDate, endDate, columnFilters, columnSort]);
 
   const baseBills = useMemo(() => {
     return bills.filter((b) => b.status !== 'DRAFT' || hasPermission('BILL_VIEW_DRAFT'));
@@ -625,7 +662,7 @@ export default function BillsPage() {
   const billsWithMeta = useMemo(() => {
     return baseBills.map((bill) => {
       const meta = getBillCategoryAndType(bill);
-      const creatorRole = bill.creator?.role || bill.user?.role || 'System';
+      const paymentMode = getBillPaymentMode(bill);
       const time = new Date(bill.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       return {
         bill,
@@ -637,7 +674,7 @@ export default function BillsPage() {
         type: meta.type,
         typeIcon: meta.typeIcon,
         typeVariant: meta.typeVariant,
-        user: creatorRole,
+        paymentMode,
         amount: Number(bill.total || 0),
         time,
         timestamp: new Date(bill.createdAt).getTime(),
@@ -651,7 +688,7 @@ export default function BillsPage() {
       billNumber: new Map(),
       category: new Map(),
       type: new Map(),
-      user: new Map(),
+      paymentMode: new Map(),
       amount: new Map(),
       time: new Map(),
       status: new Map(),
@@ -673,7 +710,7 @@ export default function BillsPage() {
         icon: row.typeIcon,
       });
 
-      maps.user.set(row.user, (maps.user.get(row.user) || 0) + 1);
+      maps.paymentMode.set(row.paymentMode, (maps.paymentMode.get(row.paymentMode) || 0) + 1);
 
       const amtStr = `₹${row.amount.toFixed(2)}`;
       maps.amount.set(amtStr, (maps.amount.get(amtStr) || 0) + 1);
@@ -687,7 +724,11 @@ export default function BillsPage() {
       billNumber: Array.from(maps.billNumber.entries()).map(([v, count]) => ({ value: v, count })),
       category: Array.from(maps.category.entries()).map(([v, { count, icon }]) => ({ value: v, count, icon })),
       type: Array.from(maps.type.entries()).map(([v, { count, icon }]) => ({ value: v, count, icon })),
-      user: Array.from(maps.user.entries()).map(([v, count]) => ({ value: v, count })),
+      paymentMode: Array.from(maps.paymentMode.entries()).map(([v, count]) => ({
+        value: v,
+        label: v === '' ? '(Blank)' : v,
+        count,
+      })),
       amount: Array.from(maps.amount.entries()).map(([v, count]) => ({ value: v, count })),
       time: Array.from(maps.time.entries()).map(([v, count]) => ({ value: v, count })),
       status: Array.from(maps.status.entries()).map(([v, count]) => ({ value: v, count })),
@@ -730,6 +771,11 @@ export default function BillsPage() {
 
     return list;
   }, [billsWithMeta, columnFilters, columnSort]);
+
+  const paginatedBills = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return displayedBills.slice(start, start + pageSize);
+  }, [displayedBills, currentPage, pageSize]);
 
   const openFilterForHeader = (colKey, colLabel, element, sortType) => {
     const rect = element.getBoundingClientRect();
@@ -790,6 +836,7 @@ export default function BillsPage() {
       'Time',
       'Category',
       'Type',
+      'Payment Mode',
       'Customer Name',
       'Customer Number',
       'SGST Rate',
@@ -859,6 +906,7 @@ export default function BillsPage() {
         timeStr,
         row.category,
         row.type,
+        row.paymentMode,
         customerName,
         customerNumber,
         `${Number(sgstPercent).toFixed(3)}%`,
@@ -874,6 +922,7 @@ export default function BillsPage() {
 
     rows.push([
       'Total',
+      '',
       '',
       '',
       '',
@@ -1014,13 +1063,13 @@ export default function BillsPage() {
             </div>
           </div>
 
-          <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 overflow-x-auto no-scrollbar w-full sm:w-auto">
+          <div className="tablet-tab-bar bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 w-full sm:w-auto">
             {['ALL', hasPermission('BILL_VIEW_DRAFT') ? 'DRAFT' : null, 'FINALIZED', 'CANCELLED'].filter(Boolean).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-                  filter === f ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
+                className={`tablet-tab-pill px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer ${
+                  filter === f ? 'bg-primary text-white font-semibold' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
                 }`}
               >
                 {f}
@@ -1123,7 +1172,7 @@ export default function BillsPage() {
                     const isFiltered = columnFilters[col.key] && columnFilters[col.key].size > 0;
                     const isSorted = columnSort?.columnKey === col.key;
                     return (
-                      <th key={col.key} className="px-4 py-3 font-semibold relative group/th">
+                      <th key={col.key} className="px-2.5 sm:px-4 py-2 sm:py-3 tablet-table-cell font-semibold relative group/th">
                         <div className="flex items-center justify-between gap-1.5 select-none">
                           <span className="text-text dark:text-slate-200 font-semibold">{col.label}</span>
                           <button
@@ -1144,11 +1193,11 @@ export default function BillsPage() {
                       </th>
                     );
                   })}
-                  <th className="px-4 py-3 font-semibold text-right text-text dark:text-slate-200">Actions</th>
+                  <th className="px-2.5 sm:px-4 py-2 sm:py-3 tablet-table-cell font-semibold text-right text-text dark:text-slate-200">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border dark:divide-slate-800">
-                {displayedBills.map((row) => {
+                {paginatedBills.map((row) => {
                   const { bill } = row;
 
                   return (
@@ -1237,15 +1286,31 @@ export default function BillsPage() {
                       </td>
 
                       <td className="px-4 py-3 text-xs relative group/cell">
-                        <div className="flex items-center justify-between gap-1.5">
-                          <Badge variant="neutral">{row.user}</Badge>
+                        <div className="flex items-center justify-between gap-1.5 min-h-[26px]">
+                          {row.paymentMode ? (
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                                row.paymentMode === 'Cash'
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                  : row.paymentMode === 'Card'
+                                  ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                                  : row.paymentMode === 'Online'
+                                  ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                              }`}
+                            >
+                              {row.paymentMode}
+                            </span>
+                          ) : (
+                            <span className="text-text-secondary/30 select-none"></span>
+                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              openFilterForCell('user', 'User', e.currentTarget, row.user, 'text');
+                              openFilterForCell('paymentMode', 'Payment Mode', e.currentTarget, row.paymentMode, 'text');
                             }}
                             className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 rounded hover:bg-primary/10 dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 hover:text-primary dark:hover:text-blue-400 border border-transparent hover:border-border dark:hover:border-slate-700 bg-white dark:bg-slate-800 shadow-xs cursor-pointer"
-                            title={`Master filter: ${row.user}`}
+                            title={`Master filter: ${row.paymentMode || '(Blank)'}`}
                           >
                             <Filter size={11} />
                           </button>
@@ -1358,6 +1423,19 @@ export default function BillsPage() {
               </tbody>
             </table>
           </div>
+          {!loading && displayedBills.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={displayedBills.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1);
+              }}
+              pageSizeOptions={[10, 25, 50, 100]}
+            />
+          )}
         </div>
       )}
 

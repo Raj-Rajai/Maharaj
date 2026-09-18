@@ -94,6 +94,8 @@ export default function TakeAwayPage() {
   const [customerNotes, setCustomerNotes] = useState('');
   const [externalOrderId, setExternalOrderId] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
+  const [activeNoteId, setActiveNoteId] = useState(null);
 
   // Success modal state
   const [createdResult, setCreatedResult] = useState(null);
@@ -296,28 +298,28 @@ export default function TakeAwayPage() {
   }, [activeView]);
 
   return (
-    <div className="h-full flex flex-col space-y-4">
-      {/* Top Header & Channel Switcher */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-3 sm:p-4 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 dark:bg-slate-800 border border-transparent dark:border-slate-700/60 rounded-xl flex items-center justify-center shrink-0">
-              <img src={takeAwayBlue} alt="Take Away" className="w-5 sm:w-6 h-5 sm:h-6 object-contain dark:brightness-0 dark:invert" />
+    <div className="h-full flex flex-col gap-2 sm:gap-3 overflow-hidden">
+      {/* Top Header & Channel Switcher - Compact Bar */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-2 sm:p-3 shadow-xs shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-primary/10 dark:bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
+              <img src={takeAwayBlue} alt="Take Away" className="w-5 h-5 object-contain dark:brightness-0 dark:invert" />
             </div>
             <div>
-              <h1 className="text-lg sm:text-xl font-bold text-text dark:text-white flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-bold text-text dark:text-white flex items-center gap-2 leading-tight">
                 Take Away & Parcels
               </h1>
-              <p className="text-[11px] sm:text-xs text-text-secondary dark:text-slate-400 mt-0.5">
-                Self Pickup, Swiggy, and Zomato order management with dual billing flows
+              <p className="text-[10px] sm:text-xs text-text-secondary dark:text-slate-400 hidden sm:block">
+                Self Pickup, Swiggy, and Zomato order management
               </p>
             </div>
           </div>
 
           {/* Channels Selector & View Switcher */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2">
             {/* Channel Tabs */}
-            <div className="flex gap-1 sm:gap-1.5 bg-surface dark:bg-slate-800 p-1 rounded-xl border border-border dark:border-slate-700 overflow-x-auto no-scrollbar w-full sm:w-auto">
+            <div className="tablet-tab-bar bg-surface dark:bg-slate-800 p-0.5 rounded-lg border border-border dark:border-slate-700 flex items-center">
               {visibleChannels.map(ch => {
                 const Icon = ch.icon;
                 const isActive = selectedChannel === ch.id;
@@ -326,40 +328,40 @@ export default function TakeAwayPage() {
                     key={ch.id}
                     type="button"
                     onClick={() => handleChannelChange(ch.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                      isActive ? ch.activeTabClass : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-700'
+                    className={`tablet-tab-pill gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md text-xs font-semibold cursor-pointer ${
+                      isActive ? ch.activeTabClass : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100'
                     }`}
                   >
                     {ch.logo ? (
-                      <img src={ch.logo} alt={ch.shortName} className={`w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain shrink-0 ${ch.id === 'SELF_PICKUP' ? 'dark:brightness-0 dark:invert' : ''}`} />
+                      <img src={ch.logo} alt={ch.shortName} className={`w-3.5 h-3.5 object-contain shrink-0 ${ch.id === 'SELF_PICKUP' ? 'dark:brightness-0 dark:invert' : ''}`} />
                     ) : (
-                      <Icon size={14} className="shrink-0" />
+                      <Icon size={13} className="shrink-0" />
                     )}
-                    <span>{ch.name}</span>
+                    <span>{ch.shortName}</span>
                   </button>
                 );
               })}
             </div>
 
             {/* View Mode Switcher */}
-            <div className="flex gap-1 bg-surface dark:bg-slate-800 p-1 rounded-xl border border-border dark:border-slate-700 w-full sm:w-auto justify-between sm:justify-start">
+            <div className="flex gap-0.5 bg-surface dark:bg-slate-800 p-0.5 rounded-lg border border-border dark:border-slate-700">
               <button
                 type="button"
                 onClick={() => setActiveView('pos')}
-                className={`flex-1 sm:flex-initial text-center px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                  activeView === 'pos' ? 'bg-white dark:bg-slate-700 text-primary dark:text-blue-300 shadow-xs' : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100'
+                className={`px-2.5 py-1 sm:py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer min-h-[30px] ${
+                  activeView === 'pos' ? 'bg-white dark:bg-slate-700 text-primary dark:text-blue-300 shadow-xs' : 'text-text-secondary dark:text-slate-400 hover:text-text'
                 }`}
               >
-                Order POS
+                POS
               </button>
               <button
                 type="button"
                 onClick={() => setActiveView('history')}
-                className={`flex-1 sm:flex-initial text-center px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                  activeView === 'history' ? 'bg-white dark:bg-slate-700 text-primary dark:text-blue-300 shadow-xs' : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100'
+                className={`px-2.5 py-1 sm:py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer min-h-[30px] ${
+                  activeView === 'history' ? 'bg-white dark:bg-slate-700 text-primary dark:text-blue-300 shadow-xs' : 'text-text-secondary dark:text-slate-400 hover:text-text'
                 }`}
               >
-                Active Orders
+                Active
               </button>
             </div>
           </div>
@@ -420,8 +422,8 @@ export default function TakeAwayPage() {
       {/* POS View */}
       {activeView === 'pos' && (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {/* Mobile View Switcher (Menu vs Cart) */}
-          <div className="flex lg:hidden w-full bg-surface dark:bg-slate-800 p-1 rounded-lg border border-border dark:border-slate-700 mb-2.5">
+          {/* Mobile View Switcher (Menu vs Cart) - Hidden in landscape because side-by-side view is active */}
+          <div className="flex md:hidden tablet-order-switcher w-full bg-surface dark:bg-slate-800 p-1 rounded-lg border border-border dark:border-slate-700 mb-2">
             <button
               type="button"
               onClick={() => setMobilePosTab('menu')}
@@ -453,10 +455,10 @@ export default function TakeAwayPage() {
             </button>
           </div>
 
-          <div className="flex-1 flex flex-col lg:flex-row gap-3 sm:gap-4 min-h-0 overflow-hidden relative">
+          <div className="flex-1 flex flex-col md:flex-row tablet-order-split gap-2.5 sm:gap-4 min-h-0 overflow-hidden relative">
             {/* Left: Menu & Food Selector */}
-            <div className={`flex-[3] flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden ${
-              mobilePosTab === 'menu' ? 'flex flex-1 min-h-[55vh]' : 'hidden lg:flex'
+            <div className={`flex-[3] flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden tablet-order-menu ${
+              mobilePosTab === 'menu' ? 'flex flex-1 min-h-0' : 'hidden md:flex'
             }`}>
               {/* Active Channel Info Banner */}
               <div className="px-3 sm:px-4 py-2 bg-surface dark:bg-slate-800 border-b border-border dark:border-slate-700 flex items-center justify-between">
@@ -478,11 +480,11 @@ export default function TakeAwayPage() {
               </div>
 
               {/* Category Pills */}
-              <div className="flex gap-1.5 p-2 sm:p-3 border-b border-border dark:border-slate-800 overflow-x-auto no-scrollbar">
+              <div className="tablet-tab-bar p-2 sm:p-3 border-b border-border dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setSelectedCat('ALL')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                  className={`tablet-tab-pill px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
                     selectedCat === 'ALL'
                       ? 'bg-primary text-white shadow-xs'
                       : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 border border-border/60 dark:border-slate-700'
@@ -495,7 +497,7 @@ export default function TakeAwayPage() {
                     key={c.id}
                     type="button"
                     onClick={() => setSelectedCat(c.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                    className={`tablet-tab-pill px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
                       selectedCat === c.id
                         ? 'bg-primary text-white shadow-xs'
                         : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 border border-border/60 dark:border-slate-700'
@@ -580,7 +582,7 @@ export default function TakeAwayPage() {
 
               {/* Floating Cart Pill on Mobile when in Menu tab */}
               {cart.length > 0 && (
-                <div className="lg:hidden p-2.5 bg-primary/10 dark:bg-blue-950/40 border-t border-primary/20 flex items-center justify-between">
+                <div className="md:hidden p-2.5 bg-primary/10 dark:bg-blue-950/40 border-t border-primary/20 flex items-center justify-between">
                   <div>
                     <span className="text-xs font-bold text-primary dark:text-blue-400">
                       {cart.reduce((s, i) => s + i.quantity, 0)} item(s) in Cart
@@ -601,17 +603,17 @@ export default function TakeAwayPage() {
             </div>
 
             {/* Right: Cart & Dual Billing Flows */}
-            <div className={`flex-[2] flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden ${
-              mobilePosTab === 'cart' ? 'flex flex-1 min-h-[55vh]' : 'hidden lg:flex'
+            <div className={`flex-[2] flex flex-col bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 overflow-hidden tablet-order-cart ${
+              mobilePosTab === 'cart' ? 'flex flex-1 min-h-0' : 'hidden md:flex'
             }`}>
               {/* Cart Header */}
-              <div className="p-3 sm:p-4 border-b border-border dark:border-slate-800 bg-surface/50 dark:bg-slate-800/80 flex items-center justify-between">
+              <div className="p-2.5 sm:p-3 border-b border-border dark:border-slate-800 bg-surface/50 dark:bg-slate-800/80 flex items-center justify-between shrink-0">
                 <div>
-                  <h2 className="font-bold text-text dark:text-slate-100 text-sm sm:text-base flex items-center gap-2">
+                  <h2 className="font-bold text-text dark:text-slate-100 text-xs sm:text-sm flex items-center gap-1.5">
                     Order Cart
                     <Badge variant={activeChannelConfig.badgeVariant}>{activeChannelConfig.shortName}</Badge>
                   </h2>
-                  <p className="text-xs text-text-secondary dark:text-slate-400 mt-0.5">
+                  <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-0.5">
                     {cart.length} item types ({cart.reduce((s, i) => s + i.quantity, 0)} total pcs)
                   </p>
                 </div>
@@ -619,7 +621,7 @@ export default function TakeAwayPage() {
                   <button
                     type="button"
                     onClick={() => setMobilePosTab('menu')}
-                    className="lg:hidden text-xs text-primary dark:text-blue-400 font-semibold hover:underline"
+                    className="md:hidden text-xs text-primary dark:text-blue-400 font-semibold hover:underline"
                   >
                     + Add Items
                   </button>
@@ -635,181 +637,180 @@ export default function TakeAwayPage() {
                 </div>
               </div>
 
-            {/* Optional Order Details for Delivery/Notes */}
-            <div className="p-3 bg-surface/30 dark:bg-slate-800/50 border-b border-border dark:border-slate-800 space-y-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[11px] font-semibold text-text-secondary dark:text-slate-400 mb-1">
-                    Customer Name (Optional)
-                  </label>
+              {/* Optional Order Details for Delivery/Notes (Compact & Collapsible) */}
+              <div className="px-2.5 py-1.5 bg-surface/30 dark:bg-slate-800/50 border-b border-border dark:border-slate-800 shrink-0 space-y-1.5">
+                <div className="flex items-center justify-between gap-1.5">
                   <input
                     type="text"
-                    value={customerName}
-                    onChange={e => setCustomerName(e.target.value)}
-                    placeholder="e.g. Rahul Sharma"
-                    className="w-full px-2.5 py-1.5 min-h-[36px] text-base sm:text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={customerNotes}
+                    onChange={e => setCustomerNotes(e.target.value)}
+                    placeholder="Parcel / Kitchen Notes (optional)..."
+                    className="flex-1 px-2.5 py-1 text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-md text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomerDetails(!showCustomerDetails)}
+                    className="text-[11px] font-semibold text-primary dark:text-blue-400 hover:underline shrink-0 whitespace-nowrap px-1 py-0.5"
+                  >
+                    {showCustomerDetails || customerName || customerPhone || externalOrderId ? 'Hide Details' : '+ Details'}
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-text-secondary dark:text-slate-400 mb-1">
-                    Customer Number (Optional)
-                  </label>
-                  <input
-                    type="tel"
-                    value={customerPhone}
-                    onChange={e => setCustomerPhone(e.target.value)}
-                    placeholder="e.g. 9876543210"
-                    className="w-full px-2.5 py-1.5 min-h-[36px] text-base sm:text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-              </div>
-              {(selectedChannel === 'SWIGGY' || selectedChannel === 'ZOMATO') && (
-                <div>
-                  <label className="block text-xs font-semibold text-text-secondary dark:text-slate-400 mb-1">
-                    Platform Order ID (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={externalOrderId}
-                    onChange={e => setExternalOrderId(e.target.value)}
-                    placeholder={`e.g. ${selectedChannel === 'SWIGGY' ? 'SWG-94821' : 'ZOM-19402'}`}
-                    className="w-full px-3 py-1.5 min-h-[36px] text-base sm:text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-              )}
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary dark:text-slate-400 mb-1">
-                  Customer / Parcel Notes (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={customerNotes}
-                  onChange={e => setCustomerNotes(e.target.value)}
-                  placeholder="e.g. Extra chutney, less spicy, parcel bag"
-                  className="w-full px-3 py-1.5 min-h-[36px] text-base sm:text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </div>
-
-            {/* Cart Items List */}
-            <div className="flex-1 overflow-auto divide-y divide-border dark:divide-slate-800">
-              {cart.map(item => (
-                <div key={item.menuItemId} className="p-2.5 sm:p-3 space-y-1.5 hover:bg-surface/30 dark:hover:bg-slate-800/30 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 mr-2">
-                      <p className="text-xs sm:text-sm font-semibold text-text dark:text-slate-100 leading-tight">{item.name}</p>
-                      <p className="text-xs font-mono text-text-secondary dark:text-slate-400 mt-0.5">
-                        ₹{item.price.toFixed(2)} × {item.quantity} = <strong className="text-text dark:text-slate-100">₹{(item.price * item.quantity).toFixed(2)}</strong>
-                      </p>
+                {(showCustomerDetails || customerName || customerPhone || externalOrderId) && (
+                  <div className="space-y-1.5 pt-1 border-t border-border/40 dark:border-slate-700/40">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <input
+                        type="text"
+                        value={customerName}
+                        onChange={e => setCustomerName(e.target.value)}
+                        placeholder="Customer Name"
+                        className="w-full px-2 py-1 text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-md text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <input
+                        type="tel"
+                        value={customerPhone}
+                        onChange={e => setCustomerPhone(e.target.value)}
+                        placeholder="Customer Phone"
+                        className="w-full px-2 py-1 text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-md text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
                     </div>
+                    {(selectedChannel === 'SWIGGY' || selectedChannel === 'ZOMATO') && (
+                      <input
+                        type="text"
+                        value={externalOrderId}
+                        onChange={e => setExternalOrderId(e.target.value)}
+                        placeholder={`Platform Order ID (e.g. ${selectedChannel === 'SWIGGY' ? 'SWG-94821' : 'ZOM-19402'})`}
+                        className="w-full px-2 py-1 text-xs bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-md text-text dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Cart Items List - Guaranteed Scrollable with min-h-[140px] flex-1 */}
+              <div className="flex-1 min-h-[140px] overflow-y-auto divide-y divide-border dark:divide-slate-800 touch-pan-y">
+                {cart.map(item => (
+                  <div key={item.menuItemId} className="p-2 space-y-1 hover:bg-surface/30 dark:hover:bg-slate-800/30 transition-colors">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex-1 mr-1 min-w-0">
+                        <p className="text-xs sm:text-sm font-semibold text-text dark:text-slate-100 leading-tight truncate">{item.name}</p>
+                        <p className="text-[11px] font-mono text-text-secondary dark:text-slate-400 mt-0.5">
+                          ₹{item.price.toFixed(2)} × {item.quantity} = <strong className="text-text dark:text-slate-100 font-bold">₹{(item.price * item.quantity).toFixed(2)}</strong>
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => updateCartQty(item.menuItemId, -1)}
+                          className="w-6 h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-300 hover:bg-border/60 dark:hover:bg-slate-700 cursor-pointer active:scale-95"
+                        >
+                          <Minus size={12} />
+                        </button>
+                        <span className="text-xs font-bold font-mono text-text dark:text-slate-100 w-5 text-center">{item.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => updateCartQty(item.menuItemId, 1)}
+                          className="w-6 h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-300 hover:bg-border/60 dark:hover:bg-slate-700 cursor-pointer active:scale-95"
+                        >
+                          <Plus size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.menuItemId)}
+                          className="w-6 h-6 flex items-center justify-center text-danger hover:bg-red-50 dark:hover:bg-red-950/40 rounded ml-0.5 cursor-pointer"
+                          title="Remove"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                    {/* Note display or expandable input */}
+                    {activeNoteId === item.menuItemId || item.notes ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={item.notes || ''}
+                          onChange={e => updateItemNotes(item.menuItemId, e.target.value)}
+                          placeholder="Item note (e.g. crispy)"
+                          className="flex-1 text-[11px] px-2 py-0.5 min-h-[24px] bg-surface/50 dark:bg-slate-800/60 border border-border/80 dark:border-slate-700 rounded text-text dark:text-slate-100 placeholder:text-text-secondary/70 focus:outline-none focus:bg-white dark:focus:bg-slate-800"
+                        />
+                        {!item.notes && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveNoteId(null)}
+                            className="text-[10px] text-text-secondary hover:text-text px-1"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setActiveNoteId(item.menuItemId)}
+                        className="text-[10px] text-primary/70 dark:text-blue-400/70 hover:underline cursor-pointer italic block"
+                      >
+                        + note
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {cart.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-36 text-text-secondary dark:text-slate-400 text-xs">
+                    <ShoppingBag size={28} className="opacity-30 mb-1.5" />
+                    <p className="font-medium">Cart is empty</p>
+                    <p className="text-[11px] opacity-75 mt-0.5">Click menu items on the left to add</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Cart Bill Breakdown & Actions - Ultra-Compact Single Bar */}
+              <div className="p-2 sm:p-2.5 border-t border-border dark:border-slate-800 bg-surface/80 dark:bg-slate-800/90 shrink-0 z-10">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[10px] text-text-secondary dark:text-slate-400 truncate">
+                      ₹{cartSubtotal.toFixed(2)} + ₹{(sgstAmount + cgstAmount).toFixed(2)} GST
+                    </div>
+                    <div className="text-sm sm:text-base font-bold text-primary dark:text-blue-400 font-mono leading-tight">
+                      ₹{finalTotal.toFixed(2)}
+                    </div>
+                  </div>
+
+                  {/* Dual Billing Action Buttons */}
+                  {canOrder ? (
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
-                        onClick={() => updateCartQty(item.menuItemId, -1)}
-                        className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-300 hover:bg-border/60 dark:hover:bg-slate-700 cursor-pointer active:scale-95"
+                        disabled={submitting || cart.length === 0}
+                        onClick={() => handleSubmitOrder(true)}
+                        className="px-2.5 sm:px-3 py-1.5 bg-primary dark:bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-primary-light dark:hover:bg-blue-500 active:scale-95 disabled:opacity-50 flex items-center gap-1 cursor-pointer shadow-xs whitespace-nowrap min-h-[34px]"
+                        title="Creates order, sends KOT to kitchen, and creates draft bill"
                       >
-                        <Minus size={12} />
+                        <Send size={12} />
+                        <span>KOT & Bill</span>
                       </button>
-                      <span className="text-xs sm:text-sm font-bold font-mono text-text dark:text-slate-100 w-5 text-center">{item.quantity}</span>
+
                       <button
                         type="button"
-                        onClick={() => updateCartQty(item.menuItemId, 1)}
-                        className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-300 hover:bg-border/60 dark:hover:bg-slate-700 cursor-pointer active:scale-95"
+                        disabled={submitting || cart.length === 0}
+                        onClick={() => handleSubmitOrder(false)}
+                        className="px-2.5 sm:px-3 py-1.5 bg-slate-800 dark:bg-slate-700 text-white rounded-lg text-xs font-bold hover:bg-slate-900 dark:hover:bg-slate-600 active:scale-95 disabled:opacity-50 flex items-center gap-1 cursor-pointer shadow-xs whitespace-nowrap min-h-[34px]"
+                        title="Directly creates draft bill without generating kitchen KOT"
                       >
-                        <Plus size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.menuItemId)}
-                        className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center text-danger hover:bg-red-50 dark:hover:bg-red-950/40 rounded ml-1 cursor-pointer"
-                        title="Remove"
-                      >
-                        <Trash2 size={13} />
+                        <Receipt size={12} />
+                        <span>Direct Bill</span>
                       </button>
                     </div>
-                  </div>
-                  <input
-                    type="text"
-                    value={item.notes}
-                    onChange={e => updateItemNotes(item.menuItemId, e.target.value)}
-                    placeholder="Item note (e.g. crispy)"
-                    className="w-full text-base sm:text-[11px] px-2 py-1 min-h-[32px] sm:min-h-0 bg-surface/50 dark:bg-slate-800/60 border border-border/80 dark:border-slate-700 rounded text-text dark:text-slate-100 placeholder:text-text-secondary/70 dark:placeholder:text-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-800"
-                  />
-                </div>
-              ))}
-              {cart.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-48 text-text-secondary dark:text-slate-400 text-sm">
-                  <ShoppingBag size={32} className="opacity-30 mb-2" />
-                  <p>Cart is empty</p>
-                  <p className="text-xs opacity-75 mt-0.5">Click menu items on the left to add</p>
-                </div>
-              )}
-            </div>
-
-            {/* Cart Bill Breakdown */}
-            <div className="p-4 border-t border-border dark:border-slate-800 bg-surface/40 dark:bg-slate-800/80 space-y-2">
-              <div className="space-y-1 text-xs">
-                <div className="flex justify-between text-text-secondary dark:text-slate-400">
-                  <span>Subtotal</span>
-                  <span className="font-mono text-text dark:text-slate-200">₹{cartSubtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-text-secondary dark:text-slate-400">
-                  <span>SGST (2.500%)</span>
-                  <span className="font-mono text-text dark:text-slate-200">₹{sgstAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-text-secondary dark:text-slate-400">
-                  <span>CGST (2.500%)</span>
-                  <span className="font-mono text-text dark:text-slate-200">₹{cgstAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-sm text-text dark:text-slate-100 pt-2 border-t border-border dark:border-slate-700">
-                  <span>Final Total</span>
-                  <span className="font-mono text-primary dark:text-blue-400 text-base">₹{finalTotal.toFixed(2)}</span>
+                  ) : (
+                    <div className="text-right py-1 text-[11px] text-text-secondary dark:text-slate-400 italic">
+                      Read-only
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* Dual Billing Action Buttons */}
-              {canOrder ? (
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  {/* Option One: Generate KOT then Bill */}
-                  <button
-                    type="button"
-                    disabled={submitting || cart.length === 0}
-                    onClick={() => handleSubmitOrder(true)}
-                    className="py-3 px-2 bg-primary dark:bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-primary-light dark:hover:bg-blue-500 transition-all disabled:opacity-50 flex flex-col items-center justify-center gap-1 shadow-xs cursor-pointer text-center"
-                    title="Creates order, sends KOT to kitchen, and creates draft bill"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <Send size={14} />
-                      <span>KOT then Bill</span>
-                    </div>
-                    <span className="text-[10px] font-normal opacity-85">Send to Kitchen & Bill</span>
-                  </button>
-
-                  {/* Option Two: Direct Bill */}
-                  <button
-                    type="button"
-                    disabled={submitting || cart.length === 0}
-                    onClick={() => handleSubmitOrder(false)}
-                    className="py-3 px-2 bg-slate-800 dark:bg-slate-700 text-white rounded-xl text-xs font-bold hover:bg-slate-900 dark:hover:bg-slate-600 transition-all disabled:opacity-50 flex flex-col items-center justify-center gap-1 shadow-xs cursor-pointer text-center"
-                    title="Directly creates draft bill without generating kitchen KOT"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <Receipt size={14} />
-                      <span>Direct Bill</span>
-                    </div>
-                    <span className="text-[10px] font-normal opacity-85">Skip Kitchen KOT</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="p-3 bg-surface dark:bg-slate-800/60 border border-border dark:border-slate-700 rounded-lg text-xs text-text-secondary dark:text-slate-400 text-center">
-                  Read-only view: You do not have permission to place orders.
-                </div>
-              )}
             </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
       {/* History / Active Orders View */}
       {activeView === 'history' && (
