@@ -1,33 +1,14 @@
 import prisma, { rawQuery } from '../utils/prisma.js';
 import { settingsCache } from '../utils/cache.js';
+import { parseDateRange, getPrismaDateFilter } from '../utils/dateUtils.js';
 
 const getDateRangeFilter = (startDate, endDate) => {
-  const filter = {};
-  if (startDate || endDate) {
-    filter.createdAt = {};
-    if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      filter.createdAt.gte = start;
-    }
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      filter.createdAt.lte = end;
-    }
-  } else {
-
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    filter.createdAt = { gte: start, lte: end };
-  }
-  return filter;
+  return getPrismaDateFilter(startDate, endDate, 'createdAt');
 };
 
 export const salesSummary = async (startDate, endDate) => {
-  const dateFilter = getDateRangeFilter(startDate, endDate);
+  const { start: dateStart, end: dateEnd, isSingleDay } = parseDateRange(startDate, endDate);
+  const dateFilter = { createdAt: { gte: dateStart, lte: dateEnd } };
 
   const [bills, onlineOrders] = await Promise.all([
     prisma.bill.findMany({
@@ -103,7 +84,6 @@ export const salesSummary = async (startDate, endDate) => {
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
   const pad = (n) => String(n).padStart(2, '0');
-  const isSingleDay = Boolean(startDate && endDate && startDate === endDate);
   let timeline = [];
 
   if (isSingleDay) {
@@ -177,8 +157,8 @@ export const salesSummary = async (startDate, endDate) => {
     timeline = Object.keys(hourMap).sort().map(k => hourMap[k]);
   } else {
     const dateMap = {};
-    const s = startDate ? new Date(startDate) : new Date(Date.now() - 6 * 86400000);
-    const e = endDate ? new Date(endDate) : new Date();
+    const s = new Date(dateStart);
+    const e = new Date(dateEnd);
     const cur = new Date(s);
     while (cur <= e) {
       const key = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
@@ -302,22 +282,7 @@ export const salesSummary = async (startDate, endDate) => {
   let netSalesAfterPurchases = totalRevenue;
 
   if (settings?.includePurchasesInReports) {
-    const purchaseDateFilter = {};
-    if (startDate || endDate) {
-      purchaseDateFilter.purchaseDate = {};
-      if (startDate) {
-        const s = new Date(startDate); s.setHours(0, 0, 0, 0);
-        purchaseDateFilter.purchaseDate.gte = s;
-      }
-      if (endDate) {
-        const e = new Date(endDate); e.setHours(23, 59, 59, 999);
-        purchaseDateFilter.purchaseDate.lte = e;
-      }
-    } else {
-      const s = new Date(); s.setHours(0, 0, 0, 0);
-      const e = new Date(); e.setHours(23, 59, 59, 999);
-      purchaseDateFilter.purchaseDate = { gte: s, lte: e };
-    }
+    const purchaseDateFilter = { purchaseDate: { gte: dateStart, lte: dateEnd } };
 
     const purchaseAgg = await prisma.purchaseEntry.aggregate({
       where: { status: 'ACTIVE', ...purchaseDateFilter },
@@ -545,28 +510,8 @@ export const onlineOrderSummary = async (startDate, endDate) => {
 };
 
 export const purchaseSummary = async (startDate, endDate) => {
-
-  const filter = {};
-  if (startDate || endDate) {
-    filter.purchaseDate = {};
-    if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      filter.purchaseDate.gte = start;
-    }
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      filter.purchaseDate.lte = end;
-    }
-  } else {
-
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    filter.purchaseDate = { gte: start, lte: end };
-  }
+  const { start, end } = parseDateRange(startDate, endDate);
+  const filter = { purchaseDate: { gte: start, lte: end } };
 
   const purchases = await prisma.purchaseEntry.findMany({
     where: filter,
@@ -631,31 +576,10 @@ export const inventoryStatus = async () => {
 };
 
 export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
-  const dateFilter = getDateRangeFilter(startDate, endDate);
+  const { start: sqlStartDate, end: sqlEndDate, isSingleDay } = parseDateRange(startDate, endDate);
+  const dateFilter = { createdAt: { gte: sqlStartDate, lte: sqlEndDate } };
   const settings = settingsCache.get() || await prisma.settings.findFirst();
-
-  const purchaseDateFilter = {};
-  if (startDate || endDate) {
-    purchaseDateFilter.purchaseDate = {};
-    if (startDate) {
-      const s = new Date(startDate); s.setHours(0, 0, 0, 0);
-      purchaseDateFilter.purchaseDate.gte = s;
-    }
-    if (endDate) {
-      const e = new Date(endDate); e.setHours(23, 59, 59, 999);
-      purchaseDateFilter.purchaseDate.lte = e;
-    }
-  } else {
-    const s = new Date(); s.setHours(0, 0, 0, 0);
-    const e = new Date(); e.setHours(23, 59, 59, 999);
-    purchaseDateFilter.purchaseDate = { gte: s, lte: e };
-  }
-
-  // Get date strings or defaults for SQL params
-  const sqlStartDate = startDate ? new Date(startDate) : new Date();
-  if (!startDate) sqlStartDate.setHours(0, 0, 0, 0);
-  const sqlEndDate = endDate ? new Date(endDate) : new Date();
-  if (!endDate) sqlEndDate.setHours(23, 59, 59, 999);
+  const purchaseDateFilter = { purchaseDate: { gte: sqlStartDate, lte: sqlEndDate } };
 
   const billsQuery = `
     SELECT b.id, b.orderId, b.total, b.sgstAmount, b.cgstAmount, b.createdAt,
@@ -762,7 +686,6 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   const netSalesAfterPurchases = totalRevenue - purchaseCost;
 
   const pad = (n) => String(n).padStart(2, '0');
-  const isSingleDay = Boolean(startDate && endDate && startDate === endDate);
   let timeline = [];
 
   if (isSingleDay) {
@@ -836,8 +759,8 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     timeline = Object.keys(hourMap).sort().map(k => hourMap[k]);
   } else {
     const dateMap = {};
-    const s = startDate ? new Date(startDate) : new Date(Date.now() - 6 * 86400000);
-    const e = endDate ? new Date(endDate) : new Date();
+    const s = new Date(sqlStartDate);
+    const e = new Date(sqlEndDate);
     const cur = new Date(s);
     while (cur <= e) {
       const key = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;

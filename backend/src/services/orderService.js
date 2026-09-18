@@ -1,6 +1,7 @@
 import prisma, { rawQuery } from '../utils/prisma.js';
 import { settingsCache } from '../utils/cache.js';
 import { emitKotCreated, emitBillCreated, emitOrderUpdated } from '../utils/socket.js';
+import { parseDateRange } from '../utils/dateUtils.js';
 
 const getSettings = async () => {
   const cached = settingsCache.get();
@@ -263,17 +264,10 @@ export const getAll = async (filters) => {
   // Support date range filtering
   const startParam = startDate || from;
   const endParam = endDate || to;
-  if (startParam) {
-    const s = new Date(startParam);
-    s.setHours(0, 0, 0, 0);
-    params.push(s);
-    conditions.push('o.createdAt >= ?');
-  }
-  if (endParam) {
-    const e = new Date(endParam);
-    e.setHours(23, 59, 59, 999);
-    params.push(e);
-    conditions.push('o.createdAt <= ?');
+  if (startParam || endParam) {
+    const { start, end } = parseDateRange(startParam, endParam);
+    params.push(start, end);
+    conditions.push('o.createdAt >= ? AND o.createdAt <= ?');
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

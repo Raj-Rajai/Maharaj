@@ -87,7 +87,7 @@ export default function NotificationCenter() {
 
       {/* Notification Dropdown Popover */}
       {isOpen && (
-        <div className="absolute right-0 mt-2.5 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl border border-border dark:border-slate-800 shadow-2xl z-50 overflow-hidden ring-1 ring-black/5 dark:ring-white/10 animate-in fade-in-50 zoom-in-95 duration-150">
+        <div className="absolute right-0 mt-2 w-72 sm:w-96 max-w-[calc(100vw-24px)] max-h-[min(440px,calc(100vh-70px))] bg-white dark:bg-slate-900 rounded-2xl border border-border dark:border-slate-800 shadow-2xl z-50 overflow-hidden ring-1 ring-black/5 dark:ring-white/10 animate-in fade-in-50 zoom-in-95 duration-150 flex flex-col">
           {/* Header */}
           <div className="p-3.5 border-b border-border dark:border-slate-800 flex items-center justify-between bg-surface/50 dark:bg-slate-800/40">
             <div className="flex items-center gap-2">
@@ -145,7 +145,7 @@ export default function NotificationCenter() {
           </div>
 
           {/* Scrollable Notifications List */}
-          <div className="max-h-[380px] overflow-y-auto divide-y divide-border/60 dark:divide-slate-800/60 no-scrollbar">
+          <div className="max-h-[min(320px,calc(100vh-160px))] flex-1 overflow-y-auto divide-y divide-border/60 dark:divide-slate-800/60 no-scrollbar">
             {filteredList.length === 0 ? (
               <div className="py-10 px-4 flex flex-col items-center justify-center text-center">
                 <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2.5">

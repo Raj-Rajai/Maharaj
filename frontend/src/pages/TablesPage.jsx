@@ -314,10 +314,10 @@ export default function TablesPage() {
         </div>
 
         <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto">
-          <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 overflow-x-auto no-scrollbar w-full sm:w-auto">
+          <div className="tablet-tab-bar bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 w-full sm:w-auto">
             {filters.map(f => (
               <button key={f} onClick={() => setFilter(f)}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${filter === f ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'}`}>
+                className={`tablet-tab-pill px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer ${filter === f ? 'bg-primary text-white font-semibold' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'}`}>
                 {f.replace('_', '-')}
               </button>
             ))}
@@ -397,7 +397,7 @@ export default function TablesPage() {
 
           return (
             <div key={table.id} onClick={() => handleTableClick(table)}
-              className={`bg-white dark:bg-slate-900 rounded-xl border-2 p-3 sm:p-5 cursor-pointer transition-all hover:shadow-md active:scale-[0.98] relative group ${
+              className={`bg-white dark:bg-slate-900 rounded-xl border-2 p-2.5 sm:p-4 cursor-pointer transition-all hover:shadow-md active:scale-[0.98] relative group ${
                 isEditMode
                   ? 'border-dashed border-primary/50 dark:border-blue-500/50 hover:border-primary'
                   : table.status === 'OCCUPIED'
@@ -406,31 +406,6 @@ export default function TablesPage() {
                   ? 'border-warning/40 dark:border-amber-500/50'
                   : 'border-border dark:border-slate-800 hover:border-primary/20 dark:hover:border-primary/40'
               }`}>
-              {/* Edit & Delete Action Buttons — Visible ONLY in Edit Mode */}
-              {isEditMode && table.status === 'AVAILABLE' && (hasPermission('TABLE_EDIT') || hasPermission('TABLE_DELETE')) && (
-                <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10 animate-in fade-in zoom-in-95 duration-150">
-                  {hasPermission('TABLE_EDIT') && (
-                    <button
-                      type="button"
-                      onClick={(e) => handleEditTableClick(table, e)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900 text-primary dark:text-blue-400 shadow-xs cursor-pointer transition-all hover:scale-105"
-                      title="Edit Table"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                  )}
-                  {hasPermission('TABLE_DELETE') && (
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteTableClick(table, e)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/80 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900 text-danger dark:text-red-400 shadow-xs cursor-pointer transition-all hover:scale-105"
-                      title="Delete Table"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              )}
               <div className="flex items-center justify-between mb-2 sm:mb-3">
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <img src={tableBlue} alt="Table" className="w-4 sm:w-5 h-4 sm:h-5 object-contain dark:brightness-0 dark:invert" />
@@ -441,14 +416,40 @@ export default function TablesPage() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <img
-                    src={table.type === 'AC' ? acBlue : nonAcBlue}
-                    alt={table.type}
-                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain opacity-75 dark:brightness-0 dark:invert"
-                  />
-                  <Badge variant={typeColors[table.type]}>{table.type.replace('_', '-')}</Badge>
-                </div>
+
+                {isEditMode && table.status === 'AVAILABLE' && (hasPermission('TABLE_EDIT') || hasPermission('TABLE_DELETE')) ? (
+                  <div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150">
+                    {hasPermission('TABLE_EDIT') && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleEditTableClick(table, e)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900 text-primary dark:text-blue-400 shadow-xs cursor-pointer transition-all hover:scale-105"
+                        title="Edit Table"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                    )}
+                    {hasPermission('TABLE_DELETE') && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteTableClick(table, e)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/80 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900 text-danger dark:text-red-400 shadow-xs cursor-pointer transition-all hover:scale-105"
+                        title="Delete Table"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <img
+                      src={table.type === 'AC' ? acBlue : nonAcBlue}
+                      alt={table.type}
+                      className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain opacity-75 dark:brightness-0 dark:invert"
+                    />
+                    <Badge variant={typeColors[table.type]}>{table.type.replace('_', '-')}</Badge>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-1 text-text-secondary dark:text-slate-400 text-xs mb-2 sm:mb-3">
                 <Users size={13} /> <span>{table.capacity} seats</span>

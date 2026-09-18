@@ -231,7 +231,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* Top Header & Live Telemetry Bar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-border dark:border-slate-800 shadow-xs animate-fade-in-down">
         <div>
@@ -288,9 +288,9 @@ export default function DashboardPage() {
       <QuickOperations />
 
       {/* Top 4 Kinetic KPI Cards (Staggered Animation + Hover Lift) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Today's Revenue */}
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-border dark:border-slate-800 shadow-xs hover:-translate-y-1 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800 transition-all duration-300 group animate-fade-in-up stagger-1">
+        <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-border dark:border-slate-800 shadow-xs hover:-translate-y-1 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800 transition-all duration-300 group animate-fade-in-up stagger-1">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[11px] font-bold text-text-secondary dark:text-slate-400 uppercase tracking-wider block">Today's Revenue</span>

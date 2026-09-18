@@ -34,9 +34,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface dark:bg-slate-950 flex items-center justify-center p-4 relative transition-colors duration-200">
+    <div className="min-h-screen bg-surface dark:bg-slate-950 flex items-center justify-center p-3 sm:p-4 py-6 sm:py-10 overflow-y-auto relative transition-colors duration-200">
       {/* Theme Toggle in Top Right */}
-      <div className="absolute top-6 right-6">
+      <div className="absolute top-4 sm:top-6 right-4 sm:right-6">
         <button
           type="button"
           onClick={toggleTheme}
@@ -60,15 +60,15 @@ export default function LoginPage() {
         </button>
       </div>
 
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary/10 dark:bg-slate-800 border border-transparent dark:border-slate-700/60 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <UtensilsCrossed className="text-primary dark:text-white" size={32} />
+      <div className="w-full max-w-md my-auto">
+        <div className="text-center mb-4 sm:mb-8">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 dark:bg-slate-800 border border-transparent dark:border-slate-700/60 rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-4">
+            <UtensilsCrossed className="text-primary dark:text-white" size={26} />
           </div>
-          <h1 className="text-2xl font-bold text-text dark:text-white">Maharaj Veg Villa</h1>
-          <p className="text-text-secondary dark:text-slate-400 mt-1">Hotel Operations Management</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-text dark:text-white">Maharaj Veg Villa</h1>
+          <p className="text-xs sm:text-sm text-text-secondary dark:text-slate-400 mt-0.5">Hotel Operations Management</p>
         </div>
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-border dark:border-slate-800 p-5 sm:p-8 space-y-4 sm:space-y-5 transition-colors">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-border dark:border-slate-800 p-4 sm:p-8 space-y-3.5 sm:space-y-5 transition-colors">
           <div>
             <label className="block text-xs sm:text-sm font-medium text-text dark:text-slate-200 mb-1.5">Username</label>
             <div className="relative">

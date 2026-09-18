@@ -2,6 +2,7 @@ import prisma, { rawQuery } from '../utils/prisma.js';
 import * as auditService from './auditService.js';
 import { settingsCache, tableCache } from '../utils/cache.js';
 import { emitBillCreated, emitBillUpdated, emitBillFinalized } from '../utils/socket.js';
+import { parseDateRange } from '../utils/dateUtils.js';
 
 const formatBill = (bill) => {
   if (!bill) return bill;
@@ -156,26 +157,9 @@ export const getAll = async (filters) => {
 
   if (all === true || all === 'true' || startParam === 'ALL') {
     // Explicitly requested all bills across history (no date filter)
-  } else if (startParam || endParam) {
-    if (startParam) {
-      const s = new Date(startParam);
-      s.setHours(0, 0, 0, 0);
-      params.push(s);
-      conditions.push('b.createdAt >= ?');
-    }
-    if (endParam) {
-      const e = new Date(endParam);
-      e.setHours(23, 59, 59, 999);
-      params.push(e);
-      conditions.push('b.createdAt <= ?');
-    }
   } else {
-    // Default to today's bills if no date range is provided
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-    params.push(todayStart, todayEnd);
+    const { start, end } = parseDateRange(startParam, endParam);
+    params.push(start, end);
     conditions.push('b.createdAt >= ? AND b.createdAt <= ?');
   }
 

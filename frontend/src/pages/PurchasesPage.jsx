@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useOnRouteActive } from '../components/common/RouteKeepAlive';
 import { purchasesBlue } from '../assets';
 import MasterColumnFilter from '../components/ui/MasterColumnFilter';
+import Pagination from '../components/ui/Pagination';
 
 const PURCHASE_TYPES_LIST = [
   'Fruits & Vegetables',
@@ -210,6 +211,12 @@ export default function PurchasesPage() {
   const [columnFilters, setColumnFilters] = useState({});
   const [columnSort, setColumnSort] = useState(null);
   const [activeFilterPopover, setActiveFilterPopover] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterDate, filterStatus, columnFilters, columnSort]);
 
   const purchasesWithMeta = useMemo(() => {
     return purchases.map((p) => {
@@ -305,6 +312,11 @@ export default function PurchasesPage() {
 
     return list;
   }, [purchasesWithMeta, filterDate, filterStatus, columnFilters, columnSort]);
+
+  const paginatedPurchases = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return displayedPurchases.slice(start, start + pageSize);
+  }, [displayedPurchases, currentPage, pageSize]);
 
   const openFilterForHeader = (colKey, colLabel, element, sortType) => {
     const rect = element.getBoundingClientRect();
@@ -481,7 +493,7 @@ export default function PurchasesPage() {
                   const isFiltered = columnFilters[col.key] && columnFilters[col.key].size > 0;
                   const isSorted = columnSort?.columnKey === col.key;
                   return (
-                    <th key={col.key} className="px-6 py-4 font-semibold relative group/th">
+                    <th key={col.key} className="px-6 py-4 tablet-table-cell font-semibold relative group/th">
                       <div className="flex items-center justify-between gap-1.5 select-none">
                         <span>{col.label}</span>
                         <button
@@ -502,17 +514,17 @@ export default function PurchasesPage() {
                     </th>
                   );
                 })}
-                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                <th className="px-6 py-4 tablet-table-cell font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
               {displayedPurchases.length > 0 ? (
-                displayedPurchases.map((row) => {
+                paginatedPurchases.map((row) => {
                   const p = row.purchase;
                   return (
                     <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
 
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-slate-300 relative group/cell">
+                      <td className="px-6 py-4 tablet-table-cell whitespace-nowrap text-gray-700 dark:text-slate-300 relative group/cell">
                         <div className="flex items-center justify-between gap-1.5">
                           <span>{row.purchaseDate}</span>
                           <button
@@ -528,7 +540,7 @@ export default function PurchasesPage() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-slate-100 relative group/cell">
+                      <td className="px-6 py-4 tablet-table-cell font-medium text-gray-900 dark:text-slate-100 relative group/cell">
                         <div className="flex items-center justify-between gap-1.5">
                           <span>{row.supplierName}</span>
                           <button
@@ -544,7 +556,7 @@ export default function PurchasesPage() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 text-gray-600 dark:text-slate-400 relative group/cell">
+                      <td className="px-6 py-4 tablet-table-cell text-gray-600 dark:text-slate-400 relative group/cell">
                         <div className="flex items-center justify-between gap-1.5">
                           <div className="flex items-center gap-2">
                             <span>{row.itemsCount}</span>
@@ -567,7 +579,7 @@ export default function PurchasesPage() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 font-mono font-medium text-gray-900 dark:text-slate-100 relative group/cell">
+                      <td className="px-6 py-4 tablet-table-cell font-mono font-medium text-gray-900 dark:text-slate-100 relative group/cell">
                         <div className="flex items-center justify-between gap-1.5">
                           <span>{row.totalAmountFormatted}</span>
                           <button
@@ -583,7 +595,7 @@ export default function PurchasesPage() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 relative group/cell">
+                      <td className="px-6 py-4 tablet-table-cell relative group/cell">
                         <div className="flex items-center justify-between gap-1.5">
                           {p.status === 'CANCELLED' ? (
                             <Badge variant="error">CANCELLED</Badge>
@@ -603,7 +615,7 @@ export default function PurchasesPage() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 tablet-table-cell text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {hasPermission('PURCHASE_EDIT') && (
                             <button
@@ -651,6 +663,19 @@ export default function PurchasesPage() {
             </tbody>
           </table>
         </div>
+        {!loading && displayedPurchases.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={displayedPurchases.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            pageSizeOptions={[10, 25, 50, 100]}
+          />
+        )}
       </div>
 
       <MasterColumnFilter
