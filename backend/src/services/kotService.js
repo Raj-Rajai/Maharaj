@@ -185,6 +185,13 @@ export const updateStatus = async (id, status) => {
   return updated;
 };
 
+// Kitchen flow: SENT -> PREPARING -> SERVED. READY is kept for older clients/data.
+const ITEM_STATUS_TRANSITIONS = {
+  SENT: ['PREPARING', 'READY', 'SERVED'],
+  PREPARING: ['READY', 'SERVED'],
+  READY: ['SERVED'],
+};
+
 export const updateItemStatus = async (itemId, status) => {
   const orderItem = await prisma.orderItem.findUnique({ where: { id: itemId } });
   if (!orderItem) {
@@ -194,15 +201,13 @@ export const updateItemStatus = async (itemId, status) => {
     throw { status: 400, message: 'Order item does not belong to a KOT' };
   }
 
-  const validTransitions = {
-    'SENT': ['PREPARING', 'SERVED'],
-    'PREPARING': ['SERVED'],
-    'READY': ['SERVED'],
-    'SERVED': [],
-    'PENDING': []
-  };
+  // Same status again (double tap, or a socket update already applied it) is a no-op
+  if (orderItem.status === status) {
+    return orderItem;
+  }
 
-  if (!validTransitions[orderItem.status].includes(status)) {
+  const allowedNext = ITEM_STATUS_TRANSITIONS[orderItem.status] || [];
+  if (!allowedNext.includes(status)) {
     throw { status: 400, message: `Invalid status transition from ${orderItem.status} to ${status}` };
   }
 
