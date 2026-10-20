@@ -11,10 +11,10 @@ router.use(authenticate);
 router.post('/', requirePermission('KOT_CREATE'), validate(createKotSchema), kotController.create);
 router.get('/', requirePermission('KOT_VIEW'), kotController.getAll);
 router.get('/:id', requirePermission('KOT_VIEW'), kotController.getById);
-router.patch('/:id/status', requirePermission('KOT_EDIT'), validate(updateKotStatusSchema), kotController.updateStatus);
-router.patch('/items/:itemId/status', requirePermission('KOT_EDIT'), validate(updateItemStatusSchema), kotController.updateItemStatus);
-router.patch('/items/:itemId/edit', requirePermission('KOT_EDIT'), kotController.editItemQuantity);
-router.patch('/items/:itemId/cancel', requirePermission('ORDER_CANCEL'), kotController.cancelItem);
+router.patch('/:id/status', requirePermission('KOT_EDIT', 'ORDER_EDIT'), validate(updateKotStatusSchema), kotController.updateStatus);
+router.patch('/items/:itemId/status', requirePermission('KOT_EDIT', 'ORDER_EDIT'), validate(updateItemStatusSchema), kotController.updateItemStatus);
+router.patch('/items/:itemId/edit', requirePermission('KOT_EDIT', 'ORDER_EDIT'), kotController.editItemQuantity);
+router.patch('/items/:itemId/cancel', requirePermission('ORDER_CANCEL', 'KOT_EDIT'), kotController.cancelItem);
 
 export default router;
 
