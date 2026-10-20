@@ -34,6 +34,7 @@ export const create = async (orderId, captainId, sessionId = null) => {
         orderId,
         sessionId,
         captainId,
+        status: 'PREPARING',
       },
     });
 
@@ -43,7 +44,7 @@ export const create = async (orderId, captainId, sessionId = null) => {
       },
       data: {
         kotId: createdKot.id,
-        status: 'SENT',
+        status: 'PREPARING',
       },
     });
 
@@ -194,8 +195,8 @@ export const updateItemStatus = async (itemId, status) => {
   }
 
   const validTransitions = {
-    'SENT': ['PREPARING'],
-    'PREPARING': ['READY'],
+    'SENT': ['PREPARING', 'SERVED'],
+    'PREPARING': ['SERVED'],
     'READY': ['SERVED'],
     'SERVED': [],
     'PENDING': []
@@ -226,13 +227,7 @@ export const updateItemStatus = async (itemId, status) => {
           where: { id: orderItem.kotId },
           data: { status: 'COMPLETED' }
         });
-      } else if (activeItems.every(i => i.status === 'READY' || i.status === 'SERVED')) {
-        newKotStatus = 'READY';
-        await tx.kOT.update({
-          where: { id: orderItem.kotId },
-          data: { status: 'READY' }
-        });
-      } else if (activeItems.some(i => i.status === 'PREPARING')) {
+      } else {
         newKotStatus = 'PREPARING';
         await tx.kOT.update({
           where: { id: orderItem.kotId },

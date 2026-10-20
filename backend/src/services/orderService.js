@@ -160,7 +160,7 @@ export const createTakeAwayOrder = async (data, userId) => {
       priceSnapshot: dbItems[idx].price, // DB price, not client price
       quantity: item.quantity,
       notes: item.notes || customerNotes || null,
-      status: generateKot ? 'SENT' : 'PENDING',
+      status: generateKot ? 'PREPARING' : 'PENDING',
     }));
 
     await tx.orderItem.createMany({
@@ -183,7 +183,7 @@ export const createTakeAwayOrder = async (data, userId) => {
           kotNumber,
           orderId: newOrder.id,
           captainId,
-          status: 'NEW',
+          status: 'PREPARING',
         },
       });
 
@@ -191,7 +191,7 @@ export const createTakeAwayOrder = async (data, userId) => {
         where: { orderId: newOrder.id },
         data: {
           kotId: createdKot.id,
-          status: 'SENT',
+          status: 'PREPARING',
         },
       });
     }
@@ -416,7 +416,7 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
           orderId: order.id,
           sessionId: order.sessionId || null,
           captainId: captainId || order.captainId,
-          status: 'NEW',
+          status: 'PREPARING',
         },
       });
 
@@ -429,10 +429,9 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
           itemNameSnapshot: menuItem.name,
           priceSnapshot: menuItem.price,
           quantity: qty,
-          originalQuantity: qty,
           notes: item.notes || null,
           kotId: newKot.id,
-          status: 'SENT',
+          status: 'PREPARING',
         };
       });
 
@@ -473,7 +472,6 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
       itemNameSnapshot: menuItem.name,
       priceSnapshot: menuItem.price,
       quantity: qty,
-      originalQuantity: qty,
       notes: item.notes || null,
       status: 'PENDING',
     };
@@ -589,12 +587,12 @@ export const sendKotOrder = async (data, captainId) => {
           orderId: order.id,
           sessionId: session.id,
           captainId,
-          status: 'NEW',
+          status: 'PREPARING',
         },
       });
     }
 
-    // Create OrderItems directly linked to this KOT with status 'SENT' (or 'PENDING' if no KOT)
+    // Create OrderItems directly linked to this KOT with status 'PREPARING' (or 'PENDING' if no KOT)
     const orderItemsData = items.map((item) => {
       const menuItem = menuItemMap.get(item.menuItemId);
       const qty = parseInt(item.quantity, 10) || 1;
@@ -607,10 +605,9 @@ export const sendKotOrder = async (data, captainId) => {
         itemNameSnapshot: menuItem.name,
         priceSnapshot: menuItem.price,
         quantity: qty,
-        originalQuantity: qty,
         notes: finalNote || null,
         kotId: newKot ? newKot.id : null,
-        status: newKot ? 'SENT' : 'PENDING',
+        status: newKot ? 'PREPARING' : 'PENDING',
       };
     });
 

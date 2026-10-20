@@ -19,6 +19,15 @@ import acBlue from './ac-blue.webp';
 import nonAcBlue from './non-ac-blue.webp';
 import tableBlue from './table-blue.webp';
 import settingsBlue from './settings-blue.webp';
+import logoBlue from './logo-blue.webp';
+import logoWhite from './logo-white.webp';
+import logoMarkBlue from './logo-mark-blue.webp';
+import logoMarkWhite from './logo-mark-white.webp';
+import logoHorizontalBlue from './logo-horizontal-blue.webp';
+import logoHorizontalWhite from './logo-horizontal-white.webp';
+
+const logoFullBlue = logoBlue;
+const logoFullWhite = logoWhite;
 
 export {
   swiggyIcon,
@@ -41,6 +50,14 @@ export {
   nonAcBlue,
   tableBlue,
   settingsBlue,
+  logoBlue,
+  logoWhite,
+  logoFullBlue,
+  logoFullWhite,
+  logoMarkBlue,
+  logoMarkWhite,
+  logoHorizontalBlue,
+  logoHorizontalWhite,
 };
 
 export default {
@@ -64,6 +81,12 @@ export default {
   nonAcBlue,
   tableBlue,
   settingsBlue,
+  logoBlue,
+  logoWhite,
+  logoMarkBlue,
+  logoMarkWhite,
+  logoHorizontalBlue,
+  logoHorizontalWhite,
 };
 
 

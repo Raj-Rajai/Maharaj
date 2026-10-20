@@ -5,8 +5,8 @@ const formatSettings = (s) => {
   if (!s) return s;
   return {
     ...s,
-    sgstPercent: s.sgstPercent !== undefined && s.sgstPercent !== null ? Number(s.sgstPercent).toFixed(3) : '2.500',
-    cgstPercent: s.cgstPercent !== undefined && s.cgstPercent !== null ? Number(s.cgstPercent).toFixed(3) : '2.500',
+    sgstPercent: s.sgstPercent !== undefined && s.sgstPercent !== null ? Number(s.sgstPercent).toFixed(2) : '2.50',
+    cgstPercent: s.cgstPercent !== undefined && s.cgstPercent !== null ? Number(s.cgstPercent).toFixed(2) : '2.50',
   };
 };
 
@@ -19,8 +19,8 @@ export const getSettings = async () => {
     settings = await prisma.settings.create({
       data: {
         restaurantName: 'Maharaj Veg Villa',
-        sgstPercent: 2.5,
-        cgstPercent: 2.5,
+        sgstPercent: 2.50,
+        cgstPercent: 2.50,
       },
     });
   }
@@ -38,8 +38,8 @@ export const updateSettings = async (data) => {
   if (data.address !== undefined) updateData.address = data.address;
   if (data.phone !== undefined) updateData.phone = data.phone;
   if (data.gstin !== undefined) updateData.gstin = data.gstin;
-  if (data.sgstPercent !== undefined) updateData.sgstPercent = Number(Number(data.sgstPercent).toFixed(3));
-  if (data.cgstPercent !== undefined) updateData.cgstPercent = Number(Number(data.cgstPercent).toFixed(3));
+  if (data.sgstPercent !== undefined) updateData.sgstPercent = Number(Number(data.sgstPercent).toFixed(2));
+  if (data.cgstPercent !== undefined) updateData.cgstPercent = Number(Number(data.cgstPercent).toFixed(2));
   if (data.includePurchasesInReports !== undefined) updateData.includePurchasesInReports = data.includePurchasesInReports;
 
   let result;
@@ -50,8 +50,8 @@ export const updateSettings = async (data) => {
         address: data.address || null,
         phone: data.phone || null,
         gstin: data.gstin || null,
-        sgstPercent: data.sgstPercent !== undefined ? Number(Number(data.sgstPercent).toFixed(3)) : 2.5,
-        cgstPercent: data.cgstPercent !== undefined ? Number(Number(data.cgstPercent).toFixed(3)) : 2.5,
+        sgstPercent: data.sgstPercent !== undefined ? Number(Number(data.sgstPercent).toFixed(2)) : 2.50,
+        cgstPercent: data.cgstPercent !== undefined ? Number(Number(data.cgstPercent).toFixed(2)) : 2.50,
         includePurchasesInReports: data.includePurchasesInReports !== undefined ? data.includePurchasesInReports : false,
       },
     });

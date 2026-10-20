@@ -17,6 +17,7 @@ import {
 import AnimatedNumber from '../components/ui/AnimatedNumber';
 import HourlyWaveChart from '../components/dashboard/HourlyWaveChart';
 import QuickOperations from '../components/dashboard/QuickOperations';
+import LazyScrollSection from '../components/common/LazyScrollSection';
 import { useRouteActive } from '../components/common/RouteKeepAlive';
 
 export default function DashboardPage() {
@@ -383,109 +384,112 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 2: Live Hourly Velocity Wave Chart + Real-Time Channel Share */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Hourly Sales Velocity Wave (lg:col-span-7) */}
-        <div className="lg:col-span-7 animate-fade-in-up stagger-5">
-          <HourlyWaveChart timeline={salesData.timeline} />
-        </div>
-
-        {/* Multi-Channel Live Revenue Split (lg:col-span-5) */}
-        <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-border dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between hover:border-primary/40 dark:hover:border-primary/50 hover:shadow-md transition-all duration-300 animate-fade-in-up stagger-5">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                  <Layers size={16} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-text dark:text-slate-100 text-sm">Channel Market Share</h3>
-                  <p className="text-[11px] text-text-secondary dark:text-slate-400">Live contribution by dining channel</p>
-                </div>
-              </div>
-              <span className="text-xs font-mono font-bold text-primary dark:text-blue-400 bg-primary/10 dark:bg-primary/20 px-2 py-0.5 rounded-md">
-                ₹{totalRev.toLocaleString('en-IN')}
-              </span>
-            </div>
-
-            {/* Proportional Multi-Segment Progress Bar */}
-            <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex my-3.5 shadow-inner">
-              {totalRev > 0 ? (
-                <>
-                  <div
-                    style={{ width: `${(salesData.acSales / totalRev) * 100}%` }}
-                    className="bg-blue-700 h-full transition-all duration-1000 ease-out"
-                    title={`AC: ₹${salesData.acSales}`}
-                  />
-                  <div
-                    style={{ width: `${(salesData.nonAcSales / totalRev) * 100}%` }}
-                    className="bg-blue-400 h-full transition-all duration-1000 ease-out"
-                    title={`Non-AC: ₹${salesData.nonAcSales}`}
-                  />
-                  <div
-                    style={{ width: `${(salesData.selfPickupSales / totalRev) * 100}%` }}
-                    className="bg-emerald-500 h-full transition-all duration-1000 ease-out"
-                    title={`Self Pickup: ₹${salesData.selfPickupSales}`}
-                  />
-                  <div
-                    style={{ width: `${(salesData.swiggyRevenue / totalRev) * 100}%` }}
-                    className="bg-orange-500 h-full transition-all duration-1000 ease-out"
-                    title={`Swiggy: ₹${salesData.swiggyRevenue}`}
-                  />
-                  <div
-                    style={{ width: `${(salesData.zomatoRevenue / totalRev) * 100}%` }}
-                    className="bg-red-500 h-full transition-all duration-1000 ease-out"
-                    title={`Zomato: ₹${salesData.zomatoRevenue}`}
-                  />
-                </>
-              ) : (
-                <div className="w-full h-full bg-slate-200 dark:bg-slate-700" />
-              )}
-            </div>
-
-            {/* Channel Rows */}
-            <div className="space-y-2 mt-2">
-              {[
-                { name: 'AC Dine-In', value: salesData.acSales, color: 'bg-blue-700', logo: acBlue },
-                { name: 'Non-AC Dine-In', value: salesData.nonAcSales, color: 'bg-blue-400', logo: nonAcBlue },
-                { name: 'Self Pickup', value: salesData.selfPickupSales, color: 'bg-emerald-500', logo: takeAwayBlue },
-                { name: 'Swiggy', value: salesData.swiggyRevenue, color: 'bg-orange-500', logo: swiggyIcon },
-                { name: 'Zomato', value: salesData.zomatoRevenue, color: 'bg-red-500', logo: zomatoIcon },
-              ].map(ch => {
-                const pct = totalRev > 0 ? ((ch.value / totalRev) * 100).toFixed(1) : '0.0';
-                return (
-                  <div
-                    key={ch.name}
-                    className="flex items-center justify-between p-1.5 rounded-lg hover:bg-surface dark:hover:bg-slate-800/60 transition-colors text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${ch.color}`} />
-                      <img src={ch.logo} alt={ch.name} className="w-4 h-4 object-contain" />
-                      <span className="font-medium text-text dark:text-slate-200">{ch.name}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[11px] text-text-secondary dark:text-slate-400 font-mono">{pct}%</span>
-                      <span className="font-mono font-bold text-text dark:text-slate-100 w-20 text-right">
-                        ₹{ch.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      <LazyScrollSection minHeight="360px" title="Hourly Velocity & Channel Share">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Hourly Sales Velocity Wave (lg:col-span-7) */}
+          <div className="lg:col-span-7 animate-fade-in-up stagger-5">
+            <HourlyWaveChart timeline={salesData.timeline} />
           </div>
 
-          <Link
-            to="/reports"
-            className="mt-3 pt-2.5 border-t border-border dark:border-slate-800 flex items-center justify-between text-xs font-semibold text-primary dark:text-blue-400 hover:text-primary-dark dark:hover:text-blue-300 group"
-          >
-            <span>Explore deep reports & charts</span>
-            <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-          </Link>
+          {/* Multi-Channel Live Revenue Split (lg:col-span-5) */}
+          <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-border dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between hover:border-primary/40 dark:hover:border-primary/50 hover:shadow-md transition-all duration-300 animate-fade-in-up stagger-5">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                    <Layers size={16} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-text dark:text-slate-100 text-sm">Channel Market Share</h3>
+                    <p className="text-[11px] text-text-secondary dark:text-slate-400">Live contribution by dining channel</p>
+                  </div>
+                </div>
+                <span className="text-xs font-mono font-bold text-primary dark:text-blue-400 bg-primary/10 dark:bg-primary/20 px-2 py-0.5 rounded-md">
+                  ₹{totalRev.toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              {/* Proportional Multi-Segment Progress Bar */}
+              <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex my-3.5 shadow-inner">
+                {totalRev > 0 ? (
+                  <>
+                    <div
+                      style={{ width: `${(salesData.acSales / totalRev) * 100}%` }}
+                      className="bg-blue-700 h-full transition-all duration-1000 ease-out"
+                      title={`AC: ₹${salesData.acSales}`}
+                    />
+                    <div
+                      style={{ width: `${(salesData.nonAcSales / totalRev) * 100}%` }}
+                      className="bg-blue-400 h-full transition-all duration-1000 ease-out"
+                      title={`Non-AC: ₹${salesData.nonAcSales}`}
+                    />
+                    <div
+                      style={{ width: `${(salesData.selfPickupSales / totalRev) * 100}%` }}
+                      className="bg-emerald-500 h-full transition-all duration-1000 ease-out"
+                      title={`Self Pickup: ₹${salesData.selfPickupSales}`}
+                    />
+                    <div
+                      style={{ width: `${(salesData.swiggyRevenue / totalRev) * 100}%` }}
+                      className="bg-orange-500 h-full transition-all duration-1000 ease-out"
+                      title={`Swiggy: ₹${salesData.swiggyRevenue}`}
+                    />
+                    <div
+                      style={{ width: `${(salesData.zomatoRevenue / totalRev) * 100}%` }}
+                      className="bg-red-500 h-full transition-all duration-1000 ease-out"
+                      title={`Zomato: ₹${salesData.zomatoRevenue}`}
+                    />
+                  </>
+                ) : (
+                  <div className="w-full h-full bg-slate-200 dark:bg-slate-700" />
+                )}
+              </div>
+
+              {/* Channel Rows */}
+              <div className="space-y-2 mt-2">
+                {[
+                  { name: 'AC Dine-In', value: salesData.acSales, color: 'bg-blue-700', logo: acBlue },
+                  { name: 'Non-AC Dine-In', value: salesData.nonAcSales, color: 'bg-blue-400', logo: nonAcBlue },
+                  { name: 'Self Pickup', value: salesData.selfPickupSales, color: 'bg-emerald-500', logo: takeAwayBlue },
+                  { name: 'Swiggy', value: salesData.swiggyRevenue, color: 'bg-orange-500', logo: swiggyIcon },
+                  { name: 'Zomato', value: salesData.zomatoRevenue, color: 'bg-red-500', logo: zomatoIcon },
+                ].map(ch => {
+                  const pct = totalRev > 0 ? ((ch.value / totalRev) * 100).toFixed(1) : '0.0';
+                  return (
+                    <div
+                      key={ch.name}
+                      className="flex items-center justify-between p-1.5 rounded-lg hover:bg-surface dark:hover:bg-slate-800/60 transition-colors text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${ch.color}`} />
+                        <img src={ch.logo} alt={ch.name} className="w-4 h-4 object-contain" />
+                        <span className="font-medium text-text dark:text-slate-200">{ch.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[11px] text-text-secondary dark:text-slate-400 font-mono">{pct}%</span>
+                        <span className="font-mono font-bold text-text dark:text-slate-100 w-20 text-right">
+                          ₹{ch.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Link
+              to="/reports"
+              className="mt-3 pt-2.5 border-t border-border dark:border-slate-800 flex items-center justify-between text-xs font-semibold text-primary dark:text-blue-400 hover:text-primary-dark dark:hover:text-blue-300 group"
+            >
+              <span>Explore deep reports & charts</span>
+              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
         </div>
-      </div>
+      </LazyScrollSection>
 
       {/* Row 3: Live Operations Monitoring (Tables, Kitchen KOTs, Stock Reports, Payment Split) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      <LazyScrollSection minHeight="340px" title="Live Operations, Tables & Payments">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {/* Floor Tables Status */}
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-border dark:border-slate-800 shadow-xs hover:-translate-y-1 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800 transition-all duration-300 flex flex-col justify-between group animate-fade-in-up stagger-6">
           <div>
@@ -802,6 +806,7 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+      </LazyScrollSection>
     </div>
   );
 }

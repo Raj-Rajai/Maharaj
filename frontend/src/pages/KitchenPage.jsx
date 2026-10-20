@@ -11,9 +11,9 @@ import { takeAwayBlue, swiggyIcon, zomatoIcon, kitchenBlue } from '../assets';
 import { useRouteActive } from '../components/common/RouteKeepAlive';
 import useRealtime from '../hooks/useRealtime';
 
-const statusColors = { SENT: 'warning', PREPARING: 'info', READY: 'success', SERVED: 'neutral', CANCELLED: 'danger', PENDING: 'neutral' };
-const statusOrder = ['SENT', 'PREPARING', 'READY', 'SERVED'];
-const nextStatus = { SENT: 'PREPARING', PREPARING: 'READY', READY: 'SERVED' };
+const statusColors = { SENT: 'info', PREPARING: 'info', READY: 'info', SERVED: 'neutral', CANCELLED: 'danger', PENDING: 'neutral' };
+const statusOrder = ['PREPARING', 'SERVED'];
+const nextStatus = { SENT: 'PREPARING', PREPARING: 'SERVED', READY: 'SERVED' };
 
 export default function KitchenPage() {
   const { hasPermission } = useAuth();
@@ -28,14 +28,14 @@ export default function KitchenPage() {
 
   const fetchKots = async (opts = {}) => {
     try {
-      if (!opts.background) setLoading(true);
+      if (!opts.background && kots.length === 0) setLoading(true);
       const res = await api.get('/kots', { skipCache: true });
       const data = Array.isArray(res.data) ? res.data : res.data.value || [];
       setKots(data);
     } catch {
-      if (!opts.background) toast.error('Failed to load KOTs');
+      if (!opts.background && kots.length === 0) toast.error('Failed to load KOTs');
     } finally {
-      if (!opts.background) setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -57,14 +57,41 @@ export default function KitchenPage() {
     return () => clearInterval(iv);
   }, [isActive]);
 
-  const filtered = kots.filter(k => filter === 'ALL' || k.status === filter);
+  const filtered = kots.filter(k => {
+    if (filter === 'ALL') return true;
+    if (filter === 'PREPARING') return k.status === 'PREPARING' || k.status === 'NEW' || k.status === 'READY';
+    return k.status === filter;
+  });
 
   const advanceItem = async (itemId, newStatus) => {
+    // Optimistic update: instantly update status in UI with zero delay and no page refresh
+    const previousKots = kots;
+    setKots(prev => prev.map(kot => {
+      const hasItem = kot.items?.some(i => i.id === itemId);
+      if (!hasItem) return kot;
+
+      const updatedItems = kot.items.map(item =>
+        item.id === itemId ? { ...item, status: newStatus } : item
+      );
+
+      const activeItems = updatedItems.filter(i => i.status !== 'CANCELLED');
+      const allServed = activeItems.length > 0 && activeItems.every(i => i.status === 'SERVED');
+
+      return {
+        ...kot,
+        status: allServed ? 'COMPLETED' : kot.status,
+        items: updatedItems,
+      };
+    }));
+
     try {
       await api.patch(`/kots/items/${itemId}/status`, { status: newStatus });
       toast.success(`Item → ${newStatus}`);
-      fetchKots();
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+      fetchKots({ background: true });
+    } catch (err) {
+      setKots(previousKots);
+      toast.error(err.response?.data?.message || 'Failed');
+    }
   };
 
   const openEdit = (item) => {
@@ -81,18 +108,42 @@ export default function KitchenPage() {
       await api.patch(`/kots/items/${editModal.id}/edit`, { quantity: qty, reason: editReason || undefined });
       toast.success('Item quantity updated');
       setEditModal(null);
-      fetchKots();
+      fetchKots({ background: true });
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
   const cancelItem = async (item) => {
     const reason = prompt('Reason for cancellation (optional):');
     if (reason === null) return;
+
+    // Optimistic cancel
+    const previousKots = kots;
+    setKots(prev => prev.map(kot => {
+      const hasItem = kot.items?.some(i => i.id === item.id);
+      if (!hasItem) return kot;
+
+      const updatedItems = kot.items.map(i =>
+        i.id === item.id ? { ...i, status: 'CANCELLED' } : i
+      );
+
+      const activeItems = updatedItems.filter(i => i.status !== 'CANCELLED');
+      const allServed = activeItems.length === 0 || activeItems.every(i => i.status === 'SERVED');
+
+      return {
+        ...kot,
+        status: allServed ? 'COMPLETED' : kot.status,
+        items: updatedItems,
+      };
+    }));
+
     try {
       await api.patch(`/kots/items/${item.id}/cancel`, { reason: reason || 'Cancelled by kitchen' });
       toast.success('Item cancelled');
-      fetchKots();
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+      fetchKots({ background: true });
+    } catch (err) {
+      setKots(previousKots);
+      toast.error(err.response?.data?.message || 'Failed');
+    }
   };
 
   const printKot = (kot) => {
@@ -110,9 +161,9 @@ export default function KitchenPage() {
     html += `<p style="font-weight:bold;font-size:15px">${sourceLabel}</p>`;
     html += `<p>Time: ${time}</p><hr/>`;
     kot.items?.forEach(item => {
-      const cls = item.status === 'CANCELLED' ? 'cancelled' : (item.originalQuantity ? 'edited' : '');
+      const cls = item.status === 'CANCELLED' ? 'cancelled' : (item.originalQuantity && item.originalQuantity !== item.quantity ? 'edited' : '');
       html += `<div class="item ${cls}"><span>${item.itemNameSnapshot}</span><span>x${item.quantity}</span></div>`;
-      if (item.originalQuantity && item.status !== 'CANCELLED') {
+      if (item.originalQuantity && item.originalQuantity !== item.quantity && item.status !== 'CANCELLED') {
         html += `<div class="edited">EDITED: ${item.originalQuantity} → ${item.quantity}</div>`;
       }
       if (item.status === 'CANCELLED') {
@@ -137,7 +188,7 @@ export default function KitchenPage() {
           Kitchen Display
         </h1>
         <div className="tablet-tab-bar bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 w-full sm:w-auto">
-          {['ALL', 'NEW', 'PREPARING', 'READY', 'COMPLETED'].map(f => (
+          {['ALL', 'PREPARING', 'COMPLETED'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`tablet-tab-pill px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer ${filter === f ? 'bg-primary text-white font-semibold' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'}`}>
               {f}
@@ -149,7 +200,7 @@ export default function KitchenPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
         {filtered.map(kot => (
           <div key={kot.id} className={`bg-white dark:bg-slate-900 rounded-xl border-2 overflow-hidden flex flex-col justify-between ${
-            kot.status === 'NEW' ? 'border-warning/40 dark:border-amber-500/40' : kot.status === 'PREPARING' ? 'border-primary/40 dark:border-blue-500/40' : kot.status === 'READY' ? 'border-success/40 dark:border-emerald-500/40' : 'border-border dark:border-slate-800'
+            kot.status === 'COMPLETED' ? 'border-border dark:border-slate-800' : 'border-primary/40 dark:border-blue-500/40'
           }`}>
             <div>
               <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 bg-surface dark:bg-slate-800 border-b border-border dark:border-slate-700">
@@ -179,7 +230,7 @@ export default function KitchenPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2">
-                  <Badge variant={kot.status === 'NEW' ? 'warning' : kot.status === 'PREPARING' ? 'info' : kot.status === 'READY' ? 'success' : 'neutral'}>{kot.status}</Badge>
+                  <Badge variant={kot.status === 'COMPLETED' ? 'neutral' : 'info'}>{kot.status === 'COMPLETED' ? 'COMPLETED' : 'PREPARING'}</Badge>
                   {hasPermission('KOT_PRINT') && (
                     <button onClick={() => printKot(kot)} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded hover:bg-border dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 cursor-pointer" title="Print KOT"><Printer size={15} /></button>
                   )}
@@ -192,8 +243,8 @@ export default function KitchenPage() {
                       <p className={`text-xs sm:text-sm font-medium truncate ${item.status === 'CANCELLED' ? 'line-through text-text-secondary dark:text-slate-400' : 'text-text dark:text-slate-100'}`}>{item.itemNameSnapshot}</p>
                       <div className="flex items-center flex-wrap gap-1.5 mt-1">
                         <span className="text-xs font-mono font-bold text-text dark:text-slate-200">x{item.quantity}</span>
-                        <Badge variant={statusColors[item.status]}>{item.status}</Badge>
-                        {item.originalQuantity && item.status !== 'CANCELLED' && <span className="text-[10px] text-warning font-medium">EDITED: {item.originalQuantity}→{item.quantity}</span>}
+                        <Badge variant={statusColors[item.status] || 'info'}>{item.status}</Badge>
+                        {item.originalQuantity && item.originalQuantity !== item.quantity && item.status !== 'CANCELLED' && <span className="text-[10px] text-warning font-medium">EDITED: {item.originalQuantity}→{item.quantity}</span>}
                         {item.status === 'CANCELLED' && <span className="text-[10px] text-danger font-medium">CANCELLED</span>}
                       </div>
                       {item.notes && <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">{item.notes}</p>}
