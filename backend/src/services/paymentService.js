@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { parseDateRange } from '../utils/dateUtils.js';
 
 export const getAll = async (filters) => {
   const { method, startDate, endDate } = filters || {};
@@ -7,9 +8,8 @@ export const getAll = async (filters) => {
   if (method) where.method = method;
 
   if (startDate || endDate) {
-    where.paidAt = {};
-    if (startDate) where.paidAt.gte = new Date(startDate);
-    if (endDate) where.paidAt.lte = new Date(endDate);
+    const { start, end } = parseDateRange(startDate, endDate);
+    where.paidAt = { gte: start, lte: end };
   }
 
   return prisma.payment.findMany({

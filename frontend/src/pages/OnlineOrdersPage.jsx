@@ -78,10 +78,10 @@ export default function OnlineOrdersPage() {
           <h1 className="text-xl font-bold text-text dark:text-slate-100">Online Orders</h1>
         </div>
         <div className="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto">
-          <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1">
+          <div className="tablet-tab-bar bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1">
             {['SWIGGY', 'ZOMATO'].map(p => (
               <button key={p} onClick={() => setPlatform(p)}
-                className={`px-3.5 sm:px-4 py-1.5 min-h-[38px] rounded-md text-xs font-semibold transition-colors cursor-pointer ${platform === p ? (p === 'SWIGGY' ? 'bg-orange-500 text-white' : 'bg-red-500 text-white') : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'}`}>{p}</button>
+                className={`tablet-tab-pill px-3.5 sm:px-4 py-1.5 rounded-md text-xs font-semibold cursor-pointer ${platform === p ? (p === 'SWIGGY' ? 'bg-orange-500 text-white shadow-xs' : 'bg-red-500 text-white shadow-xs') : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'}`}>{p}</button>
             ))}
           </div>
           {canCreate && (
@@ -98,21 +98,21 @@ export default function OnlineOrdersPage() {
           <table className="w-full text-sm min-w-[540px]">
             <thead className="bg-surface dark:bg-slate-800/80 border-b border-border dark:border-slate-700">
               <tr className="text-left text-text-secondary dark:text-slate-400">
-                <th className="px-4 py-3 font-medium">Order ID</th>
-                <th className="px-4 py-3 font-medium">Customer</th>
-                <th className="px-4 py-3 font-medium">Total</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Date</th>
+                <th className="px-4 py-3 tablet-table-cell font-medium">Order ID</th>
+                <th className="px-4 py-3 tablet-table-cell font-medium">Customer</th>
+                <th className="px-4 py-3 tablet-table-cell font-medium">Total</th>
+                <th className="px-4 py-3 tablet-table-cell font-medium">Status</th>
+                <th className="px-4 py-3 tablet-table-cell font-medium">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border dark:divide-slate-800">
               {filtered.map(o => (
                 <tr key={o.id} onClick={() => setDetailModal(o)} className="hover:bg-surface/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors">
-                  <td className="px-4 py-3 font-mono font-medium text-text dark:text-slate-100">{o.externalOrderId}</td>
-                  <td className="px-4 py-3 text-text dark:text-slate-200">{o.customerName || '-'}</td>
-                  <td className="px-4 py-3 font-mono font-medium text-text dark:text-slate-100">₹{parseFloat(o.total).toFixed(2)}</td>
-                  <td className="px-4 py-3"><Badge variant={statusVariant[o.status]}>{o.status}</Badge></td>
-                  <td className="px-4 py-3 text-text-secondary dark:text-slate-400">{new Date(o.createdAt).toLocaleString()}</td>
+                  <td className="px-4 py-3 tablet-table-cell font-mono font-medium text-text dark:text-slate-100">{o.externalOrderId}</td>
+                  <td className="px-4 py-3 tablet-table-cell text-text dark:text-slate-200">{o.customerName || '-'}</td>
+                  <td className="px-4 py-3 tablet-table-cell font-mono font-medium text-text dark:text-slate-100">₹{parseFloat(o.total).toFixed(2)}</td>
+                  <td className="px-4 py-3 tablet-table-cell"><Badge variant={statusVariant[o.status]}>{o.status}</Badge></td>
+                  <td className="px-4 py-3 tablet-table-cell text-text-secondary dark:text-slate-400">{new Date(o.createdAt).toLocaleString()}</td>
                 </tr>
               ))}
               {filtered.length === 0 && <tr><td colSpan="5" className="px-4 py-8 text-center text-text-secondary dark:text-slate-400">No {platform} orders</td></tr>}

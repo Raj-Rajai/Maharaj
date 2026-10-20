@@ -4,9 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "mysql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 // ─── ENUMS ──────────────────────────────────────────────────────────────────
@@ -94,6 +93,10 @@ enum Permission {
   ONLINE_ORDER_VIEW
   ONLINE_ORDER_CREATE
   ONLINE_ORDER_EDIT
+  NOTIFICATION_KOT_AC
+  NOTIFICATION_KOT_NON_AC
+  NOTIFICATION_BILL_AC
+  NOTIFICATION_BILL_NON_AC
 }
 
 enum TableStatus {
@@ -210,7 +213,11 @@ model UserPermission {
 
 model RefreshToken {
   id        String   @id @default(uuid())
-  token     String   @unique
+  // JWT refresh tokens carry id + jti + iat + exp and run ~247 chars. The MySQL
+  // default for String is VARCHAR(191), which silently truncates them (or errors
+  // with 1406 under strict mode) — 512 keeps the unique index within InnoDB's
+  // 3072-byte key limit at utf8mb4 (512 * 4 = 2048).
+  token     String   @unique @db.VarChar(512)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
@@ -252,7 +259,7 @@ model MenuItem {
   categoryId  String
   category    Category  @relation(fields: [categoryId], references: [id])
   menuType    MenuType
-  price       Decimal
+  price       Decimal   @db.Decimal(10, 2)
   description String?
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
@@ -325,7 +332,7 @@ model OrderItem {
   menuItemId       String
   menuItem         MenuItem        @relation(fields: [menuItemId], references: [id])
   itemNameSnapshot String
-  priceSnapshot    Decimal
+  priceSnapshot    Decimal         @db.Decimal(10, 2)
   quantity         Int
   originalQuantity Int?
   notes            String?
@@ -388,14 +395,14 @@ model Bill {
   tableId       String?
   customerName  String?
   customerPhone String?
-  subtotal      Decimal
-  sgstPercent   Decimal       @default(2.5)
-  cgstPercent   Decimal       @default(2.5)
-  sgstAmount    Decimal       @default(0)
-  cgstAmount    Decimal       @default(0)
-  discount      Decimal       @default(0)
-  total         Decimal
-  roundOff      Decimal       @default(0)
+  subtotal      Decimal       @db.Decimal(10, 2)
+  sgstPercent   Decimal       @default(2.50) @db.Decimal(5, 2)
+  cgstPercent   Decimal       @default(2.50) @db.Decimal(5, 2)
+  sgstAmount    Decimal       @default(0.00) @db.Decimal(10, 2)
+  cgstAmount    Decimal       @default(0.00) @db.Decimal(10, 2)
+  discount      Decimal       @default(0.00) @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  roundOff      Decimal       @default(0.00) @db.Decimal(10, 2)
   version       Int           @default(1)
   status        BillStatus    @default(DRAFT)
   createdAt     DateTime      @default(now())
@@ -421,13 +428,13 @@ model BillAmendment {
   changes       Json
   reason        String
   modifiedBy    String
-  originalTotal Decimal
-  newSubtotal   Decimal
-  newSgstAmount Decimal
-  newCgstAmount Decimal
-  newDiscount   Decimal  @default(0)
-  newTotal      Decimal
-  difference    Decimal
+  originalTotal Decimal  @db.Decimal(10, 2)
+  newSubtotal   Decimal  @db.Decimal(10, 2)
+  newSgstAmount Decimal  @db.Decimal(10, 2)
+  newCgstAmount Decimal  @db.Decimal(10, 2)
+  newDiscount   Decimal  @default(0.00) @db.Decimal(10, 2)
+  newTotal      Decimal  @db.Decimal(10, 2)
+  difference    Decimal  @db.Decimal(10, 2)
   paymentStatus String   @default("PENDING")
   createdAt     DateTime @default(now())
 
@@ -439,7 +446,7 @@ model Payment {
   billId String        @unique
   bill   Bill          @relation(fields: [billId], references: [id])
   method PaymentMethod
-  amount Decimal
+  amount Decimal       @db.Decimal(10, 2)
   status PaymentStatus @default(PAID)
   paidAt DateTime      @default(now())
 
@@ -454,10 +461,10 @@ model OnlineOrder {
   externalOrderId String
   customerName    String?
   items           Json
-  subtotal        Decimal
-  discount        Decimal @default(0)
-  charges         Decimal @default(0)
-  total           Decimal
+  subtotal        Decimal             @db.Decimal(10, 2)
+  discount        Decimal             @default(0.00) @db.Decimal(10, 2)
+  charges         Decimal             @default(0.00) @db.Decimal(10, 2)
+  total           Decimal             @db.Decimal(10, 2)
   paymentStatus   OnlinePaymentStatus @default(PAID)
   status          OnlineOrderStatus   @default(NEW)
   notes           String?
@@ -487,7 +494,7 @@ model PurchaseEntry {
   supplierId     String
   supplier       Supplier       @relation(fields: [supplierId], references: [id])
   purchaseNumber String?
-  totalAmount    Decimal
+  totalAmount    Decimal        @db.Decimal(10, 2)
   purchaseDate   DateTime
   addToInventory Boolean        @default(false)
   status         String         @default("ACTIVE")
@@ -507,10 +514,10 @@ model PurchaseItem {
   purchaseId String
   purchase   PurchaseEntry @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   name       String
-  quantity   Decimal
+  quantity   Decimal       @db.Decimal(10, 2)
   unit       String
-  rate       Decimal
-  amount     Decimal
+  rate       Decimal       @db.Decimal(10, 2)
+  amount     Decimal       @db.Decimal(10, 2)
 
   @@index([purchaseId])
 }
@@ -518,9 +525,9 @@ model PurchaseItem {
 model InventoryItem {
   id                String                 @id @default(uuid())
   name              String                 @unique
-  currentStock      Decimal
+  currentStock      Decimal                @db.Decimal(10, 2)
   unit              String
-  lowStockThreshold Decimal @default(0)
+  lowStockThreshold Decimal                @default(0.00) @db.Decimal(10, 2)
   updatedAt         DateTime               @updatedAt
 
   transactions InventoryTransaction[]
@@ -531,7 +538,7 @@ model InventoryTransaction {
   inventoryItemId String
   inventoryItem   InventoryItem            @relation(fields: [inventoryItemId], references: [id])
   type            InventoryTransactionType
-  quantity        Decimal
+  quantity        Decimal                  @db.Decimal(10, 2)
   referenceId     String?
   notes           String?
   createdAt       DateTime                 @default(now())
@@ -548,8 +555,8 @@ model Settings {
   address                   String?
   phone                     String?
   gstin                     String?
-  sgstPercent               Decimal  @default(2.5)
-  cgstPercent               Decimal  @default(2.5)
+  sgstPercent               Decimal  @default(2.50) @db.Decimal(5, 2)
+  cgstPercent               Decimal  @default(2.50) @db.Decimal(5, 2)
   includePurchasesInReports Boolean  @default(false)
   updatedAt                 DateTime @updatedAt
 }

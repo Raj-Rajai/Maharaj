@@ -22,6 +22,7 @@ import {
   TopItemsChart,
   TablePerformanceChart,
 } from '../components/reports';
+import LazyScrollSection from '../components/common/LazyScrollSection';
 
 export default function ReportsPage() {
   const { hasPermission } = useAuth();
@@ -564,9 +565,9 @@ export default function ReportsPage() {
             type,
             customerName,
             customerNumber,
-            `${sgstPercent}%`,
+            `${Number(sgstPercent).toFixed(3)}%`,
             sgstAmount.toFixed(2),
-            `${cgstPercent}%`,
+            `${Number(cgstPercent).toFixed(3)}%`,
             cgstAmount.toFixed(2),
             amountWithoutTax.toFixed(2),
             billTax.toFixed(2),
@@ -749,7 +750,7 @@ export default function ReportsPage() {
 
         {/* Date Filter Presets & Date Picker */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full lg:w-auto">
-          <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 shadow-xs overflow-x-auto no-scrollbar w-full sm:w-auto">
+          <div className="tablet-tab-bar bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 shadow-xs w-full sm:w-auto">
             {[
               { label: 'Today', key: 'today' },
               { label: 'Yesterday', key: 'yesterday' },
@@ -761,9 +762,9 @@ export default function ReportsPage() {
                 key={p.key}
                 type="button"
                 onClick={() => setPreset(p.key)}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                className={`tablet-tab-pill px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer ${
                   activePreset === p.key
-                    ? 'bg-primary text-white shadow-xs'
+                    ? 'bg-primary text-white shadow-xs font-semibold'
                     : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'
                 }`}
               >
@@ -798,18 +799,18 @@ export default function ReportsPage() {
       </div>
 
       {/* Quick Channel Segment Filter */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 p-2 rounded-xl border border-border dark:border-slate-800 shadow-xs">
-        <div className="flex items-center gap-2 text-xs font-semibold text-text-secondary dark:text-slate-400 px-2">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-slate-900 p-2 rounded-xl border border-border dark:border-slate-800 shadow-xs">
+        <div className="flex items-center gap-2 text-xs font-semibold text-text-secondary dark:text-slate-400 px-2 shrink-0">
           <Filter size={15} className="text-primary dark:text-blue-400" />
           <span>Channel View:</span>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="tablet-tab-bar flex-1 justify-start sm:justify-end py-0.5">
           <button
             type="button"
             onClick={() => setSelectedSegment('all')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+            className={`tablet-tab-pill gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
               selectedSegment === 'all'
-                ? 'bg-primary text-white shadow-xs'
+                ? 'bg-primary text-white shadow-xs font-semibold'
                 : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 bg-white dark:bg-slate-900 border border-border/60 dark:border-slate-800'
             }`}
           >
@@ -820,9 +821,9 @@ export default function ReportsPage() {
           <button
             type="button"
             onClick={() => setSelectedSegment('dinein')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+            className={`tablet-tab-pill gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
               selectedSegment === 'dinein'
-                ? 'bg-primary text-white shadow-xs'
+                ? 'bg-primary text-white shadow-xs font-semibold'
                 : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 bg-white dark:bg-slate-900 border border-border/60 dark:border-slate-800'
             }`}
           >
@@ -833,9 +834,9 @@ export default function ReportsPage() {
           <button
             type="button"
             onClick={() => setSelectedSegment('takeaway')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+            className={`tablet-tab-pill gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
               selectedSegment === 'takeaway'
-                ? 'bg-primary text-white shadow-xs'
+                ? 'bg-primary text-white shadow-xs font-semibold'
                 : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 bg-white dark:bg-slate-900 border border-border/60 dark:border-slate-800'
             }`}
           >
@@ -957,7 +958,7 @@ export default function ReportsPage() {
       ) : (
         <div className="space-y-6">
           {/* Top KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Card className="hover:border-success/40 transition-colors">
               <div className="flex items-start justify-between">
                 <div>
@@ -1031,406 +1032,425 @@ export default function ReportsPage() {
           </div>
 
           {/* Charts Row 1: Interactive Revenue Trend & Channel Donut */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-8">
-              <RevenueTrendChart
-                timeline={filteredTimeline}
-                isSingleDay={startDate === endDate}
-              />
+          <LazyScrollSection minHeight="420px" title="Revenue Trend & Channel Distribution">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-8">
+                <RevenueTrendChart
+                  timeline={filteredTimeline}
+                  isSingleDay={startDate === endDate}
+                />
+              </div>
+              <div className="lg:col-span-4">
+                <ChannelDonutChart sales={filteredSalesForDonut} />
+              </div>
             </div>
-            <div className="lg:col-span-4">
-              <ChannelDonutChart sales={filteredSalesForDonut} />
-            </div>
-          </div>
+          </LazyScrollSection>
 
-          {/* Charts Row 2: Payment Methods, Top Selling Items, Dine-In Tables */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <PaymentMethodChart payments={payments} />
-            <TopItemsChart
-              topItems={sales?.topItems || []}
-              categorySales={sales?.categorySales || []}
-            />
-            <TablePerformanceChart tables={tablesData || []} />
-          </div>
+          {/* Charts Row 2: Top Selling Items, Payment Methods, Dine-In Tables */}
+          <LazyScrollSection minHeight="360px" title="Top Dishes, Payments & Table Performance">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 min-w-0">
+              <div className="min-w-0 md:col-span-2 lg:col-span-1">
+                <TopItemsChart
+                  topItems={sales?.topItems || []}
+                  categorySales={sales?.categorySales || []}
+                  categories={sales?.categories || []}
+                />
+              </div>
+              <div className="min-w-0 md:col-span-1 lg:col-span-1">
+                <PaymentMethodChart payments={payments} />
+              </div>
+              <div className="min-w-0 md:col-span-1 lg:col-span-1">
+                <TablePerformanceChart tables={tablesData || []} />
+              </div>
+            </div>
+          </LazyScrollSection>
           
           {/* Sales Channels Breakdown Cards */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <h3 className="text-sm font-bold text-text dark:text-slate-100">Channel Revenue Summary</h3>
-              <span className="text-xs text-text-secondary dark:text-slate-400">Direct breakdown across AC, Non-AC & Online deliveries</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-              <Card className="hover:border-blue-400/40 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">AC Sales</p>
-                    <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-1.5">
-                      ₹{acSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">Dine-In AC Section</p>
-                  </div>
-                  <div className="p-2.5 bg-blue-50 dark:bg-blue-950/60 rounded-xl">
-                    <img src={acBlue} alt="AC" className="w-5 h-5 object-contain dark:brightness-0 dark:invert" />
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="hover:border-emerald-400/40 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Non-AC Sales</p>
-                    <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-1.5">
-                      ₹{nonAcSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">Dine-In Non-AC Section</p>
-                  </div>
-                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl">
-                    <img src={nonAcBlue} alt="Non-AC" className="w-5 h-5 object-contain dark:brightness-0 dark:invert" />
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="hover:border-teal-400/40 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Self Pickup</p>
-                    <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-1.5">
-                      ₹{selfPickupSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">Self Pickup Orders</p>
-                  </div>
-                  <div className="p-2.5 bg-teal-50 dark:bg-teal-950/60 rounded-xl">
-                    <img src={takeAwayBlue} alt="Self Pickup" className="w-5 h-5 object-contain dark:brightness-0 dark:invert" />
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="hover:border-orange-400/40 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Swiggy Sales</p>
-                    <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-1.5">
-                      ₹{swiggyRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">{swiggyCount} delivery orders</p>
-                  </div>
-                  <div className="p-2.5 bg-orange-50 dark:bg-orange-950/60 rounded-xl">
-                    <img src={swiggyIcon} alt="Swiggy" className="w-5 h-5 object-contain" />
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="hover:border-red-400/40 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Zomato Sales</p>
-                    <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-1.5">
-                      ₹{zomatoRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">{zomatoCount} delivery orders</p>
-                  </div>
-                  <div className="p-2.5 bg-red-50 dark:bg-red-950/60 rounded-xl">
-                    <img src={zomatoIcon} alt="Zomato" className="w-5 h-5 object-contain" />
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </div>
-
-          {/* Purchase-Adjusted Metrics & Supplier Breakdown */}
-          {sales?.includePurchasesInReports ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Card className="border-warning/30 bg-warning/5 dark:bg-amber-950/20 dark:border-amber-900/40">
+          <LazyScrollSection minHeight="140px" title="Channel Revenue Breakdown">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-sm font-bold text-text dark:text-slate-100">Channel Revenue Summary</h3>
+                <span className="text-xs text-text-secondary dark:text-slate-400">Direct breakdown across AC, Non-AC & Online deliveries</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+                <Card className="hover:border-blue-400/40 transition-colors">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Purchase Expenses</p>
-                      <p className="text-2xl font-bold font-mono text-warning mt-1.5">
-                        ₹{Number(sales?.purchaseCost || purchases?.totalPurchaseAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">AC Sales</p>
+                      <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-1.5">
+                        ₹{acSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
-                      <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">Total purchases recorded in this period</p>
+                      <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">Dine-In AC Section</p>
                     </div>
-                    <div className="p-2.5 bg-warning/10 dark:bg-amber-950/60 rounded-xl text-warning dark:text-amber-400">
-                      <ShoppingBag size={22} />
+                    <div className="p-2.5 bg-blue-50 dark:bg-blue-950/60 rounded-xl">
+                      <img src={acBlue} alt="AC" className="w-5 h-5 object-contain dark:brightness-0 dark:invert" />
                     </div>
                   </div>
                 </Card>
 
-                <Card className="border-success/30 bg-success/5 dark:bg-emerald-950/20 dark:border-emerald-900/40">
+                <Card className="hover:border-emerald-400/40 transition-colors">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Net Sales After Purchases</p>
-                      <p className={`text-2xl font-bold font-mono mt-1.5 ${Number(sales?.netSalesAfterPurchases || 0) >= 0 ? 'text-success dark:text-emerald-400' : 'text-danger dark:text-rose-400'}`}>
-                        ₹{Number(sales?.netSalesAfterPurchases || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Non-AC Sales</p>
+                      <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-1.5">
+                        ₹{nonAcSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
-                      <p className="text-xs text-text-secondary dark:text-slate-400 mt-1 italic">
-                        This is gross sales minus purchases — raw stock may remain in inventory.
-                      </p>
+                      <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">Dine-In Non-AC Section</p>
                     </div>
-                    <div className="p-2.5 bg-success/10 dark:bg-emerald-950/60 rounded-xl text-success dark:text-emerald-400">
-                      <IndianRupee size={22} />
+                    <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl">
+                      <img src={nonAcBlue} alt="Non-AC" className="w-5 h-5 object-contain dark:brightness-0 dark:invert" />
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="hover:border-teal-400/40 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Self Pickup</p>
+                      <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-1.5">
+                        ₹{selfPickupSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">Self Pickup Orders</p>
+                    </div>
+                    <div className="p-2.5 bg-teal-50 dark:bg-teal-950/60 rounded-xl">
+                      <img src={takeAwayBlue} alt="Self Pickup" className="w-5 h-5 object-contain dark:brightness-0 dark:invert" />
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="hover:border-orange-400/40 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Swiggy Sales</p>
+                      <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-1.5">
+                        ₹{swiggyRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">{swiggyCount} delivery orders</p>
+                    </div>
+                    <div className="p-2.5 bg-orange-50 dark:bg-orange-950/60 rounded-xl">
+                      <img src={swiggyIcon} alt="Swiggy" className="w-5 h-5 object-contain" />
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="hover:border-red-400/40 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Zomato Sales</p>
+                      <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-1.5">
+                        ₹{zomatoRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">{zomatoCount} delivery orders</p>
+                    </div>
+                    <div className="p-2.5 bg-red-50 dark:bg-red-950/60 rounded-xl">
+                      <img src={zomatoIcon} alt="Zomato" className="w-5 h-5 object-contain" />
                     </div>
                   </div>
                 </Card>
               </div>
+            </div>
+          </LazyScrollSection>
 
-              {/* Purchases by Supplier Table */}
+          {/* Purchase-Adjusted Metrics & Supplier Breakdown */}
+          <LazyScrollSection minHeight="200px" title="Purchases & Expenses">
+            {sales?.includePurchasesInReports ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Card className="border-warning/30 bg-warning/5 dark:bg-amber-950/20 dark:border-amber-900/40">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Purchase Expenses</p>
+                        <p className="text-2xl font-bold font-mono text-warning mt-1.5">
+                          ₹{Number(sales?.purchaseCost || purchases?.totalPurchaseAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">Total purchases recorded in this period</p>
+                      </div>
+                      <div className="p-2.5 bg-warning/10 dark:bg-amber-950/60 rounded-xl text-warning dark:text-amber-400">
+                        <ShoppingBag size={22} />
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="border-success/30 bg-success/5 dark:bg-emerald-950/20 dark:border-emerald-900/40">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-text-secondary dark:text-slate-400 uppercase tracking-wider">Net Sales After Purchases</p>
+                        <p className={`text-2xl font-bold font-mono mt-1.5 ${Number(sales?.netSalesAfterPurchases || 0) >= 0 ? 'text-success dark:text-emerald-400' : 'text-danger dark:text-rose-400'}`}>
+                          ₹{Number(sales?.netSalesAfterPurchases || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-text-secondary dark:text-slate-400 mt-1 italic">
+                          This is gross sales minus purchases — raw stock may remain in inventory.
+                        </p>
+                      </div>
+                      <div className="p-2.5 bg-success/10 dark:bg-emerald-950/60 rounded-xl text-success dark:text-emerald-400">
+                        <IndianRupee size={22} />
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Purchases by Supplier Table */}
+                <Card>
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-border dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <Truck size={18} className="text-primary dark:text-blue-400" />
+                      <h3 className="font-semibold text-text dark:text-slate-100">Purchases by Type of Purchase</h3>
+                    </div>
+                    <span className="text-xs text-text-secondary dark:text-slate-400">
+                      Total Purchases: <strong className="font-mono text-text dark:text-slate-100">₹{Number(purchases?.totalPurchaseAmount || sales?.purchaseCost || 0).toFixed(2)}</strong>
+                    </span>
+                  </div>
+
+                  {purchases?.bySupplier && Object.keys(purchases.bySupplier).length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-border dark:border-slate-800 text-xs text-text-secondary dark:text-slate-400 bg-surface/50 dark:bg-slate-800/50">
+                            <th className="py-2.5 px-3 font-semibold">Type of Purchase</th>
+                            <th className="py-2.5 px-3 font-semibold text-center">Invoices / Entries</th>
+                            <th className="py-2.5 px-3 font-semibold text-right">Total Amount (₹)</th>
+                            <th className="py-2.5 px-3 font-semibold text-right">Share of Purchases</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60 dark:divide-slate-800 text-xs">
+                          {Object.entries(purchases.bySupplier).map(([sup, data]) => {
+                            const total = Number(purchases?.totalPurchaseAmount || sales?.purchaseCost || 1);
+                            const pct = total > 0 ? ((data.amount / total) * 100).toFixed(1) : '0.0';
+                            return (
+                              <tr key={sup} className="hover:bg-surface/50 dark:hover:bg-slate-800/50 transition-colors">
+                                <td className="py-2.5 px-3 font-medium text-text dark:text-slate-100">{sup}</td>
+                                <td className="py-2.5 px-3 text-center font-mono text-text-secondary dark:text-slate-400">{data.count}</td>
+                                <td className="py-2.5 px-3 text-right font-mono font-bold text-text dark:text-slate-100">
+                                  ₹{Number(data.amount || 0).toFixed(2)}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono text-text-secondary dark:text-slate-400">
+                                  {pct}%
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-text-secondary dark:text-slate-400 py-3 text-center">No purchases recorded for this period.</p>
+                  )}
+                </Card>
+              </div>
+            ) : (
+              /* Informational Banner when Include Purchases in Reports is OFF */
+              <Card className="border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg text-blue-700 dark:text-blue-300 shrink-0 mt-0.5">
+                      <AlertCircle size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-blue-950 dark:text-blue-100">Purchase Expense Reporting is Disabled</h4>
+                      <p className="text-xs text-blue-800 dark:text-blue-300 mt-0.5">
+                        To view supplier purchase breakdowns, purchase costs, and net sales after expenses in these reports, turn on the <strong>"Include Purchases in Reports"</strong> toggle in Settings.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    to="/settings"
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shrink-0 transition-colors flex items-center gap-1.5 shadow-xs"
+                  >
+                    <span>Open Settings</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+              </Card>
+            )}
+          </LazyScrollSection>
+
+          {/* Payment Breakdown & Online Orders Breakdown */}
+          <LazyScrollSection minHeight="280px" title="Payment Details & Online Channels">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Payment Breakdown */}
               <Card>
                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-border dark:border-slate-800">
                   <div className="flex items-center gap-2">
-                    <Truck size={18} className="text-primary dark:text-blue-400" />
-                    <h3 className="font-semibold text-text dark:text-slate-100">Purchases by Type of Purchase</h3>
+                    <CreditCard size={18} className="text-primary dark:text-blue-400" />
+                    <h3 className="font-semibold text-text dark:text-slate-100">Payment Breakdown Details</h3>
                   </div>
                   <span className="text-xs text-text-secondary dark:text-slate-400">
-                    Total Purchases: <strong className="font-mono text-text dark:text-slate-100">₹{Number(purchases?.totalPurchaseAmount || sales?.purchaseCost || 0).toFixed(2)}</strong>
+                    Total: <strong className="font-mono text-text dark:text-slate-100">₹{totalRev.toFixed(2)}</strong>
                   </span>
                 </div>
 
-                {purchases?.bySupplier && Object.keys(purchases.bySupplier).length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-border dark:border-slate-800 text-xs text-text-secondary dark:text-slate-400 bg-surface/50 dark:bg-slate-800/50">
-                          <th className="py-2.5 px-3 font-semibold">Type of Purchase</th>
-                          <th className="py-2.5 px-3 font-semibold text-center">Invoices / Entries</th>
-                          <th className="py-2.5 px-3 font-semibold text-right">Total Amount (₹)</th>
-                          <th className="py-2.5 px-3 font-semibold text-right">Share of Purchases</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/60 dark:divide-slate-800 text-xs">
-                        {Object.entries(purchases.bySupplier).map(([sup, data]) => {
-                          const total = Number(purchases?.totalPurchaseAmount || sales?.purchaseCost || 1);
-                          const pct = total > 0 ? ((data.amount / total) * 100).toFixed(1) : '0.0';
-                          return (
-                            <tr key={sup} className="hover:bg-surface/50 dark:hover:bg-slate-800/50 transition-colors">
-                              <td className="py-2.5 px-3 font-medium text-text dark:text-slate-100">{sup}</td>
-                              <td className="py-2.5 px-3 text-center font-mono text-text-secondary dark:text-slate-400">{data.count}</td>
-                              <td className="py-2.5 px-3 text-right font-mono font-bold text-text dark:text-slate-100">
-                                ₹{Number(data.amount || 0).toFixed(2)}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-mono text-text-secondary dark:text-slate-400">
-                                {pct}%
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                <div className="grid grid-cols-3 gap-3">
+                  {/* CASH */}
+                  <div className="bg-surface dark:bg-slate-800/60 rounded-xl p-4 border border-border/60 dark:border-slate-700 hover:border-border dark:hover:border-slate-600 transition-colors">
+                    <div className="flex items-center justify-between text-text-secondary dark:text-slate-400 mb-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-wider">Cash</span>
+                      <IndianRupee size={14} className="text-success dark:text-emerald-400" />
+                    </div>
+                    <p className="text-lg font-bold font-mono text-text dark:text-slate-100">
+                      ₹{Number(cashInfo.total || 0).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-text-secondary dark:text-slate-400 mt-1 font-medium">
+                      {cashInfo.count || 0} transactions
+                    </p>
                   </div>
-                ) : (
-                  <p className="text-xs text-text-secondary dark:text-slate-400 py-3 text-center">No purchases recorded for this period.</p>
-                )}
-              </Card>
-            </div>
-          ) : (
-            /* Informational Banner when Include Purchases in Reports is OFF */
-            <Card className="border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg text-blue-700 dark:text-blue-300 shrink-0 mt-0.5">
-                    <AlertCircle size={20} />
+
+                  {/* UPI */}
+                  <div className="bg-surface dark:bg-slate-800/60 rounded-xl p-4 border border-border/60 dark:border-slate-700 hover:border-border dark:hover:border-slate-600 transition-colors">
+                    <div className="flex items-center justify-between text-text-secondary dark:text-slate-400 mb-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-wider">UPI</span>
+                      <Smartphone size={14} className="text-primary dark:text-blue-400" />
+                    </div>
+                    <p className="text-lg font-bold font-mono text-text dark:text-slate-100">
+                      ₹{Number(upiInfo.total || 0).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-text-secondary dark:text-slate-400 mt-1 font-medium">
+                      {upiInfo.count || 0} transactions
+                    </p>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-blue-950 dark:text-blue-100">Purchase Expense Reporting is Disabled</h4>
-                    <p className="text-xs text-blue-800 dark:text-blue-300 mt-0.5">
-                      To view supplier purchase breakdowns, purchase costs, and net sales after expenses in these reports, turn on the <strong>"Include Purchases in Reports"</strong> toggle in Settings.
+
+                  {/* CARD */}
+                  <div className="bg-surface dark:bg-slate-800/60 rounded-xl p-4 border border-border/60 dark:border-slate-700 hover:border-border dark:hover:border-slate-600 transition-colors">
+                    <div className="flex items-center justify-between text-text-secondary dark:text-slate-400 mb-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-wider">Card</span>
+                      <CreditCard size={14} className="text-warning dark:text-amber-400" />
+                    </div>
+                    <p className="text-lg font-bold font-mono text-text dark:text-slate-100">
+                      ₹{Number(cardInfo.total || 0).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-text-secondary dark:text-slate-400 mt-1 font-medium">
+                      {cardInfo.count || 0} transactions
                     </p>
                   </div>
                 </div>
-                <Link
-                  to="/settings"
-                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shrink-0 transition-colors flex items-center gap-1.5 shadow-xs"
-                >
-                  <span>Open Settings</span>
-                  <ArrowRight size={14} />
-                </Link>
-              </div>
-            </Card>
-          )}
 
-          {/* Payment Breakdown & Online Orders Breakdown */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Payment Breakdown */}
-            <Card>
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-border dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <CreditCard size={18} className="text-primary dark:text-blue-400" />
-                  <h3 className="font-semibold text-text dark:text-slate-100">Payment Breakdown Details</h3>
-                </div>
-                <span className="text-xs text-text-secondary dark:text-slate-400">
-                  Total: <strong className="font-mono text-text dark:text-slate-100">₹{totalRev.toFixed(2)}</strong>
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                {/* CASH */}
-                <div className="bg-surface dark:bg-slate-800/60 rounded-xl p-4 border border-border/60 dark:border-slate-700 hover:border-border dark:hover:border-slate-600 transition-colors">
-                  <div className="flex items-center justify-between text-text-secondary dark:text-slate-400 mb-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-wider">Cash</span>
-                    <IndianRupee size={14} className="text-success dark:text-emerald-400" />
+                {/* Other methods if present */}
+                {payments && Object.keys(payments).filter(k => !['CASH', 'UPI', 'CARD'].includes(k)).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-border dark:border-slate-800 space-y-2">
+                    {Object.keys(payments).filter(k => !['CASH', 'UPI', 'CARD'].includes(k)).map(key => (
+                      <div key={key} className="flex justify-between items-center text-xs py-1">
+                        <span className="text-text-secondary dark:text-slate-400 font-medium">{key}</span>
+                        <span className="font-mono text-text dark:text-slate-100 font-bold">
+                          ₹{Number(payments[key]?.total || 0).toFixed(2)} ({payments[key]?.count || 0} txns)
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  <p className="text-lg font-bold font-mono text-text dark:text-slate-100">
-                    ₹{Number(cashInfo.total || 0).toFixed(2)}
-                  </p>
-                  <p className="text-xs text-text-secondary dark:text-slate-400 mt-1 font-medium">
-                    {cashInfo.count || 0} transactions
-                  </p>
-                </div>
+                )}
+              </Card>
 
-                {/* UPI */}
-                <div className="bg-surface dark:bg-slate-800/60 rounded-xl p-4 border border-border/60 dark:border-slate-700 hover:border-border dark:hover:border-slate-600 transition-colors">
-                  <div className="flex items-center justify-between text-text-secondary dark:text-slate-400 mb-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-wider">UPI</span>
-                    <Smartphone size={14} className="text-primary dark:text-blue-400" />
+              {/* Online Orders Breakdown */}
+              <Card>
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-border dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Smartphone size={18} className="text-primary dark:text-blue-400" />
+                    <h3 className="font-semibold text-text dark:text-slate-100">Online Delivery Channels</h3>
                   </div>
-                  <p className="text-lg font-bold font-mono text-text dark:text-slate-100">
-                    ₹{Number(upiInfo.total || 0).toFixed(2)}
-                  </p>
-                  <p className="text-xs text-text-secondary dark:text-slate-400 mt-1 font-medium">
-                    {upiInfo.count || 0} transactions
-                  </p>
+                  <span className="text-xs text-text-secondary dark:text-slate-400">
+                    Total: <strong className="font-mono text-text dark:text-slate-100">₹{Number(onlineOrders?.totalOnlineRevenue || 0).toFixed(2)}</strong>
+                  </span>
                 </div>
 
-                {/* CARD */}
-                <div className="bg-surface dark:bg-slate-800/60 rounded-xl p-4 border border-border/60 dark:border-slate-700 hover:border-border dark:hover:border-slate-600 transition-colors">
-                  <div className="flex items-center justify-between text-text-secondary dark:text-slate-400 mb-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-wider">Card</span>
-                    <CreditCard size={14} className="text-warning dark:text-amber-400" />
-                  </div>
-                  <p className="text-lg font-bold font-mono text-text dark:text-slate-100">
-                    ₹{Number(cardInfo.total || 0).toFixed(2)}
-                  </p>
-                  <p className="text-xs text-text-secondary dark:text-slate-400 mt-1 font-medium">
-                    {cardInfo.count || 0} transactions
-                  </p>
-                </div>
-              </div>
-
-              {/* Other methods if present */}
-              {payments && Object.keys(payments).filter(k => !['CASH', 'UPI', 'CARD'].includes(k)).length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border dark:border-slate-800 space-y-2">
-                  {Object.keys(payments).filter(k => !['CASH', 'UPI', 'CARD'].includes(k)).map(key => (
-                    <div key={key} className="flex justify-between items-center text-xs py-1">
-                      <span className="text-text-secondary dark:text-slate-400 font-medium">{key}</span>
-                      <span className="font-mono text-text dark:text-slate-100 font-bold">
-                        ₹{Number(payments[key]?.total || 0).toFixed(2)} ({payments[key]?.count || 0} txns)
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Swiggy */}
+                  <div className="bg-surface dark:bg-slate-800/60 rounded-xl p-4 border border-border/60 dark:border-slate-700 hover:border-orange-200 dark:hover:border-orange-900/60 transition-colors">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/60 px-2 py-0.5 rounded border border-orange-200 dark:border-orange-900/60">
+                        <img src={swiggyIcon} alt="Swiggy" className="w-3.5 h-3.5 object-contain" />
+                        Swiggy
+                      </span>
+                      <span className="text-xs text-text-secondary dark:text-slate-400 font-medium font-mono">
+                        {swiggyCount} orders
                       </span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            {/* Online Orders Breakdown */}
-            <Card>
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-border dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Smartphone size={18} className="text-primary dark:text-blue-400" />
-                  <h3 className="font-semibold text-text dark:text-slate-100">Online Delivery Channels</h3>
-                </div>
-                <span className="text-xs text-text-secondary dark:text-slate-400">
-                  Total: <strong className="font-mono text-text dark:text-slate-100">₹{Number(onlineOrders?.totalOnlineRevenue || 0).toFixed(2)}</strong>
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {/* Swiggy */}
-                <div className="bg-surface dark:bg-slate-800/60 rounded-xl p-4 border border-border/60 dark:border-slate-700 hover:border-orange-200 dark:hover:border-orange-900/60 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/60 px-2 py-0.5 rounded border border-orange-200 dark:border-orange-900/60">
-                      <img src={swiggyIcon} alt="Swiggy" className="w-3.5 h-3.5 object-contain" />
-                      Swiggy
-                    </span>
-                    <span className="text-xs text-text-secondary dark:text-slate-400 font-medium font-mono">
-                      {swiggyCount} orders
-                    </span>
+                    <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-2">
+                      ₹{swiggyRevenue.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">
+                      Avg: <span className="font-mono">₹{swiggyCount > 0 ? (swiggyRevenue / swiggyCount).toFixed(2) : '0.00'}</span> / order
+                    </p>
                   </div>
-                  <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-2">
-                    ₹{swiggyRevenue.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">
-                    Avg: <span className="font-mono">₹{swiggyCount > 0 ? (swiggyRevenue / swiggyCount).toFixed(2) : '0.00'}</span> / order
-                  </p>
-                </div>
 
-                {/* Zomato */}
-                <div className="bg-surface dark:bg-slate-800/60 rounded-xl p-4 border border-border/60 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-900/60 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 px-2 py-0.5 rounded border border-red-200 dark:border-red-900/60">
-                      <img src={zomatoIcon} alt="Zomato" className="w-3.5 h-3.5 object-contain" />
-                      Zomato
-                    </span>
-                    <span className="text-xs text-text-secondary dark:text-slate-400 font-medium font-mono">
-                      {zomatoCount} orders
-                    </span>
+                  {/* Zomato */}
+                  <div className="bg-surface dark:bg-slate-800/60 rounded-xl p-4 border border-border/60 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-900/60 transition-colors">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 px-2 py-0.5 rounded border border-red-200 dark:border-red-900/60">
+                        <img src={zomatoIcon} alt="Zomato" className="w-3.5 h-3.5 object-contain" />
+                        Zomato
+                      </span>
+                      <span className="text-xs text-text-secondary dark:text-slate-400 font-medium font-mono">
+                        {zomatoCount} orders
+                      </span>
+                    </div>
+                    <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-2">
+                      ₹{zomatoRevenue.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">
+                      Avg: <span className="font-mono">₹{zomatoCount > 0 ? (zomatoRevenue / zomatoCount).toFixed(2) : '0.00'}</span> / order
+                    </p>
                   </div>
-                  <p className="text-xl font-bold font-mono text-text dark:text-slate-100 mt-2">
-                    ₹{zomatoRevenue.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">
-                    Avg: <span className="font-mono">₹{zomatoCount > 0 ? (zomatoRevenue / zomatoCount).toFixed(2) : '0.00'}</span> / order
-                  </p>
                 </div>
-              </div>
 
-              {/* Online Orders Summary Row */}
-              <div className="mt-4 p-3 bg-surface/70 dark:bg-slate-800/70 rounded-lg flex items-center justify-between text-xs border border-border/40 dark:border-slate-700">
-                <span className="text-text-secondary dark:text-slate-400">Total Online Deliveries:</span>
-                <span className="font-mono font-semibold text-text dark:text-slate-100">
-                  {swiggyCount + zomatoCount} orders &bull; ₹{Number(onlineOrders?.totalOnlineRevenue || 0).toFixed(2)}
-                </span>
-              </div>
-            </Card>
-          </div>
+                {/* Online Orders Summary Row */}
+                <div className="mt-4 p-3 bg-surface/70 dark:bg-slate-800/70 rounded-lg flex items-center justify-between text-xs border border-border/40 dark:border-slate-700">
+                  <span className="text-text-secondary dark:text-slate-400">Total Online Deliveries:</span>
+                  <span className="font-mono font-semibold text-text dark:text-slate-100">
+                    {swiggyCount + zomatoCount} orders &bull; ₹{Number(onlineOrders?.totalOnlineRevenue || 0).toFixed(2)}
+                  </span>
+                </div>
+              </Card>
+            </div>
+          </LazyScrollSection>
 
           {/* Orders Status & Volume Summary */}
           {orders && (
-            <Card>
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-border dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <ShoppingBag size={18} className="text-primary dark:text-blue-400" />
-                  <h3 className="font-semibold text-text dark:text-slate-100">Order Volumes & Status Distribution</h3>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-surface dark:bg-slate-800/60 rounded-xl border border-border/60 dark:border-slate-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-text dark:text-slate-100">Dine-in Orders</span>
-                    <span className="text-base font-bold font-mono text-primary dark:text-blue-400">{orders.dineIn?.total || 0}</span>
+            <LazyScrollSection minHeight="200px" title="Order Volumes & Status Distribution">
+              <Card>
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-border dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag size={18} className="text-primary dark:text-blue-400" />
+                    <h3 className="font-semibold text-text dark:text-slate-100">Order Volumes & Status Distribution</h3>
                   </div>
-                  {orders.dineIn?.byStatus && Object.keys(orders.dineIn.byStatus).length > 0 ? (
-                    <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-border/40 dark:border-slate-700">
-                      {Object.entries(orders.dineIn.byStatus).map(([status, count]) => (
-                        <span key={status} className="px-2 py-0.5 rounded text-xs bg-white dark:bg-slate-900 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-400 font-mono">
-                          {status}: <strong className="text-text dark:text-slate-200">{count}</strong>
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">No status details available</p>
-                  )}
                 </div>
 
-                <div className="p-4 bg-surface dark:bg-slate-800/60 rounded-xl border border-border/60 dark:border-slate-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-text dark:text-slate-100">Online Orders</span>
-                    <span className="text-base font-bold font-mono text-primary dark:text-blue-400">{orders.online?.total || 0}</span>
-                  </div>
-                  {orders.online?.byStatus && Object.keys(orders.online.byStatus).length > 0 ? (
-                    <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-border/40 dark:border-slate-700">
-                      {Object.entries(orders.online.byStatus).map(([status, count]) => (
-                        <span key={status} className="px-2 py-0.5 rounded text-xs bg-white dark:bg-slate-900 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-400 font-mono">
-                          {status}: <strong className="text-text dark:text-slate-200">{count}</strong>
-                        </span>
-                      ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-surface dark:bg-slate-800/60 rounded-xl border border-border/60 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-text dark:text-slate-100">Dine-in Orders</span>
+                      <span className="text-base font-bold font-mono text-primary dark:text-blue-400">{orders.dineIn?.total || 0}</span>
                     </div>
-                  ) : (
-                    <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">No status details available</p>
-                  )}
+                    {orders.dineIn?.byStatus && Object.keys(orders.dineIn.byStatus).length > 0 ? (
+                      <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-border/40 dark:border-slate-700">
+                        {Object.entries(orders.dineIn.byStatus).map(([status, count]) => (
+                          <span key={status} className="px-2 py-0.5 rounded text-xs bg-white dark:bg-slate-900 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-400 font-mono">
+                            {status}: <strong className="text-text dark:text-slate-200">{count}</strong>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">No status details available</p>
+                    )}
+                  </div>
+
+                  <div className="p-4 bg-surface dark:bg-slate-800/60 rounded-xl border border-border/60 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-text dark:text-slate-100">Online Orders</span>
+                      <span className="text-base font-bold font-mono text-primary dark:text-blue-400">{orders.online?.total || 0}</span>
+                    </div>
+                    {orders.online?.byStatus && Object.keys(orders.online.byStatus).length > 0 ? (
+                      <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-border/40 dark:border-slate-700">
+                        {Object.entries(orders.online.byStatus).map(([status, count]) => (
+                          <span key={status} className="px-2 py-0.5 rounded text-xs bg-white dark:bg-slate-900 border border-border dark:border-slate-700 text-text-secondary dark:text-slate-400 font-mono">
+                            {status}: <strong className="text-text dark:text-slate-200">{count}</strong>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">No status details available</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            </LazyScrollSection>
           )}
         </div>
       )}

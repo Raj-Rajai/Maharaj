@@ -11,9 +11,9 @@ import { takeAwayBlue, swiggyIcon, zomatoIcon, kitchenBlue } from '../assets';
 import { useRouteActive } from '../components/common/RouteKeepAlive';
 import useRealtime from '../hooks/useRealtime';
 
-const statusColors = { SENT: 'warning', PREPARING: 'info', READY: 'success', SERVED: 'neutral', CANCELLED: 'danger', PENDING: 'neutral' };
-const statusOrder = ['SENT', 'PREPARING', 'READY', 'SERVED'];
-const nextStatus = { SENT: 'PREPARING', PREPARING: 'READY', READY: 'SERVED' };
+const statusColors = { SENT: 'info', PREPARING: 'info', READY: 'info', SERVED: 'neutral', CANCELLED: 'danger', PENDING: 'neutral' };
+const statusOrder = ['PREPARING', 'SERVED'];
+const nextStatus = { SENT: 'PREPARING', PREPARING: 'SERVED', READY: 'SERVED' };
 
 export default function KitchenPage() {
   const { hasPermission } = useAuth();
@@ -28,14 +28,14 @@ export default function KitchenPage() {
 
   const fetchKots = async (opts = {}) => {
     try {
-      if (!opts.background) setLoading(true);
+      if (!opts.background && kots.length === 0) setLoading(true);
       const res = await api.get('/kots', { skipCache: true });
       const data = Array.isArray(res.data) ? res.data : res.data.value || [];
       setKots(data);
     } catch {
-      if (!opts.background) toast.error('Failed to load KOTs');
+      if (!opts.background && kots.length === 0) toast.error('Failed to load KOTs');
     } finally {
-      if (!opts.background) setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -57,14 +57,41 @@ export default function KitchenPage() {
     return () => clearInterval(iv);
   }, [isActive]);
 
-  const filtered = kots.filter(k => filter === 'ALL' || k.status === filter);
+  const filtered = kots.filter(k => {
+    if (filter === 'ALL') return true;
+    if (filter === 'PREPARING') return k.status === 'PREPARING' || k.status === 'NEW' || k.status === 'READY';
+    return k.status === filter;
+  });
 
   const advanceItem = async (itemId, newStatus) => {
+    // Optimistic update: instantly update status in UI with zero delay and no page refresh
+    const previousKots = kots;
+    setKots(prev => prev.map(kot => {
+      const hasItem = kot.items?.some(i => i.id === itemId);
+      if (!hasItem) return kot;
+
+      const updatedItems = kot.items.map(item =>
+        item.id === itemId ? { ...item, status: newStatus } : item
+      );
+
+      const activeItems = updatedItems.filter(i => i.status !== 'CANCELLED');
+      const allServed = activeItems.length > 0 && activeItems.every(i => i.status === 'SERVED');
+
+      return {
+        ...kot,
+        status: allServed ? 'COMPLETED' : kot.status,
+        items: updatedItems,
+      };
+    }));
+
     try {
       await api.patch(`/kots/items/${itemId}/status`, { status: newStatus });
       toast.success(`Item → ${newStatus}`);
-      fetchKots();
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+      fetchKots({ background: true });
+    } catch (err) {
+      setKots(previousKots);
+      toast.error(err.response?.data?.message || 'Failed');
+    }
   };
 
   const openEdit = (item) => {
@@ -81,18 +108,42 @@ export default function KitchenPage() {
       await api.patch(`/kots/items/${editModal.id}/edit`, { quantity: qty, reason: editReason || undefined });
       toast.success('Item quantity updated');
       setEditModal(null);
-      fetchKots();
+      fetchKots({ background: true });
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
   const cancelItem = async (item) => {
     const reason = prompt('Reason for cancellation (optional):');
     if (reason === null) return;
+
+    // Optimistic cancel
+    const previousKots = kots;
+    setKots(prev => prev.map(kot => {
+      const hasItem = kot.items?.some(i => i.id === item.id);
+      if (!hasItem) return kot;
+
+      const updatedItems = kot.items.map(i =>
+        i.id === item.id ? { ...i, status: 'CANCELLED' } : i
+      );
+
+      const activeItems = updatedItems.filter(i => i.status !== 'CANCELLED');
+      const allServed = activeItems.length === 0 || activeItems.every(i => i.status === 'SERVED');
+
+      return {
+        ...kot,
+        status: allServed ? 'COMPLETED' : kot.status,
+        items: updatedItems,
+      };
+    }));
+
     try {
       await api.patch(`/kots/items/${item.id}/cancel`, { reason: reason || 'Cancelled by kitchen' });
       toast.success('Item cancelled');
-      fetchKots();
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+      fetchKots({ background: true });
+    } catch (err) {
+      setKots(previousKots);
+      toast.error(err.response?.data?.message || 'Failed');
+    }
   };
 
   const printKot = (kot) => {
@@ -110,9 +161,9 @@ export default function KitchenPage() {
     html += `<p style="font-weight:bold;font-size:15px">${sourceLabel}</p>`;
     html += `<p>Time: ${time}</p><hr/>`;
     kot.items?.forEach(item => {
-      const cls = item.status === 'CANCELLED' ? 'cancelled' : (item.originalQuantity ? 'edited' : '');
+      const cls = item.status === 'CANCELLED' ? 'cancelled' : (item.originalQuantity && item.originalQuantity !== item.quantity ? 'edited' : '');
       html += `<div class="item ${cls}"><span>${item.itemNameSnapshot}</span><span>x${item.quantity}</span></div>`;
-      if (item.originalQuantity && item.status !== 'CANCELLED') {
+      if (item.originalQuantity && item.originalQuantity !== item.quantity && item.status !== 'CANCELLED') {
         html += `<div class="edited">EDITED: ${item.originalQuantity} → ${item.quantity}</div>`;
       }
       if (item.status === 'CANCELLED') {
@@ -136,86 +187,88 @@ export default function KitchenPage() {
           <img src={kitchenBlue} alt="Kitchen" className="w-5 sm:w-6 h-5 sm:h-6 object-contain dark:brightness-0 dark:invert" />
           Kitchen Display
         </h1>
-        <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 overflow-x-auto no-scrollbar w-full sm:w-auto">
-          {['ALL', 'NEW', 'PREPARING', 'READY', 'COMPLETED'].map(f => (
+        <div className="tablet-tab-bar bg-white dark:bg-slate-900 rounded-lg border border-border dark:border-slate-800 p-1 w-full sm:w-auto">
+          {['ALL', 'PREPARING', 'COMPLETED'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${filter === f ? 'bg-primary text-white' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'}`}>
+              className={`tablet-tab-pill px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer ${filter === f ? 'bg-primary text-white font-semibold' : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800'}`}>
               {f}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
         {filtered.map(kot => (
-          <div key={kot.id} className={`bg-white dark:bg-slate-900 rounded-xl border-2 overflow-hidden ${
-            kot.status === 'NEW' ? 'border-warning/40 dark:border-amber-500/40' : kot.status === 'PREPARING' ? 'border-primary/40 dark:border-blue-500/40' : kot.status === 'READY' ? 'border-success/40 dark:border-emerald-500/40' : 'border-border dark:border-slate-800'
+          <div key={kot.id} className={`bg-white dark:bg-slate-900 rounded-xl border-2 overflow-hidden flex flex-col justify-between ${
+            kot.status === 'COMPLETED' ? 'border-border dark:border-slate-800' : 'border-primary/40 dark:border-blue-500/40'
           }`}>
-            <div className="flex items-center justify-between px-3.5 sm:px-4 py-2.5 sm:py-3 bg-surface dark:bg-slate-800 border-b border-border dark:border-slate-700">
-              <div className="flex items-center flex-wrap gap-1.5">
-                <span className="font-bold text-text dark:text-slate-100 font-mono text-sm sm:text-base">KOT #{kot.kotNumber}</span>
-                {kot.order?.orderSource === 'SELF_PICKUP' ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                    <img src={takeAwayBlue} alt="Self Pickup" className="w-3.5 h-3.5 object-contain dark:brightness-0 dark:invert" />
-                    Self Pickup
-                  </span>
-                ) : kot.order?.orderSource === 'SWIGGY' ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
-                    <img src={swiggyIcon} alt="Swiggy" className="w-3.5 h-3.5 object-contain" />
-                    Swiggy
-                  </span>
-                ) : kot.order?.orderSource === 'ZOMATO' ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
-                    <img src={zomatoIcon} alt="Zomato" className="w-3.5 h-3.5 object-contain" />
-                    Zomato
-                  </span>
-                ) : kot.order?.table?.number ? (
-                  <span className="text-[11px] font-semibold text-text dark:text-slate-100 bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-border dark:border-slate-600">
-                    Table {kot.order.table.number} ({kot.order.table.type})
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-text-secondary dark:text-slate-400">Take Away</span>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <Badge variant={kot.status === 'NEW' ? 'warning' : kot.status === 'PREPARING' ? 'info' : kot.status === 'READY' ? 'success' : 'neutral'}>{kot.status}</Badge>
-                {hasPermission('KOT_PRINT') && (
-                  <button onClick={() => printKot(kot)} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded hover:bg-border dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 cursor-pointer" title="Print KOT"><Printer size={15} /></button>
-                )}
-              </div>
-            </div>
-            <div className="p-2.5 sm:p-3 space-y-2">
-              {kot.items?.map(item => (
-                <div key={item.id} className={`flex items-center justify-between p-2 rounded-lg ${item.status === 'CANCELLED' ? 'bg-red-50/70 dark:bg-red-950/30 opacity-60' : 'bg-surface dark:bg-slate-800/80'}`}>
-                  <div className="flex-1 min-w-0 mr-2">
-                    <p className={`text-xs sm:text-sm font-medium truncate ${item.status === 'CANCELLED' ? 'line-through text-text-secondary dark:text-slate-400' : 'text-text dark:text-slate-100'}`}>{item.itemNameSnapshot}</p>
-                    <div className="flex items-center flex-wrap gap-1.5 mt-1">
-                      <span className="text-xs font-mono font-bold text-text dark:text-slate-200">x{item.quantity}</span>
-                      <Badge variant={statusColors[item.status]}>{item.status}</Badge>
-                      {item.originalQuantity && item.status !== 'CANCELLED' && <span className="text-[10px] text-warning font-medium">EDITED: {item.originalQuantity}→{item.quantity}</span>}
-                      {item.status === 'CANCELLED' && <span className="text-[10px] text-danger font-medium">CANCELLED</span>}
-                    </div>
-                    {item.notes && <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">{item.notes}</p>}
-                  </div>
-                  {item.status !== 'CANCELLED' && item.status !== 'SERVED' && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      {hasPermission('KOT_EDIT') && nextStatus[item.status] && (
-                        <button onClick={() => advanceItem(item.id, nextStatus[item.status])}
-                          className="min-h-[32px] min-w-[32px] sm:min-h-[28px] sm:min-w-[28px] px-2 py-1 text-xs bg-primary text-white rounded-lg hover:bg-primary-light active:scale-95 flex items-center justify-center gap-1 cursor-pointer shadow-xs" title={`Advance to ${nextStatus[item.status]}`}>
-                          <Check size={14} />
-                          <span className="text-[10px] hidden sm:inline">{nextStatus[item.status]}</span>
-                        </button>
-                      )}
-                      {hasPermission('KOT_EDIT') && (
-                        <button onClick={() => openEdit(item)} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-border dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 cursor-pointer" title="Edit qty"><Edit2 size={14} /></button>
-                      )}
-                      {hasPermission('ORDER_CANCEL') && (
-                        <button onClick={() => cancelItem(item)} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-950/50 text-text-secondary dark:text-slate-400 hover:text-danger dark:hover:text-red-400 cursor-pointer" title="Cancel"><X size={14} /></button>
-                      )}
-                    </div>
+            <div>
+              <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 bg-surface dark:bg-slate-800 border-b border-border dark:border-slate-700">
+                <div className="flex items-center flex-wrap gap-1.5">
+                  <span className="font-bold text-text dark:text-slate-100 font-mono text-sm sm:text-base">KOT #{kot.kotNumber}</span>
+                  {kot.order?.orderSource === 'SELF_PICKUP' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      <img src={takeAwayBlue} alt="Self Pickup" className="w-3.5 h-3.5 object-contain dark:brightness-0 dark:invert" />
+                      Self Pickup
+                    </span>
+                  ) : kot.order?.orderSource === 'SWIGGY' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
+                      <img src={swiggyIcon} alt="Swiggy" className="w-3.5 h-3.5 object-contain" />
+                      Swiggy
+                    </span>
+                  ) : kot.order?.orderSource === 'ZOMATO' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
+                      <img src={zomatoIcon} alt="Zomato" className="w-3.5 h-3.5 object-contain" />
+                      Zomato
+                    </span>
+                  ) : kot.order?.table?.number ? (
+                    <span className="text-[11px] font-semibold text-text dark:text-slate-100 bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-border dark:border-slate-600">
+                      Table {kot.order.table.number} ({kot.order.table.type})
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-text-secondary dark:text-slate-400">Take Away</span>
                   )}
                 </div>
-              ))}
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <Badge variant={kot.status === 'COMPLETED' ? 'neutral' : 'info'}>{kot.status === 'COMPLETED' ? 'COMPLETED' : 'PREPARING'}</Badge>
+                  {hasPermission('KOT_PRINT') && (
+                    <button onClick={() => printKot(kot)} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded hover:bg-border dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 cursor-pointer" title="Print KOT"><Printer size={15} /></button>
+                  )}
+                </div>
+              </div>
+              <div className="p-2 sm:p-2.5 space-y-1.5 max-h-[260px] sm:max-h-[320px] overflow-y-auto">
+                {kot.items?.map(item => (
+                  <div key={item.id} className={`flex items-center justify-between p-2 rounded-lg ${item.status === 'CANCELLED' ? 'bg-red-50/70 dark:bg-red-950/30 opacity-60' : 'bg-surface dark:bg-slate-800/80'}`}>
+                    <div className="flex-1 min-w-0 mr-2">
+                      <p className={`text-xs sm:text-sm font-medium truncate ${item.status === 'CANCELLED' ? 'line-through text-text-secondary dark:text-slate-400' : 'text-text dark:text-slate-100'}`}>{item.itemNameSnapshot}</p>
+                      <div className="flex items-center flex-wrap gap-1.5 mt-1">
+                        <span className="text-xs font-mono font-bold text-text dark:text-slate-200">x{item.quantity}</span>
+                        <Badge variant={statusColors[item.status] || 'info'}>{item.status}</Badge>
+                        {item.originalQuantity && item.originalQuantity !== item.quantity && item.status !== 'CANCELLED' && <span className="text-[10px] text-warning font-medium">EDITED: {item.originalQuantity}→{item.quantity}</span>}
+                        {item.status === 'CANCELLED' && <span className="text-[10px] text-danger font-medium">CANCELLED</span>}
+                      </div>
+                      {item.notes && <p className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">{item.notes}</p>}
+                    </div>
+                    {item.status !== 'CANCELLED' && item.status !== 'SERVED' && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        {hasPermission('KOT_EDIT') && nextStatus[item.status] && (
+                          <button onClick={() => advanceItem(item.id, nextStatus[item.status])}
+                            className="min-h-[34px] min-w-[34px] sm:min-h-[30px] sm:min-w-[30px] px-2 py-1 text-xs bg-primary text-white rounded-lg hover:bg-primary-light active:scale-95 flex items-center justify-center gap-1 cursor-pointer shadow-xs" title={`Advance to ${nextStatus[item.status]}`}>
+                            <Check size={14} />
+                            <span className="text-[10px] hidden sm:inline">{nextStatus[item.status]}</span>
+                          </button>
+                        )}
+                        {hasPermission('KOT_EDIT') && (
+                          <button onClick={() => openEdit(item)} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-border dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 cursor-pointer" title="Edit qty"><Edit2 size={14} /></button>
+                        )}
+                        {hasPermission('ORDER_CANCEL') && (
+                          <button onClick={() => cancelItem(item)} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-950/50 text-text-secondary dark:text-slate-400 hover:text-danger dark:hover:text-red-400 cursor-pointer" title="Cancel"><X size={14} /></button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="px-3.5 sm:px-4 py-2 border-t border-border dark:border-slate-800 text-[11px] sm:text-xs text-text-secondary dark:text-slate-400 flex items-center gap-1">
               <Clock size={12} /> {new Date(kot.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}

@@ -1,6 +1,7 @@
 import { verifyAccessToken } from '../utils/jwt.js';
 import prisma from '../utils/prisma.js';
 import { userAuthCache } from '../utils/cache.js';
+import { fetchUserPermissions } from '../utils/permissions.js';
 
 export const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -27,15 +28,15 @@ export const authenticate = async (req, res, next) => {
           id: true,
           role: true,
           active: true,
-          permissions: { select: { permission: true } }
         }
       });
       if (userRecord) {
+        const permissionsList = await fetchUserPermissions(userRecord.id, userRecord.role);
         dbUser = {
           id: userRecord.id,
           role: userRecord.role,
           active: userRecord.active,
-          permissions: (userRecord.permissions || []).map(p => p.permission)
+          permissions: permissionsList
         };
         userAuthCache.set(payload.id, dbUser);
       }
@@ -93,15 +94,11 @@ export const requirePermission = (...permissions) => {
         return res.status(403).json({ message: 'Insufficient permissions' });
       }
 
-      // Safe fallback: If permissions array was not loaded on req.user, check DB
-      const userPermission = await prisma.userPermission.findFirst({
-        where: {
-          userId: req.user.id,
-          permission: { in: permissions }
-        }
-      });
+      // Safe fallback: If permissions array was not loaded on req.user, fetch safely
+      const userPerms = await fetchUserPermissions(req.user.id, req.user.role);
+      const hasPerm = permissions.some(p => userPerms.includes(p));
 
-      if (!userPermission) {
+      if (!hasPerm) {
         return res.status(403).json({ message: 'Insufficient permissions' });
       }
 

@@ -24,6 +24,9 @@ export const sendKotOrderSchema = z.object({
   sessionId: z.string().uuid('Invalid session ID').optional(),
   tableId: z.string().uuid('Invalid table ID').optional(),
   items: z.array(orderItemSchema).min(1, 'At least one item is required'),
+  customerNotes: z.string().optional(),
+  customerName: z.string().optional(),
+  customerPhone: z.string().optional(),
 }).refine((data) => data.sessionId || data.tableId, {
   message: 'Either sessionId or tableId is required',
 });

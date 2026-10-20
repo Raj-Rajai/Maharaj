@@ -2,11 +2,19 @@ import prisma from '../utils/prisma.js';
 import { comparePassword } from '../utils/password.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 import { userAuthCache } from '../utils/cache.js';
+import { fetchUserPermissions } from '../utils/permissions.js';
 
 export const login = async (username, password) => {
   const user = await prisma.user.findUnique({
     where: { username },
-    include: { permissions: { select: { permission: true } } }
+    select: {
+      id: true,
+      username: true,
+      password: true,
+      name: true,
+      role: true,
+      active: true,
+    }
   });
   if (!user) {
     throw { status: 401, message: 'Invalid credentials' };
@@ -27,15 +35,20 @@ export const login = async (username, password) => {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
 
-  await prisma.refreshToken.create({
-    data: {
-      token: refreshToken,
-      userId: user.id,
-      expiresAt
-    }
-  });
+  try {
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: user.id,
+        expiresAt
+      }
+    });
+  } catch (tokenErr) {
+    console.warn('[Auth] Could not persist refresh token:', tokenErr.message);
+  }
 
-  const permissionsList = user.permissions.map(p => p.permission);
+  const permissionsList = await fetchUserPermissions(user.id, user.role);
+
   userAuthCache.set(user.id, {
     id: user.id,
     role: user.role,
@@ -112,7 +125,6 @@ export const getProfile = async (userId) => {
       name: true,
       role: true,
       active: true,
-      permissions: { select: { permission: true } }
     }
   });
 
@@ -120,9 +132,11 @@ export const getProfile = async (userId) => {
     throw { status: 404, message: 'User not found' };
   }
 
+  const permissionsList = await fetchUserPermissions(userId, user.role);
+
   const profile = {
     ...user,
-    permissions: user.permissions.map(p => p.permission)
+    permissions: permissionsList
   };
   userAuthCache.setProfile(userId, profile);
   return profile;

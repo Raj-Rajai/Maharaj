@@ -16,9 +16,9 @@ export default function Badge({ children, variant = 'info', dot = false, classNa
   };
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${variants[variant]} ${className}`}>
+    <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap shrink-0 ${variants[variant]} ${className}`}>
       {dot && (
-        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${dotColors[variant]}`} />
+        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 shrink-0 ${dotColors[variant]}`} />
       )}
       {children}
     </span>

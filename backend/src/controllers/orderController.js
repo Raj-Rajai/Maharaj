@@ -74,9 +74,9 @@ export const cancel = async (req, res, next) => {
 
 export const sendKotOrder = async (req, res, next) => {
   try {
-    const { sessionId, tableId, items } = req.body;
+    const { sessionId, tableId, items, customerNotes, customerName, customerPhone } = req.body;
     const captainId = req.user.id;
-    const result = await orderService.sendKotOrder({ sessionId, tableId, items }, captainId);
+    const result = await orderService.sendKotOrder({ sessionId, tableId, items, customerNotes, customerName, customerPhone }, captainId);
     res.status(201).json(result);
   } catch (error) {
     next(error);
