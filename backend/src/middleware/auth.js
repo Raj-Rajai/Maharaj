@@ -22,23 +22,40 @@ export const authenticate = async (req, res, next) => {
     // Check in-memory user cache first (avoids remote DB query on every request)
     let dbUser = userAuthCache.get(payload.id);
     if (!dbUser) {
-      const userRecord = await prisma.user.findUnique({
+      let userRecord = await prisma.user.findUnique({
         where: { id: payload.id },
         select: {
           id: true,
+          username: true,
           role: true,
           active: true,
         }
       });
+
+      // If user ID changed (e.g. database reseeded on deploy), fallback by username
+      if (!userRecord && payload.username) {
+        userRecord = await prisma.user.findUnique({
+          where: { username: payload.username },
+          select: {
+            id: true,
+            username: true,
+            role: true,
+            active: true,
+          }
+        });
+      }
+
       if (userRecord) {
         const permissionsList = await fetchUserPermissions(userRecord.id, userRecord.role);
         dbUser = {
           id: userRecord.id,
+          username: userRecord.username,
           role: userRecord.role,
           active: userRecord.active,
           permissions: permissionsList
         };
         userAuthCache.set(payload.id, dbUser);
+        userAuthCache.set(userRecord.id, dbUser);
       }
     }
 

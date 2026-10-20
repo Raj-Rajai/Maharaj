@@ -29,8 +29,8 @@ export const login = async (username, password) => {
     throw { status: 401, message: 'Invalid credentials' };
   }
 
-  const accessToken = generateAccessToken({ id: user.id, role: user.role });
-  const refreshToken = generateRefreshToken({ id: user.id });
+  const accessToken = generateAccessToken({ id: user.id, username: user.username, role: user.role });
+  const refreshToken = generateRefreshToken({ id: user.id, username: user.username });
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
@@ -88,15 +88,21 @@ export const refreshAccessToken = async (token) => {
     throw { status: 401, message: 'Invalid refresh token' };
   }
 
-  const user = await prisma.user.findUnique({
+  let user = await prisma.user.findUnique({
     where: { id: decoded.id },
-    select: { id: true, role: true, active: true }
+    select: { id: true, username: true, role: true, active: true }
   });
+  if (!user && decoded.username) {
+    user = await prisma.user.findUnique({
+      where: { username: decoded.username },
+      select: { id: true, username: true, role: true, active: true }
+    });
+  }
   if (!user || !user.active) {
     throw { status: 401, message: 'Invalid user or inactive' };
   }
 
-  const accessToken = generateAccessToken({ id: user.id, role: user.role });
+  const accessToken = generateAccessToken({ id: user.id, username: user.username, role: user.role });
   return { accessToken };
 };
 

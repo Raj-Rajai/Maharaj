@@ -5,9 +5,9 @@ export const createKotSchema = z.object({
 });
 
 export const updateKotStatusSchema = z.object({
-  status: z.enum(['NEW', 'PREPARING', 'READY', 'COMPLETED']),
+  status: z.enum(['NEW', 'PREPARING', 'READY', 'SERVED', 'COMPLETED']),
 });
 
 export const updateItemStatusSchema = z.object({
-  status: z.enum(['SENT', 'PREPARING', 'READY', 'SERVED']),
+  status: z.enum(['PENDING', 'SENT', 'PREPARING', 'READY', 'SERVED', 'COMPLETED']),
 });
