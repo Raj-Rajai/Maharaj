@@ -1,54 +1,54 @@
-import prisma from '../utils/prisma.js';
+import prisma, { rawQuery } from '../utils/prisma.js';
 import { emitKotCreated, emitKotUpdated } from '../utils/socket.js';
+import { parseDateRange } from '../utils/dateUtils.js';
 
-export const create = async (orderId, captainId) => {
+export const create = async (orderId, captainId, sessionId = null) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: { where: { status: 'PENDING' } } },
+    include: {
+      items: true,
+      table: true,
+    },
   });
+  if (!order) throw { status: 404, message: 'Order not found' };
 
-  if (!order) {
-    throw { status: 404, message: 'Order not found' };
-  }
-  if (order.status !== 'ACTIVE') {
-    throw { status: 400, message: 'Order must be active to generate KOT' };
-  }
-  if (order.items.length === 0) {
+  const pendingItems = order.items.filter((item) => item.status === 'PENDING');
+  if (pendingItems.length === 0) {
     throw { status: 400, message: 'No pending items to generate KOT' };
   }
 
-  // kotNumber computed INSIDE transaction to prevent race conditions
   const kot = await prisma.$transaction(async (tx) => {
+    // Generate sequential kotNumber per day inside the transaction
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const count = await tx.kOT.count({
-      where: { createdAt: { gte: today } },
+      where: {
+        createdAt: { gte: today },
+      },
     });
     const kotNumber = count + 1;
 
-    const newKot = await tx.kOT.create({
+    const createdKot = await tx.kOT.create({
       data: {
         kotNumber,
         orderId,
-        sessionId: order.sessionId || null,
+        sessionId,
         captainId,
-        status: 'NEW',
+        status: 'PREPARING',
       },
     });
 
     await tx.orderItem.updateMany({
       where: {
-        orderId,
-        status: 'PENDING',
+        id: { in: pendingItems.map((i) => i.id) },
       },
       data: {
-        kotId: newKot.id,
-        status: 'SENT',
+        kotId: createdKot.id,
+        status: 'PREPARING',
       },
     });
 
-    return newKot;
+    return createdKot;
   });
 
   const result = await getById(kot.id);
@@ -58,67 +58,75 @@ export const create = async (orderId, captainId) => {
 
 export const getAll = async (filters) => {
   const { status, startDate, endDate } = filters || {};
-  let whereClause = '';
+  const conditions = [];
   const params = [];
-  let paramCount = 1;
 
   if (status) {
-    whereClause += ` WHERE k.status = $${paramCount}::"KotStatus"`;
+    conditions.push('k.status = ?');
     params.push(status);
-    paramCount++;
   }
 
   if (startDate || endDate) {
-    if (startDate) {
-      whereClause += whereClause ? ` AND ` : ` WHERE `;
-      whereClause += `k."createdAt" >= $${paramCount}`;
-      params.push(new Date(startDate));
-      paramCount++;
-    }
-    if (endDate) {
-      whereClause += whereClause ? ` AND ` : ` WHERE `;
-      whereClause += `k."createdAt" <= $${paramCount}`;
-      params.push(new Date(endDate));
-      paramCount++;
-    }
+    const { start, end } = parseDateRange(startDate, endDate);
+    conditions.push('k.createdAt >= ? AND k.createdAt <= ?');
+    params.push(start, end);
   } else if (!status) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    whereClause += ` WHERE k.status IN ('NEW', 'PREPARING', 'READY') OR k."createdAt" >= $${paramCount}`;
+    conditions.push('(k.status IN (\'NEW\', \'PREPARING\', \'READY\') OR k.createdAt >= ?)');
     params.push(today);
-    paramCount++;
   } else {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    whereClause += whereClause ? ` AND ` : ` WHERE `;
-    whereClause += `k."createdAt" >= $${paramCount}`;
+    conditions.push('k.createdAt >= ?');
     params.push(today);
-    paramCount++;
   }
 
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
   const sql = `
-    SELECT k.id, k."kotNumber", k."orderId", k."sessionId", k."captainId", k.status, k."createdAt",
-           o.id as "order_id", o."orderSource", o."tableId",
-           t.id as "table_id", t.number as "table_number", t.type as "table_type",
-           COALESCE(json_agg(
-             json_build_object(
-               'id', oi.id, 'orderId', oi."orderId", 'menuItemId', oi."menuItemId",
-               'itemNameSnapshot', oi."itemNameSnapshot", 'priceSnapshot', oi."priceSnapshot",
-               'quantity', oi.quantity, 'originalQuantity', oi."originalQuantity",
-               'status', oi.status, 'notes', oi.notes, 'kotId', oi."kotId",
-               'createdAt', oi."createdAt"
-             )
-           ) FILTER (WHERE oi.id IS NOT NULL), '[]') as items
-    FROM "KOT" k
-    LEFT JOIN "Order" o ON o.id = k."orderId"
-    LEFT JOIN "Table" t ON t.id = o."tableId"
-    LEFT JOIN "OrderItem" oi ON oi."kotId" = k.id
+    SELECT k.id, k.kotNumber, k.orderId, k.sessionId, k.captainId, k.status, k.createdAt,
+           o.id as order_id, o.orderSource, o.tableId,
+           t.id as table_id, t.number as table_number, t.type as table_type
+    FROM \`KOT\` k
+    LEFT JOIN \`Order\` o ON o.id = k.orderId
+    LEFT JOIN \`Table\` t ON t.id = o.tableId
     ${whereClause}
-    GROUP BY k.id, o.id, o."orderSource", o."tableId", t.id, t.number, t.type
-    ORDER BY k."createdAt" DESC
+    ORDER BY k.createdAt DESC
   `;
 
-  const rows = await prisma.$queryRawUnsafe(sql, ...params);
+  const rows = await rawQuery(sql, ...params);
+  if (!rows || rows.length === 0) return [];
+
+  const kotIds = rows.map(r => r.id);
+  const itemsPlaceholders = kotIds.map(() => '?').join(', ');
+  const itemsSql = `
+    SELECT id, orderId, menuItemId, itemNameSnapshot, priceSnapshot,
+           quantity, originalQuantity, status, notes, kotId, createdAt
+    FROM \`OrderItem\`
+    WHERE kotId IN (${itemsPlaceholders})
+  `;
+  const items = await rawQuery(itemsSql, ...kotIds);
+
+  const itemsByKotId = {};
+  for (const item of items) {
+    if (!itemsByKotId[item.kotId]) {
+      itemsByKotId[item.kotId] = [];
+    }
+    itemsByKotId[item.kotId].push({
+      id: item.id,
+      orderId: item.orderId,
+      menuItemId: item.menuItemId,
+      itemNameSnapshot: item.itemNameSnapshot,
+      priceSnapshot: item.priceSnapshot,
+      quantity: item.quantity,
+      originalQuantity: item.originalQuantity,
+      status: item.status,
+      notes: item.notes,
+      kotId: item.kotId,
+      createdAt: item.createdAt,
+    });
+  }
 
   return rows.map(row => ({
     id: row.id,
@@ -128,13 +136,13 @@ export const getAll = async (filters) => {
     captainId: row.captainId,
     status: row.status,
     createdAt: row.createdAt,
-    items: row.items,
-    order: {
+    items: itemsByKotId[row.id] || [],
+    order: row.order_id ? {
       id: row.order_id,
       orderSource: row.orderSource,
       tableId: row.tableId,
-      table: row.order_id ? { id: row.table_id, number: row.table_number, type: row.table_type } : null
-    }
+      table: row.table_id ? { id: row.table_id, number: row.table_number, type: row.table_type } : null
+    } : null
   }));
 };
 
@@ -169,10 +177,12 @@ export const updateStatus = async (id, status) => {
     throw { status: 404, message: 'KOT not found' };
   }
 
-  return prisma.kOT.update({
+  const updated = await prisma.kOT.update({
     where: { id },
     data: { status },
   });
+  emitKotUpdated(updated);
+  return updated;
 };
 
 export const updateItemStatus = async (itemId, status) => {
@@ -185,8 +195,8 @@ export const updateItemStatus = async (itemId, status) => {
   }
 
   const validTransitions = {
-    'SENT': ['PREPARING'],
-    'PREPARING': ['READY'],
+    'SENT': ['PREPARING', 'SERVED'],
+    'PREPARING': ['SERVED'],
     'READY': ['SERVED'],
     'SERVED': [],
     'PENDING': []
@@ -208,19 +218,17 @@ export const updateItemStatus = async (itemId, status) => {
       where: { kotId: orderItem.kotId }
     });
 
+    let newKotStatus = null;
     const activeItems = allItems.filter(i => i.status !== 'CANCELLED');
     if (activeItems.length > 0) {
       if (activeItems.every(i => i.status === 'SERVED')) {
+        newKotStatus = 'COMPLETED';
         await tx.kOT.update({
           where: { id: orderItem.kotId },
           data: { status: 'COMPLETED' }
         });
-      } else if (activeItems.every(i => i.status === 'READY' || i.status === 'SERVED')) {
-        await tx.kOT.update({
-          where: { id: orderItem.kotId },
-          data: { status: 'READY' }
-        });
-      } else if (activeItems.some(i => i.status === 'PREPARING')) {
+      } else {
+        newKotStatus = 'PREPARING';
         await tx.kOT.update({
           where: { id: orderItem.kotId },
           data: { status: 'PREPARING' }
@@ -228,11 +236,11 @@ export const updateItemStatus = async (itemId, status) => {
       }
     }
 
-    return updatedItem;
+    return { updatedItem, newKotStatus };
   });
 
-  emitKotUpdated({ itemId, status, kotId: orderItem.kotId });
-  return result;
+  emitKotUpdated({ itemId, status, kotId: orderItem.kotId, kotStatus: result.newKotStatus });
+  return result.updatedItem;
 };
 
 export const editItemQuantity = async (orderItemId, newQuantity, reason, userId) => {
@@ -302,12 +310,14 @@ export const cancelItem = async (orderItemId, reason, userId) => {
       data: { status: 'CANCELLED', originalQuantity: orderItem.originalQuantity || orderItem.quantity },
     });
 
+    let newKotStatus = null;
     if (orderItem.kotId) {
       const allItems = await tx.orderItem.findMany({
         where: { kotId: orderItem.kotId }
       });
       const activeItems = allItems.filter(i => i.status !== 'CANCELLED');
       if (activeItems.length === 0 || activeItems.every(i => i.status === 'SERVED')) {
+        newKotStatus = 'COMPLETED';
         await tx.kOT.update({
           where: { id: orderItem.kotId },
           data: { status: 'COMPLETED' }
@@ -315,9 +325,9 @@ export const cancelItem = async (orderItemId, reason, userId) => {
       }
     }
 
-    return updated;
+    return { updated, newKotStatus };
   });
 
-  emitKotUpdated({ itemId: orderItemId, status: 'CANCELLED', kotId: orderItem.kotId });
-  return result;
+  emitKotUpdated({ itemId: orderItemId, status: 'CANCELLED', kotId: orderItem.kotId, kotStatus: result.newKotStatus });
+  return result.updated;
 };

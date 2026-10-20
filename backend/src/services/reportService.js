@@ -1,33 +1,14 @@
-import prisma from '../utils/prisma.js';
-import { settingsCache } from '../utils/cache.js';
+import prisma, { rawQuery } from '../utils/prisma.js';
+import { settingsCache, categoryCache } from '../utils/cache.js';
+import { parseDateRange, getPrismaDateFilter } from '../utils/dateUtils.js';
 
 const getDateRangeFilter = (startDate, endDate) => {
-  const filter = {};
-  if (startDate || endDate) {
-    filter.createdAt = {};
-    if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      filter.createdAt.gte = start;
-    }
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      filter.createdAt.lte = end;
-    }
-  } else {
-
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    filter.createdAt = { gte: start, lte: end };
-  }
-  return filter;
+  return getPrismaDateFilter(startDate, endDate, 'createdAt');
 };
 
 export const salesSummary = async (startDate, endDate) => {
-  const dateFilter = getDateRangeFilter(startDate, endDate);
+  const { start: dateStart, end: dateEnd, isSingleDay } = parseDateRange(startDate, endDate);
+  const dateFilter = { createdAt: { gte: dateStart, lte: dateEnd } };
 
   const [bills, onlineOrders] = await Promise.all([
     prisma.bill.findMany({
@@ -103,7 +84,6 @@ export const salesSummary = async (startDate, endDate) => {
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
   const pad = (n) => String(n).padStart(2, '0');
-  const isSingleDay = Boolean(startDate && endDate && startDate === endDate);
   let timeline = [];
 
   if (isSingleDay) {
@@ -177,8 +157,8 @@ export const salesSummary = async (startDate, endDate) => {
     timeline = Object.keys(hourMap).sort().map(k => hourMap[k]);
   } else {
     const dateMap = {};
-    const s = startDate ? new Date(startDate) : new Date(Date.now() - 6 * 86400000);
-    const e = endDate ? new Date(endDate) : new Date();
+    const s = new Date(dateStart);
+    const e = new Date(dateEnd);
     const cur = new Date(s);
     while (cur <= e) {
       const key = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
@@ -272,8 +252,19 @@ export const salesSummary = async (startDate, endDate) => {
     }
   }) : [];
 
+  const allActiveCategories = categoryCache.get() || await prisma.category.findMany({
+    where: { active: true },
+    orderBy: { displayOrder: 'asc' }
+  });
+
   const itemMap = {};
   const catMap = {};
+
+  // Pre-populate with all active DB categories so every category is available
+  (allActiveCategories || []).forEach(c => {
+    catMap[c.name] = { id: c.id, name: c.name, displayOrder: c.displayOrder, revenue: 0, quantity: 0 };
+  });
+
   orderItems.forEach(it => {
     const name = it.itemNameSnapshot || it.menuItem?.name || 'Unknown Item';
     const category = it.menuItem?.category?.name || 'Other';
@@ -295,29 +286,14 @@ export const salesSummary = async (startDate, endDate) => {
   });
 
   const topItems = Object.values(itemMap).sort((a, b) => b.revenue - a.revenue).slice(0, 100);
-  const categorySales = Object.values(catMap).sort((a, b) => b.revenue - a.revenue);
+  const categorySales = Object.values(catMap);
 
   const settings = settingsCache.get() || await prisma.settings.findFirst();
   let purchaseCost = 0;
   let netSalesAfterPurchases = totalRevenue;
 
   if (settings?.includePurchasesInReports) {
-    const purchaseDateFilter = {};
-    if (startDate || endDate) {
-      purchaseDateFilter.purchaseDate = {};
-      if (startDate) {
-        const s = new Date(startDate); s.setHours(0, 0, 0, 0);
-        purchaseDateFilter.purchaseDate.gte = s;
-      }
-      if (endDate) {
-        const e = new Date(endDate); e.setHours(23, 59, 59, 999);
-        purchaseDateFilter.purchaseDate.lte = e;
-      }
-    } else {
-      const s = new Date(); s.setHours(0, 0, 0, 0);
-      const e = new Date(); e.setHours(23, 59, 59, 999);
-      purchaseDateFilter.purchaseDate = { gte: s, lte: e };
-    }
+    const purchaseDateFilter = { purchaseDate: { gte: dateStart, lte: dateEnd } };
 
     const purchaseAgg = await prisma.purchaseEntry.aggregate({
       where: { status: 'ACTIVE', ...purchaseDateFilter },
@@ -345,7 +321,8 @@ export const salesSummary = async (startDate, endDate) => {
     includePurchasesInReports: !!settings?.includePurchasesInReports,
     timeline,
     topItems,
-    categorySales
+    categorySales,
+    categories: allActiveCategories.map(c => ({ id: c.id, name: c.name, displayOrder: c.displayOrder }))
   };
 };
 
@@ -545,28 +522,8 @@ export const onlineOrderSummary = async (startDate, endDate) => {
 };
 
 export const purchaseSummary = async (startDate, endDate) => {
-
-  const filter = {};
-  if (startDate || endDate) {
-    filter.purchaseDate = {};
-    if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      filter.purchaseDate.gte = start;
-    }
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      filter.purchaseDate.lte = end;
-    }
-  } else {
-
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    filter.purchaseDate = { gte: start, lte: end };
-  }
+  const { start, end } = parseDateRange(startDate, endDate);
+  const filter = { purchaseDate: { gte: start, lte: end } };
 
   const purchases = await prisma.purchaseEntry.findMany({
     where: filter,
@@ -631,51 +588,32 @@ export const inventoryStatus = async () => {
 };
 
 export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
-  const dateFilter = getDateRangeFilter(startDate, endDate);
+  const { start: sqlStartDate, end: sqlEndDate, isSingleDay } = parseDateRange(startDate, endDate);
+  const dateFilter = { createdAt: { gte: sqlStartDate, lte: sqlEndDate } };
   const settings = settingsCache.get() || await prisma.settings.findFirst();
+  const purchaseDateFilter = { purchaseDate: { gte: sqlStartDate, lte: sqlEndDate } };
 
-  const purchaseDateFilter = {};
-  if (startDate || endDate) {
-    purchaseDateFilter.purchaseDate = {};
-    if (startDate) {
-      const s = new Date(startDate); s.setHours(0, 0, 0, 0);
-      purchaseDateFilter.purchaseDate.gte = s;
-    }
-    if (endDate) {
-      const e = new Date(endDate); e.setHours(23, 59, 59, 999);
-      purchaseDateFilter.purchaseDate.lte = e;
-    }
-  } else {
-    const s = new Date(); s.setHours(0, 0, 0, 0);
-    const e = new Date(); e.setHours(23, 59, 59, 999);
-    purchaseDateFilter.purchaseDate = { gte: s, lte: e };
-  }
-
-  // Get date strings or defaults for SQL params
-  const sqlStartDate = startDate ? new Date(startDate) : new Date();
-  if (!startDate) sqlStartDate.setHours(0, 0, 0, 0);
-  const sqlEndDate = endDate ? new Date(endDate) : new Date();
-  if (!endDate) sqlEndDate.setHours(23, 59, 59, 999);
+  const billsQuery = `
+    SELECT b.id, b.orderId, b.total, b.sgstAmount, b.cgstAmount, b.createdAt,
+           b.tableId, b.sessionId,
+           o.orderSource,
+           COALESCE(st.type, ot.type) as tableType,
+           COALESCE(st.id, ot.id) as resolvedTableId,
+           COALESCE(st.number, ot.number) as resolvedTableNumber,
+           p.method as payMethod, p.amount as payAmount
+    FROM \`Bill\` b
+    LEFT JOIN \`Order\` o ON o.id = b.orderId
+    LEFT JOIN \`Table\` ot ON ot.id = o.tableId
+    LEFT JOIN \`TableSession\` s ON s.id = b.sessionId
+    LEFT JOIN \`Table\` st ON st.id = s.tableId
+    LEFT JOIN \`Payment\` p ON p.billId = b.id
+    WHERE b.status = 'FINALIZED' AND b.createdAt >= ? AND b.createdAt <= ?
+    ORDER BY b.createdAt ASC
+  `;
 
   // Run the 4 core queries in parallel ONCE
   const [bills, onlineOrders, allOrders, purchases] = await Promise.all([
-    prisma.$queryRawUnsafe(`
-      SELECT b.id, b."orderId", b.total, b."sgstAmount", b."cgstAmount", b."createdAt",
-             b."tableId", b."sessionId",
-             o."orderSource",
-             COALESCE(st.type, ot.type) as "tableType",
-             COALESCE(st.id, ot.id) as "resolvedTableId",
-             COALESCE(st.number, ot.number) as "resolvedTableNumber",
-             p.method as "payMethod", p.amount as "payAmount"
-      FROM "Bill" b
-      LEFT JOIN "Order" o ON o.id = b."orderId"
-      LEFT JOIN "Table" ot ON ot.id = o."tableId"
-      LEFT JOIN "TableSession" s ON s.id = b."sessionId"
-      LEFT JOIN "Table" st ON st.id = s."tableId"
-      LEFT JOIN "Payment" p ON p."billId" = b.id
-      WHERE b.status = 'FINALIZED' AND b."createdAt" >= $1 AND b."createdAt" <= $2
-      ORDER BY b."createdAt" ASC
-    `, sqlStartDate, sqlEndDate),
+    rawQuery(billsQuery, sqlStartDate, sqlEndDate),
 
     prisma.onlineOrder.findMany({
       where: { ...dateFilter },
@@ -760,7 +698,6 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   const netSalesAfterPurchases = totalRevenue - purchaseCost;
 
   const pad = (n) => String(n).padStart(2, '0');
-  const isSingleDay = Boolean(startDate && endDate && startDate === endDate);
   let timeline = [];
 
   if (isSingleDay) {
@@ -834,8 +771,8 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     timeline = Object.keys(hourMap).sort().map(k => hourMap[k]);
   } else {
     const dateMap = {};
-    const s = startDate ? new Date(startDate) : new Date(Date.now() - 6 * 86400000);
-    const e = endDate ? new Date(endDate) : new Date();
+    const s = new Date(sqlStartDate);
+    const e = new Date(sqlEndDate);
     const cur = new Date(s);
     while (cur <= e) {
       const key = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
@@ -910,8 +847,19 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   }
 
   // Top Items & Category Sales
+  const allActiveCategories = categoryCache.get() || await prisma.category.findMany({
+    where: { active: true },
+    orderBy: { displayOrder: 'asc' }
+  });
+
   const itemMap = {};
   const catMap = {};
+
+  // Pre-populate with all active DB categories so every category is available
+  (allActiveCategories || []).forEach(c => {
+    catMap[c.name] = { id: c.id, name: c.name, displayOrder: c.displayOrder, revenue: 0, quantity: 0 };
+  });
+
   orderItems.forEach(it => {
     const name = it.itemNameSnapshot || it.menuItem?.name || 'Unknown Item';
     const category = it.menuItem?.category?.name || 'Other';
@@ -933,7 +881,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   });
 
   const topItems = Object.values(itemMap).sort((a, b) => b.revenue - a.revenue).slice(0, 100);
-  const categorySales = Object.values(catMap).sort((a, b) => b.revenue - a.revenue);
+  const categorySales = Object.values(catMap);
 
   const sales = {
     totalRevenue,
@@ -953,7 +901,8 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     includePurchasesInReports: !!settings?.includePurchasesInReports,
     timeline,
     topItems,
-    categorySales
+    categorySales,
+    categories: allActiveCategories.map(c => ({ id: c.id, name: c.name, displayOrder: c.displayOrder }))
   };
 
   // --- 2. ORDERS SUMMARY ---

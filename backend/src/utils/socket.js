@@ -123,3 +123,8 @@ export function emitOrderUpdated(order) {
   if (!io) return;
   io.emit('order:updated', order);
 }
+
+export function emitCategoriesUpdated() {
+  if (!io) return;
+  io.emit('categories:updated');
+}

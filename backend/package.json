@@ -4,10 +4,13 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "build": "prisma generate",
-    "postinstall": "prisma generate",
+    "sync-provider": "node scripts/sync-provider.js",
+    "build": "node scripts/sync-provider.js && prisma generate",
+    "postinstall": "node scripts/sync-provider.js && prisma generate",
     "start": "node src/index.js",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "export:mysql": "node scripts/export-supabase-to-mysql.js",
+    "migrate:mysql": "node scripts/migrate-mysql.js"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

@@ -1,7 +1,17 @@
-import prisma from '../utils/prisma.js';
+import prisma, { rawQuery } from '../utils/prisma.js';
 import * as auditService from './auditService.js';
 import { settingsCache, tableCache } from '../utils/cache.js';
 import { emitBillCreated, emitBillUpdated, emitBillFinalized } from '../utils/socket.js';
+import { parseDateRange } from '../utils/dateUtils.js';
+
+const formatBill = (bill) => {
+  if (!bill) return bill;
+  return {
+    ...bill,
+    sgstPercent: bill.sgstPercent !== null && bill.sgstPercent !== undefined ? Number(bill.sgstPercent).toFixed(2) : '2.50',
+    cgstPercent: bill.cgstPercent !== null && bill.cgstPercent !== undefined ? Number(bill.cgstPercent).toFixed(2) : '2.50',
+  };
+};
 
 const getSettings = async () => {
   const cached = settingsCache.get();
@@ -9,85 +19,125 @@ const getSettings = async () => {
 
   const settings = await prisma.settings.findFirst();
   const result = {
-    sgstPercent: settings ? Number(settings.sgstPercent) : 2.5,
-    cgstPercent: settings ? Number(settings.cgstPercent) : 2.5,
+    sgstPercent: settings ? Number(Number(settings.sgstPercent).toFixed(2)) : 2.50,
+    cgstPercent: settings ? Number(Number(settings.cgstPercent).toFixed(2)) : 2.50,
     restaurantName: settings?.restaurantName || 'Maharaj Veg Villa',
     address: settings?.address || '',
     phone: settings?.phone || '',
-    gstin: settings?.gstin || '',
+    fssaiLicense: settings?.fssaiLicense || '',
+    gstNumber: settings?.gstNumber || '',
   };
+
   settingsCache.set(result);
   return result;
 };
 
-export const calculateBill = async (orderId, discount = 0) => {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: { items: true },
-  });
-  if (!order) throw { status: 404, message: 'Order not found' };
-
+export const calculateBill = async (items, menuType = 'NON_AC', discount = 0) => {
   const settings = await getSettings();
+  let subtotal = 0;
 
-  const validItems = order.items.filter(i => i.status !== 'CANCELLED');
-  const subtotal = validItems.reduce(
-    (sum, item) => sum + (Number(item.priceSnapshot) * item.quantity), 0
-  );
+  for (const item of items) {
+    subtotal += Number(item.price) * item.quantity;
+  }
 
-  const taxableAmount = Math.max(0, subtotal - discount);
-  const sgstAmount = taxableAmount * (settings.sgstPercent / 100);
-  const cgstAmount = taxableAmount * (settings.cgstPercent / 100);
-  const grandTotal = taxableAmount + sgstAmount + cgstAmount;
-  const finalTotal = Math.round(grandTotal);
-  const roundOff = Number((finalTotal - grandTotal).toFixed(2));
+  const discountAmount = Number(discount) || 0;
+  const taxableAmount = Math.max(0, subtotal - discountAmount);
+
+  const sgstAmount = Number(((taxableAmount * settings.sgstPercent) / 100).toFixed(2));
+  const cgstAmount = Number(((taxableAmount * settings.cgstPercent) / 100).toFixed(2));
+
+  const rawTotal = taxableAmount + sgstAmount + cgstAmount;
+  const total = Math.round(rawTotal);
+  const roundOff = Number((total - rawTotal).toFixed(2));
 
   return {
-    subtotal,
-    discount,
-    sgstPercent: settings.sgstPercent,
-    cgstPercent: settings.cgstPercent,
-    sgstAmount: Number(sgstAmount.toFixed(2)),
-    cgstAmount: Number(cgstAmount.toFixed(2)),
-    total: finalTotal,
+    subtotal: Number(subtotal.toFixed(2)),
+    discount: Number(discountAmount.toFixed(2)),
+    sgstPercent: Number(settings.sgstPercent).toFixed(2),
+    cgstPercent: Number(settings.cgstPercent).toFixed(2),
+    sgstAmount,
+    cgstAmount,
     roundOff,
+    total,
   };
 };
 
-export const preview = async (orderId, discount) => {
-  return calculateBill(orderId, discount);
+export const preview = async (orderId, discount = 0) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      items: {
+        where: { status: { not: 'CANCELLED' } },
+        include: { menuItem: true },
+      },
+      table: true,
+    },
+  });
+  if (!order) throw { status: 404, message: 'Order not found' };
+  const menuType = order.table ? order.table.type : 'NON_AC';
+  const calculationItems = order.items.map((item) => ({
+    price: item.priceSnapshot,
+    quantity: item.quantity,
+  }));
+  return calculateBill(calculationItems, menuType, discount);
 };
 
 export const create = async (orderId, discount = 0, customerName = null, customerPhone = null) => {
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      items: {
+        where: { status: { not: 'CANCELLED' } },
+        include: { menuItem: true },
+      },
+      table: true,
+      bill: true,
+    },
+  });
+
   if (!order) throw { status: 404, message: 'Order not found' };
-  if (order.status !== 'ACTIVE') throw { status: 400, message: 'Bill can only be created for active orders' };
+  if (order.bill) throw { status: 400, message: 'Bill already exists for this order' };
+  if (order.items.length === 0) throw { status: 400, message: 'Order has no active items' };
 
-  const existingBill = await prisma.bill.findUnique({ where: { orderId } });
-  if (existingBill) throw { status: 400, message: 'Bill already exists for this order' };
+  const menuType = order.table ? order.table.type : 'NON_AC';
+  const calculationItems = order.items.map((item) => ({
+    price: item.priceSnapshot,
+    quantity: item.quantity,
+  }));
 
-  const calculation = await calculateBill(orderId, discount);
+  const calc = await calculateBill(calculationItems, menuType, discount);
 
+  // PostgreSQL uses auto-incrementing billNumber sequence, omit from insert
   const createdBill = await prisma.bill.create({
     data: {
       orderId,
       sessionId: order.sessionId || null,
       tableId: order.tableId || null,
-      customerName: customerName ? String(customerName).trim() : null,
-      customerPhone: customerPhone ? String(customerPhone).trim() : null,
-      subtotal: calculation.subtotal,
-      sgstPercent: calculation.sgstPercent,
-      cgstPercent: calculation.cgstPercent,
-      sgstAmount: calculation.sgstAmount,
-      cgstAmount: calculation.cgstAmount,
-      discount: calculation.discount,
-      total: calculation.total,
-      roundOff: calculation.roundOff,
-      status: 'DRAFT',
+      customerName,
+      customerPhone,
+      subtotal: calc.subtotal,
+      sgstPercent: calc.sgstPercent,
+      cgstPercent: calc.cgstPercent,
+      sgstAmount: calc.sgstAmount,
+      cgstAmount: calc.cgstAmount,
+      discount: calc.discount,
+      total: calc.total,
+      roundOff: calc.roundOff,
     },
   });
 
-  emitBillCreated(createdBill);
-  return createdBill;
+  const formatted = formatBill({
+    ...createdBill,
+    order: {
+      id: order.id,
+      orderSource: order.orderSource,
+      tableId: order.tableId,
+      table: order.table ? { id: order.table.id, number: order.table.number, type: order.table.type } : null,
+    },
+    table: order.table ? { id: order.table.id, number: order.table.number, type: order.table.type } : null,
+  });
+  emitBillCreated(formatted);
+  return formatted;
 };
 
 export const getAll = async (filters) => {
@@ -98,7 +148,7 @@ export const getAll = async (filters) => {
 
   if (status && status !== 'ALL') {
     params.push(status);
-    conditions.push(`b.status = $${params.length}::"BillStatus"`);
+    conditions.push('b.status = ?');
   }
 
   // Support startDate/endDate and from/to aliases
@@ -107,27 +157,10 @@ export const getAll = async (filters) => {
 
   if (all === true || all === 'true' || startParam === 'ALL') {
     // Explicitly requested all bills across history (no date filter)
-  } else if (startParam || endParam) {
-    if (startParam) {
-      const s = new Date(startParam);
-      s.setHours(0, 0, 0, 0);
-      params.push(s);
-      conditions.push(`b."createdAt" >= $${params.length}`);
-    }
-    if (endParam) {
-      const e = new Date(endParam);
-      e.setHours(23, 59, 59, 999);
-      params.push(e);
-      conditions.push(`b."createdAt" <= $${params.length}`);
-    }
   } else {
-    // Default to today's bills if no date range is provided
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-    params.push(todayStart, todayEnd);
-    conditions.push(`b."createdAt" >= $${params.length - 1} AND b."createdAt" <= $${params.length}`);
+    const { start, end } = parseDateRange(startParam, endParam);
+    params.push(start, end);
+    conditions.push('b.createdAt >= ? AND b.createdAt <= ?');
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -137,35 +170,33 @@ export const getAll = async (filters) => {
   const skip = page && take ? (Number(page) - 1) * take : undefined;
 
   if (take) {
-    params.push(take);
-    paginationClause += `LIMIT $${params.length} `;
+    paginationClause += `LIMIT ${take} `;
   }
   if (skip) {
-    params.push(skip);
-    paginationClause += `OFFSET $${params.length} `;
+    paginationClause += `OFFSET ${skip} `;
   }
 
   const sql = `
-    SELECT b.id, b."billNumber", b."orderId", b."sessionId", b."tableId",
-           b."customerName", b."customerPhone",
-           b.subtotal, b."sgstPercent", b."cgstPercent", b."sgstAmount", b."cgstAmount",
-           b.discount, b.total, b."roundOff", b.version, b.status, b."createdAt", b."finalizedAt",
-           o.id as "order_id", o."orderSource", o."tableId" as "order_tableId",
-           t.id as "table_id", t.number as "table_number", t.type as "table_type",
-           u.id as "captain_id", u.name as "captain_name", u.role as "captain_role",
-           p.id as "pay_id", p.method as "pay_method", p.amount as "pay_amount",
-           p.status as "pay_status", p."paidAt" as "pay_paidAt"
-    FROM "Bill" b
-    LEFT JOIN "Order" o ON o.id = b."orderId"
-    LEFT JOIN "Table" t ON t.id = o."tableId"
-    LEFT JOIN "User" u ON u.id = o."captainId"
-    LEFT JOIN "Payment" p ON p."billId" = b.id
+    SELECT b.id, b.billNumber, b.orderId, b.sessionId, b.tableId,
+           b.customerName, b.customerPhone,
+           b.subtotal, b.sgstPercent, b.cgstPercent, b.sgstAmount, b.cgstAmount,
+           b.discount, b.total, b.roundOff, b.version, b.status, b.createdAt, b.finalizedAt,
+           o.id as order_id, o.orderSource, o.tableId as order_tableId,
+           t.id as table_id, t.number as table_number, t.type as table_type,
+           u.id as captain_id, u.name as captain_name, u.role as captain_role,
+           p.id as pay_id, p.method as pay_method, p.amount as pay_amount,
+           p.status as pay_status, p.paidAt as pay_paidAt
+    FROM \`Bill\` b
+    LEFT JOIN \`Order\` o ON o.id = b.orderId
+    LEFT JOIN \`Table\` t ON t.id = o.tableId
+    LEFT JOIN \`User\` u ON u.id = o.captainId
+    LEFT JOIN \`Payment\` p ON p.billId = b.id
     ${whereClause}
-    ORDER BY b."createdAt" DESC
+    ORDER BY b.createdAt DESC
     ${paginationClause}
   `;
 
-  const rows = await prisma.$queryRawUnsafe(sql, ...params);
+  const rows = await rawQuery(sql, ...params);
 
   return rows.map(row => ({
     id: row.id,
@@ -176,8 +207,8 @@ export const getAll = async (filters) => {
     customerName: row.customerName,
     customerPhone: row.customerPhone,
     subtotal: row.subtotal,
-    sgstPercent: row.sgstPercent,
-    cgstPercent: row.cgstPercent,
+    sgstPercent: row.sgstPercent !== null && row.sgstPercent !== undefined ? Number(row.sgstPercent).toFixed(3) : '2.500',
+    cgstPercent: row.cgstPercent !== null && row.cgstPercent !== undefined ? Number(row.cgstPercent).toFixed(3) : '2.500',
     sgstAmount: row.sgstAmount,
     cgstAmount: row.cgstAmount,
     discount: row.discount,
@@ -219,7 +250,7 @@ export const getById = async (id) => {
     },
   });
   if (!bill) throw { status: 404, message: 'Bill not found' };
-  return bill;
+  return formatBill(bill);
 };
 
 export const finalize = async (billId, paymentMethod, customerName = null, customerPhone = null) => {
@@ -282,8 +313,9 @@ export const finalize = async (billId, paymentMethod, customerName = null, custo
     tableCache.invalidate();
   }
 
-  emitBillFinalized(result);
-  return result;
+  const formattedResult = formatBill(result);
+  emitBillFinalized(formattedResult);
+  return formattedResult;
 };
 
 export const cancel = async (billId) => {
@@ -291,8 +323,9 @@ export const cancel = async (billId) => {
   if (!bill) throw { status: 404, message: 'Bill not found' };
   if (bill.status === 'FINALIZED') throw { status: 400, message: 'Cannot cancel a FINALIZED bill' };
   const updated = await prisma.bill.update({ where: { id: billId }, data: { status: 'CANCELLED' } });
-  emitBillUpdated(updated);
-  return updated;
+  const formattedUpdated = formatBill(updated);
+  emitBillUpdated(formattedUpdated);
+  return formattedUpdated;
 };
 
 export const getBillPrintData = async (billId) => {
@@ -356,13 +389,13 @@ export const amendBill = async (billId, changes, reason, userId, discount, custo
     }
   }
 
-  const discountAmount = discount !== undefined ? Number(discount) : Number(bill.discount);
+  const discountAmount = discount !== undefined ? Number(Number(discount).toFixed(2)) : Number(Number(bill.discount).toFixed(2));
   const taxable = Math.max(0, newSubtotal - discountAmount);
   const newSgstAmount = Number((taxable * (settings.sgstPercent / 100)).toFixed(2));
   const newCgstAmount = Number((taxable * (settings.cgstPercent / 100)).toFixed(2));
   const newTotal = Math.round(taxable + newSgstAmount + newCgstAmount);
-  const originalTotal = Number(bill.total);
-  const difference = newTotal - originalTotal;
+  const originalTotal = Number(Number(bill.total).toFixed(2));
+  const difference = Number((newTotal - originalTotal).toFixed(2));
 
   const amendment = await prisma.$transaction(async (tx) => {
     const created = await tx.billAmendment.create({
@@ -490,20 +523,20 @@ export const editDraft = async (billId, changes, discount, userId, customerName 
     });
 
     const validItems = updatedItems.filter(i => i.status !== 'CANCELLED');
-    const newSubtotal = validItems.reduce((sum, item) => sum + (Number(item.priceSnapshot) * item.quantity), 0);
+    const newSubtotal = Number(validItems.reduce((sum, item) => sum + (Number(item.priceSnapshot) * item.quantity), 0).toFixed(2));
 
-    const discountAmount = discount !== undefined ? Number(discount) : Number(bill.discount);
+    const discountAmount = discount !== undefined ? Number(Number(discount).toFixed(2)) : Number(Number(bill.discount).toFixed(2));
     const taxable = Math.max(0, newSubtotal - discountAmount);
-    const newSgstAmount = taxable * (settings.sgstPercent / 100);
-    const newCgstAmount = taxable * (settings.cgstPercent / 100);
+    const newSgstAmount = Number((taxable * (settings.sgstPercent / 100)).toFixed(2));
+    const newCgstAmount = Number((taxable * (settings.cgstPercent / 100)).toFixed(2));
     const grandTotal = taxable + newSgstAmount + newCgstAmount;
     const newTotal = Math.round(grandTotal);
     const newRoundOff = Number((newTotal - grandTotal).toFixed(2));
 
     const updateData = {
       subtotal: newSubtotal,
-      sgstAmount: Number(newSgstAmount.toFixed(2)),
-      cgstAmount: Number(newCgstAmount.toFixed(2)),
+      sgstAmount: newSgstAmount,
+      cgstAmount: newCgstAmount,
       discount: discountAmount,
       total: newTotal,
       roundOff: newRoundOff,
@@ -521,6 +554,7 @@ export const editDraft = async (billId, changes, discount, userId, customerName 
     });
   });
 
-  emitBillUpdated(updatedBill);
-  return updatedBill;
+  const formattedUpdatedBill = formatBill(updatedBill);
+  emitBillUpdated(formattedUpdatedBill);
+  return formattedUpdatedBill;
 };

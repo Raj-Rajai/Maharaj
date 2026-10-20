@@ -17,7 +17,6 @@ import {
   Lock,
   RotateCcw,
   CheckCheck,
-  Plus,
   Trash2,
 } from 'lucide-react';
 import Badge from '../components/ui/Badge';
@@ -44,6 +43,7 @@ const PERMISSION_GROUPS = [
   { group: 'Users & Roles', perms: ['USER_VIEW', 'USER_CREATE', 'USER_EDIT', 'USER_DELETE'] },
   { group: 'Settings', perms: ['SETTINGS_VIEW', 'SETTINGS_EDIT'] },
   { group: 'Online Orders', perms: ['ONLINE_ORDER_VIEW', 'ONLINE_ORDER_CREATE', 'ONLINE_ORDER_EDIT'] },
+  { group: 'Notifications', perms: ['NOTIFICATION_KOT_AC', 'NOTIFICATION_KOT_NON_AC', 'NOTIFICATION_BILL_AC', 'NOTIFICATION_BILL_NON_AC'] },
 ];
 
 const PERMISSION_LABELS = {
@@ -117,6 +117,11 @@ const PERMISSION_LABELS = {
   ONLINE_ORDER_VIEW: 'View Online Orders',
   ONLINE_ORDER_CREATE: 'Create Online Orders',
   ONLINE_ORDER_EDIT: 'Update Online Orders',
+
+  NOTIFICATION_KOT_AC: 'Receive AC KOT Notifications',
+  NOTIFICATION_KOT_NON_AC: 'Receive Non-AC KOT Notifications',
+  NOTIFICATION_BILL_AC: 'Receive AC Bill Notifications',
+  NOTIFICATION_BILL_NON_AC: 'Receive Non-AC Bill Notifications',
 };
 
 const ALL_PERMS = PERMISSION_GROUPS.flatMap((g) => g.perms);
@@ -151,7 +156,6 @@ export default function UsersPage() {
   const [permSearch, setPermSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const { user: currentUser, hasPermission, refreshUser } = useAuth();
-  const canCreate = hasPermission('USER_CREATE');
   const canEdit = hasPermission('USER_EDIT');
   const canDelete = hasPermission('USER_DELETE');
 
@@ -351,27 +355,19 @@ export default function UsersPage() {
             View system accounts, update roles, and manage granular permissions
           </p>
         </div>
-        {canCreate && (
-          <button
-            onClick={openAddModal}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-light transition-colors shadow-xs cursor-pointer w-full sm:w-auto min-h-[42px]"
-          >
-            <Plus size={16} /> Add User
-          </button>
-        )}
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[680px]">
+          <table className="w-full text-sm min-w-[740px]">
             <thead className="bg-surface dark:bg-slate-800/80 border-b border-border dark:border-slate-700">
               <tr className="text-left text-text-secondary dark:text-slate-400 text-xs">
-                <th className="px-5 py-3.5 font-semibold">User</th>
-                <th className="px-5 py-3.5 font-semibold">Username</th>
-                <th className="px-5 py-3.5 font-semibold">Role</th>
-                <th className="px-5 py-3.5 font-semibold">Permissions</th>
-                <th className="px-5 py-3.5 font-semibold">Status</th>
-                <th className="px-5 py-3.5 font-semibold text-right">Actions</th>
+                <th className="px-5 py-3.5 tablet-table-cell font-semibold whitespace-nowrap">User</th>
+                <th className="px-5 py-3.5 tablet-table-cell font-semibold whitespace-nowrap">Username</th>
+                <th className="px-5 py-3.5 tablet-table-cell font-semibold whitespace-nowrap">Role</th>
+                <th className="px-5 py-3.5 tablet-table-cell font-semibold whitespace-nowrap">Permissions</th>
+                <th className="px-5 py-3.5 tablet-table-cell font-semibold whitespace-nowrap">Status</th>
+                <th className="px-5 py-3.5 tablet-table-cell font-semibold text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border dark:divide-slate-800">
@@ -383,7 +379,7 @@ export default function UsersPage() {
                 return (
                   <tr key={u.id} className="hover:bg-surface/50 dark:hover:bg-slate-800/50 transition-colors">
 
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5 tablet-table-cell whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-sm shrink-0">
                           {u.name ? u.name[0].toUpperCase() : 'U'}
@@ -392,7 +388,7 @@ export default function UsersPage() {
                           <p className="font-semibold text-text dark:text-slate-100 truncate">
                             {u.name}
                             {isCurrent && (
-                              <span className="ml-2 text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                              <span className="ml-2 text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded whitespace-nowrap">
                                 You
                               </span>
                             )}
@@ -401,36 +397,36 @@ export default function UsersPage() {
                       </div>
                     </td>
 
-                    <td className="px-5 py-3.5 font-mono text-xs text-text-secondary dark:text-slate-400">
+                    <td className="px-5 py-3.5 tablet-table-cell font-mono text-xs text-text-secondary dark:text-slate-400 whitespace-nowrap">
                       @{u.username}
                     </td>
 
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5 tablet-table-cell whitespace-nowrap">
                       <Badge variant={ROLE_COLORS[u.role] || 'neutral'}>
                         {ROLE_NAMES[u.role] || u.role}
                       </Badge>
                     </td>
 
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5 tablet-table-cell whitespace-nowrap">
                       {isSuperAdmin ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                          <Shield size={12} /> Full Access (Super Admin)
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                          <Shield size={12} className="shrink-0" /> Full Access (Super Admin)
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                          <Key size={12} className="text-text-secondary dark:text-slate-400" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                          <Key size={12} className="text-text-secondary dark:text-slate-400 shrink-0" />
                           {permCount} / {ALL_PERMS.length} permissions
                         </span>
                       )}
                     </td>
 
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5 tablet-table-cell whitespace-nowrap">
                       <Badge variant={u.active ? 'success' : 'danger'}>
                         {u.active ? 'Active' : 'Inactive'}
                       </Badge>
                     </td>
 
-                    <td className="px-5 py-3.5 text-right">
+                    <td className="px-5 py-3.5 tablet-table-cell text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
                         {canEdit && (
                           <button

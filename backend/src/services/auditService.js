@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { parseDateRange } from '../utils/dateUtils.js';
 
 export const log = async ({ userId, action, entity, entityId, before = null, after = null, reason = null }, tx = null) => {
   try {
@@ -19,17 +20,8 @@ export const getAll = async (filters = {}) => {
   if (filters.userId) where.userId = filters.userId;
   if (filters.action) where.action = filters.action;
   if (filters.startDate || filters.endDate) {
-    where.createdAt = {};
-    if (filters.startDate) {
-      const d = new Date(filters.startDate);
-      d.setHours(0, 0, 0, 0);
-      where.createdAt.gte = d;
-    }
-    if (filters.endDate) {
-      const d = new Date(filters.endDate);
-      d.setHours(23, 59, 59, 999);
-      where.createdAt.lte = d;
-    }
+    const { start, end } = parseDateRange(filters.startDate, filters.endDate);
+    where.createdAt = { gte: start, lte: end };
   }
   return prisma.auditLog.findMany({
     where,

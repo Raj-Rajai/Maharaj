@@ -1,6 +1,7 @@
-import prisma from '../utils/prisma.js';
+import prisma, { rawQuery } from '../utils/prisma.js';
 import { settingsCache } from '../utils/cache.js';
 import { emitKotCreated, emitBillCreated, emitOrderUpdated } from '../utils/socket.js';
+import { parseDateRange } from '../utils/dateUtils.js';
 
 const getSettings = async () => {
   const cached = settingsCache.get();
@@ -127,8 +128,8 @@ export const createTakeAwayOrder = async (data, userId) => {
   }
 
   const settings = await getSettings();
-  const sgstPercent = Number(settings.sgstPercent ?? 2.5);
-  const cgstPercent = Number(settings.cgstPercent ?? 2.5);
+  const sgstPercent = Number(Number(settings.sgstPercent ?? 2.5).toFixed(3));
+  const cgstPercent = Number(Number(settings.cgstPercent ?? 2.5).toFixed(3));
 
   // Calculate using DB prices — never trust client
   const subtotal = items.reduce(
@@ -159,7 +160,7 @@ export const createTakeAwayOrder = async (data, userId) => {
       priceSnapshot: dbItems[idx].price, // DB price, not client price
       quantity: item.quantity,
       notes: item.notes || customerNotes || null,
-      status: generateKot ? 'SENT' : 'PENDING',
+      status: generateKot ? 'PREPARING' : 'PENDING',
     }));
 
     await tx.orderItem.createMany({
@@ -182,7 +183,7 @@ export const createTakeAwayOrder = async (data, userId) => {
           kotNumber,
           orderId: newOrder.id,
           captainId,
-          status: 'NEW',
+          status: 'PREPARING',
         },
       });
 
@@ -190,7 +191,7 @@ export const createTakeAwayOrder = async (data, userId) => {
         where: { orderId: newOrder.id },
         data: {
           kotId: createdKot.id,
-          status: 'SENT',
+          status: 'PREPARING',
         },
       });
     }
@@ -245,35 +246,28 @@ export const getAll = async (filters) => {
 
   if (sessionId) {
     params.push(sessionId);
-    conditions.push(`o."sessionId" = $${params.length}`);
+    conditions.push('o.sessionId = ?');
   }
   if (tableId) {
     params.push(tableId);
-    conditions.push(`o."tableId" = $${params.length}`);
+    conditions.push('o.tableId = ?');
   }
   if (status && status !== 'ALL') {
     params.push(status);
-    conditions.push(`o.status = $${params.length}::"OrderStatus"`);
+    conditions.push('o.status = ?');
   }
   if (orderSource && orderSource !== 'ALL') {
     params.push(orderSource);
-    conditions.push(`o."orderSource" = $${params.length}::"OrderSource"`);
+    conditions.push('o.orderSource = ?');
   }
 
   // Support date range filtering
   const startParam = startDate || from;
   const endParam = endDate || to;
-  if (startParam) {
-    const s = new Date(startParam);
-    s.setHours(0, 0, 0, 0);
-    params.push(s);
-    conditions.push(`o."createdAt" >= $${params.length}`);
-  }
-  if (endParam) {
-    const e = new Date(endParam);
-    e.setHours(23, 59, 59, 999);
-    params.push(e);
-    conditions.push(`o."createdAt" <= $${params.length}`);
+  if (startParam || endParam) {
+    const { start, end } = parseDateRange(startParam, endParam);
+    params.push(start, end);
+    conditions.push('o.createdAt >= ? AND o.createdAt <= ?');
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -296,34 +290,33 @@ export const getAll = async (filters) => {
   const offsetClause = offsetValue > 0 ? `OFFSET ${offsetValue}` : '';
 
   const sql = `
-    SELECT o.id, o."orderSource", o."sessionId", o."tableId", o."captainId", o.status, o."createdAt", o."updatedAt",
-           t.id as "table_id", t.number as "table_number", t.type as "table_type", t.status as "table_status",
-           bi.id as "bill_id", bi."billNumber" as "bill_number", bi.total as "bill_total", bi.status as "bill_status",
-           u.id as "captain_id", u.name as "captain_name", u.role as "captain_role"
-    FROM "Order" o
-    LEFT JOIN "Table" t ON t.id = o."tableId"
-    LEFT JOIN "Bill" bi ON bi."orderId" = o.id
-    LEFT JOIN "User" u ON u.id = o."captainId"
+    SELECT o.id, o.orderSource, o.sessionId, o.tableId, o.captainId, o.status, o.createdAt, o.updatedAt,
+           t.id as table_id, t.number as table_number, t.type as table_type, t.status as table_status,
+           bi.id as bill_id, bi.billNumber as bill_number, bi.total as bill_total, bi.status as bill_status,
+           u.id as captain_id, u.name as captain_name, u.role as captain_role
+    FROM \`Order\` o
+    LEFT JOIN \`Table\` t ON t.id = o.tableId
+    LEFT JOIN \`Bill\` bi ON bi.orderId = o.id
+    LEFT JOIN \`User\` u ON u.id = o.captainId
     ${whereClause}
-    ORDER BY o."createdAt" DESC
+    ORDER BY o.createdAt DESC
     ${limitClause}
     ${offsetClause}
   `;
 
-  const orders = await prisma.$queryRawUnsafe(sql, ...params);
+  const orders = await rawQuery(sql, ...params);
 
   if (!orders || orders.length === 0) return [];
 
   const orderIds = orders.map(o => o.id);
-  const itemsParams = [...orderIds];
-  const itemsPlaceholders = orderIds.map((_, i) => `$${i + 1}`).join(', ');
+  const itemsPlaceholders = orderIds.map(() => '?').join(', ');
 
   const itemsSql = `
-    SELECT id, "orderId", "itemNameSnapshot", "priceSnapshot", quantity, "originalQuantity", status, notes, "menuItemId", "kotId", "createdAt"
-    FROM "OrderItem"
-    WHERE "orderId" IN (${itemsPlaceholders})
+    SELECT id, orderId, itemNameSnapshot, priceSnapshot, quantity, originalQuantity, status, notes, menuItemId, kotId, createdAt
+    FROM \`OrderItem\`
+    WHERE orderId IN (${itemsPlaceholders})
   `;
-  const items = await prisma.$queryRawUnsafe(itemsSql, ...itemsParams);
+  const items = await rawQuery(itemsSql, ...orderIds);
 
   const itemsByOrderId = {};
   for (const item of items) {
@@ -423,7 +416,7 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
           orderId: order.id,
           sessionId: order.sessionId || null,
           captainId: captainId || order.captainId,
-          status: 'NEW',
+          status: 'PREPARING',
         },
       });
 
@@ -436,10 +429,9 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
           itemNameSnapshot: menuItem.name,
           priceSnapshot: menuItem.price,
           quantity: qty,
-          originalQuantity: qty,
           notes: item.notes || null,
           kotId: newKot.id,
-          status: 'SENT',
+          status: 'PREPARING',
         };
       });
 
@@ -480,7 +472,6 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
       itemNameSnapshot: menuItem.name,
       priceSnapshot: menuItem.price,
       quantity: qty,
-      originalQuantity: qty,
       notes: item.notes || null,
       status: 'PENDING',
     };
@@ -521,7 +512,7 @@ export const cancel = async (id) => {
 };
 
 export const sendKotOrder = async (data, captainId) => {
-  const { sessionId, tableId, items, generateKot = true } = data;
+  const { sessionId, tableId, items, generateKot = true, customerNotes } = data;
   if (!items || !Array.isArray(items) || items.length === 0) {
     throw { status: 400, message: 'At least one item is required' };
   }
@@ -596,25 +587,27 @@ export const sendKotOrder = async (data, captainId) => {
           orderId: order.id,
           sessionId: session.id,
           captainId,
-          status: 'NEW',
+          status: 'PREPARING',
         },
       });
     }
 
-    // Create OrderItems directly linked to this KOT with status 'SENT' (or 'PENDING' if no KOT)
+    // Create OrderItems directly linked to this KOT with status 'PREPARING' (or 'PENDING' if no KOT)
     const orderItemsData = items.map((item) => {
       const menuItem = menuItemMap.get(item.menuItemId);
       const qty = parseInt(item.quantity, 10) || 1;
+      const finalNote = item.notes
+        ? (customerNotes && !item.notes.includes(customerNotes) ? `${item.notes} (${customerNotes})` : item.notes)
+        : (customerNotes || null);
       return {
         orderId: order.id,
         menuItemId: item.menuItemId,
         itemNameSnapshot: menuItem.name,
         priceSnapshot: menuItem.price,
         quantity: qty,
-        originalQuantity: qty,
-        notes: item.notes || null,
+        notes: finalNote || null,
         kotId: newKot ? newKot.id : null,
-        status: newKot ? 'SENT' : 'PENDING',
+        status: newKot ? 'PREPARING' : 'PENDING',
       };
     });
 
@@ -643,7 +636,15 @@ export const sendKotOrder = async (data, captainId) => {
     };
   });
 
-  if (result.kot) emitKotCreated(result.kot);
+  if (result.kot) {
+    const enrichedKot = {
+      ...result.kot,
+      order: result.order,
+      items: result.order?.items?.filter((i) => i.kotId === result.kot.id) || [],
+      itemsCount: result.itemsCount,
+    };
+    emitKotCreated(enrichedKot);
+  }
   if (result.order) emitOrderUpdated(result.order);
 
   return result;

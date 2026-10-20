@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js';
 import * as auditService from './auditService.js';
+import { parseDateRange } from '../utils/dateUtils.js';
 
 export const getAll = async () => {
   const items = await prisma.inventoryItem.findMany({ orderBy: { name: 'asc' } });
@@ -57,14 +58,12 @@ export const adjust = async (data, userId) => {
   const adjustQty = Number(quantity);
 
   return prisma.$transaction(async (tx) => {
-    // Acquire exclusive PostgreSQL row-level lock via SELECT ... FOR UPDATE
-    // This serializes concurrent adjustments on the same item and eliminates race conditions
-    const rows = await tx.$queryRaw`
-      SELECT id, name, unit, "currentStock", "lowStockThreshold"
-      FROM "InventoryItem"
-      WHERE id = ${inventoryItemId}
+    const rows = await tx.$queryRawUnsafe(`
+      SELECT id, name, unit, currentStock, lowStockThreshold
+      FROM \`InventoryItem\`
+      WHERE id = ?
       FOR UPDATE
-    `;
+    `, inventoryItemId);
     const item = rows[0];
     if (!item) throw { status: 404, message: 'Inventory item not found' };
 
@@ -128,17 +127,8 @@ export const getTransactions = async (filters = {}) => {
   const startParam = startDate || from;
   const endParam = endDate || to;
   if (startParam || endParam) {
-    where.createdAt = {};
-    if (startParam) {
-      const s = new Date(startParam);
-      s.setHours(0, 0, 0, 0);
-      where.createdAt.gte = s;
-    }
-    if (endParam) {
-      const e = new Date(endParam);
-      e.setHours(23, 59, 59, 999);
-      where.createdAt.lte = e;
-    }
+    const { start, end } = parseDateRange(startParam, endParam);
+    where.createdAt = { gte: start, lte: end };
   }
 
   const queryOptions = {

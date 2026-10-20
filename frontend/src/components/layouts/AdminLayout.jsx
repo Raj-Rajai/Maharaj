@@ -5,8 +5,11 @@ import { Settings, LogOut, Menu, X, Sun, Moon, MoreHorizontal } from 'lucide-rea
 import { useState, useMemo, useEffect } from 'react';
 import {
   dashboardBlue, reportsBlue, menuBlue, dineInBlue, takeAwayBlue,
-  kitchenBlue, billBlue, purchasesBlue, inventoryBlue, usersBlue, settingsBlue
+  kitchenBlue, billBlue, purchasesBlue, inventoryBlue, usersBlue, settingsBlue,
+  logoMarkBlue, logoMarkWhite, logoHorizontalBlue, logoHorizontalWhite
 } from '../../assets';
+import NotificationCenter from '../notifications/NotificationCenter';
+import NotificationToaster from '../notifications/NotificationToaster';
 
 const roleDisplayNames = {
   SUPER_ADMIN: 'Super Admin',
@@ -19,9 +22,28 @@ export default function AdminLayout({ children }) {
   const { user, logout, hasPermission, hasAnyPermission } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth <= 1024;
+    }
+    return false;
+  });
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  // Auto-collapse sidebar on tablet screens / window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 1024) {
+        setCollapsed(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
 
   // Close mobile drawer upon route navigation
   useEffect(() => {
@@ -88,7 +110,9 @@ export default function AdminLayout({ children }) {
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'U';
 
   return (
-    <div className="flex h-screen bg-surface dark:bg-slate-950 transition-colors duration-200 overflow-hidden">
+    <div className="flex h-screen h-[100dvh] bg-surface dark:bg-slate-950 transition-colors duration-200 overflow-hidden">
+      {/* 10-Second Floating Popups Container */}
+      <NotificationToaster />
 
       {/* Mobile Slide-over Drawer Backdrop */}
       <div
@@ -108,9 +132,11 @@ export default function AdminLayout({ children }) {
         {/* Mobile Drawer Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-border dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-slate-800 border border-transparent dark:border-slate-700/60 flex items-center justify-center text-primary dark:text-white font-bold text-xs shrink-0">
-              POS
-            </div>
+            <img
+              src={isDark ? logoMarkWhite : logoMarkBlue}
+              alt="Maharaj Logo"
+              className="w-7 h-7 object-contain shrink-0"
+            />
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-bold text-text dark:text-white tracking-tight leading-tight truncate">Maharaj Veg Villa</span>
               <span className="text-[10px] font-medium text-text-secondary dark:text-slate-400 uppercase tracking-wider">Navigation Menu</span>
@@ -184,27 +210,42 @@ export default function AdminLayout({ children }) {
         </div>
       </aside>
 
-      {/* Desktop Persistent Sidebar */}
-      <aside className={`hidden md:flex ${collapsed ? 'w-16' : 'w-60'} bg-white dark:bg-slate-900 border-r border-border dark:border-slate-800 flex-col transition-all duration-300 shrink-0`}>
-        <div className={`h-16 flex items-center ${collapsed ? 'justify-center' : 'justify-between px-4'} border-b border-border dark:border-slate-800`}>
+      {/* Persistent Left Sidebar: Always visible on desktop and tablet landscape */}
+      <aside className={`hidden md:flex tablet-sidebar-landscape-show ${collapsed ? 'w-16 sm:w-18' : 'w-60'} bg-white dark:bg-slate-900 border-r border-border dark:border-slate-800 flex-col transition-all duration-300 shrink-0 z-20`}>
+        <div className={`h-14 sm:h-16 flex items-center ${collapsed ? 'justify-center' : 'justify-between px-4'} border-b border-border dark:border-slate-800`}>
           {!collapsed && (
             <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-slate-800 border border-transparent dark:border-slate-700/60 flex items-center justify-center text-primary dark:text-white font-bold text-xs shrink-0">
-                POS
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-bold text-text dark:text-white tracking-tight leading-tight truncate">POS Console</span>
-                <span className="text-[10px] font-medium text-text-secondary dark:text-slate-400 uppercase tracking-wider">Operations Hub</span>
-              </div>
+              <img
+                src={isDark ? logoMarkWhite : logoMarkBlue}
+                alt="Maharaj Logo"
+                className="w-6.5 h-6.5 sm:w-7 sm:h-7 object-contain shrink-0"
+              />
+              <span className="text-sm sm:text-base font-semibold text-text dark:text-white tracking-tight truncate">
+                POS Console
+              </span>
             </div>
           )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 rounded-lg hover:bg-surface dark:hover:bg-slate-800 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100 cursor-pointer transition-colors"
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <Menu size={20} /> : <X size={20} />}
-          </button>
+          {collapsed ? (
+            <button
+              onClick={() => setCollapsed(false)}
+              className="p-1.5 rounded-lg hover:bg-surface dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              title="Expand sidebar"
+            >
+              <img
+                src={isDark ? logoMarkWhite : logoMarkBlue}
+                alt="Maharaj Logo"
+                className="w-7 h-7 sm:w-8 sm:h-8 object-contain shrink-0 transition-transform hover:scale-105"
+              />
+            </button>
+          ) : (
+            <button
+              onClick={() => setCollapsed(true)}
+              className="p-2 rounded-lg hover:bg-surface dark:hover:bg-slate-800 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100 cursor-pointer transition-colors"
+              title="Collapse sidebar"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
         <nav className="flex-1 py-3 overflow-y-auto">
           {visibleNavItems.map(({ to, icon: Icon, logo, label }) => (
@@ -212,7 +253,7 @@ export default function AdminLayout({ children }) {
               key={to}
               to={to}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm font-medium transition-colors ${
+                `flex items-center gap-3 px-3.5 sm:px-4 py-2.5 mx-1.5 sm:mx-2 rounded-lg text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-primary/10 dark:bg-primary/25 text-primary dark:text-white font-semibold'
                     : 'text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800/70 hover:text-text dark:hover:text-white'
@@ -220,9 +261,9 @@ export default function AdminLayout({ children }) {
               }
             >
               {logo ? (
-                <img src={logo} alt={label} className="w-5 h-5 object-contain shrink-0 dark:brightness-0 dark:invert transition-all" />
+                <img src={logo} alt={label} className="w-5 h-5 sm:w-5.5 sm:h-5.5 object-contain shrink-0 dark:brightness-0 dark:invert transition-all" />
               ) : Icon ? (
-                <Icon size={20} className="shrink-0" />
+                <Icon size={22} className="shrink-0" />
               ) : null}
               {!collapsed && <span className="truncate">{label}</span>}
             </NavLink>
@@ -231,22 +272,21 @@ export default function AdminLayout({ children }) {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
 
         {/* Header */}
-        <header className="h-14 sm:h-16 bg-white dark:bg-slate-900 border-b border-border dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 transition-colors duration-200 shrink-0 z-30">
+        <header className="h-13 sm:h-16 tablet-header-compact bg-white dark:bg-slate-900 border-b border-border dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 transition-colors duration-200 shrink-0 z-30">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            {/* Hamburger button on Mobile (< md) */}
             <button
               onClick={() => setMobileDrawerOpen(true)}
-              className="p-1.5 sm:p-2 rounded-lg text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 hover:text-text dark:hover:text-slate-100 md:hidden cursor-pointer shrink-0"
+              className="p-1.5 sm:p-2 rounded-lg text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 hover:text-text dark:hover:text-slate-100 md:hidden tablet-bottom-nav-landscape-hide cursor-pointer shrink-0"
               title="Open Navigation Menu"
               aria-label="Open Navigation Menu"
             >
               <Menu size={22} />
             </button>
 
-            <h1 className="text-base sm:text-xl font-bold tracking-tight text-primary-dark dark:text-white flex items-center gap-1.5 sm:gap-2 truncate">
+            <h1 className="text-base sm:text-xl font-bold tracking-tight text-primary-dark dark:text-white truncate">
               Maharaj Veg Villa
             </h1>
             <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
@@ -254,9 +294,12 @@ export default function AdminLayout({ children }) {
             </span>
           </div>
 
-          {/* Right Header Operations: Dark/Light Mode Switch + User Profile + Logout */}
-          <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
+          {/* Right Header Operations: Notifications + Dark/Light Mode Switch + User Profile + Logout */}
+          <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
             
+            {/* Notification Center */}
+            <NotificationCenter />
+
             {/* Dark / Light Mode Toggle Switch */}
             <button
               type="button"
@@ -309,14 +352,14 @@ export default function AdminLayout({ children }) {
           </div>
         </header>
 
-        {/* Main Content Area: Responsive padding with mobile bottom navigation bar clearance */}
-        <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6 pb-20 md:pb-6 bg-surface dark:bg-slate-950 transition-colors duration-200">
+        {/* Main Content Area: In-flow flex item strictly bounded between header and bottom nav */}
+        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3.5 md:p-5 pb-20 sm:pb-24 md:pb-6 tablet-compact-pad bg-surface dark:bg-slate-950 transition-colors duration-200">
           {children}
         </main>
 
-        {/* Mobile Bottom Navigation Bar (< md) */}
+        {/* Mobile Bottom Navigation Bar (< md, hidden in landscape because persistent left sidebar is active) */}
         <nav
-          className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-border dark:border-slate-800 flex items-center justify-around px-1 py-1 pb-safe shadow-lg"
+          className="md:hidden tablet-bottom-nav-landscape-hide shrink-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-border dark:border-slate-800 flex items-center justify-around px-1 py-1 pb-safe shadow-lg"
           aria-label="Mobile Bottom Navigation"
         >
           {mobileBottomTabs.map(({ to, logo, label }) => (

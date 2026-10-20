@@ -1,18 +1,14 @@
 import prisma from '../utils/prisma.js';
 import * as auditService from './auditService.js';
+import { parseDateRange } from '../utils/dateUtils.js';
 
 export const getAll = async (filters = {}) => {
   const where = {};
   if (filters.supplierId) where.supplierId = filters.supplierId;
   if (filters.status) where.status = filters.status;
   if (filters.startDate || filters.endDate) {
-    where.purchaseDate = {};
-    if (filters.startDate) where.purchaseDate.gte = new Date(filters.startDate);
-    if (filters.endDate) {
-      const d = new Date(filters.endDate);
-      d.setHours(23, 59, 59, 999);
-      where.purchaseDate.lte = d;
-    }
+    const { start, end } = parseDateRange(filters.startDate, filters.endDate);
+    where.purchaseDate = { gte: start, lte: end };
   }
   return prisma.purchaseEntry.findMany({
     where,

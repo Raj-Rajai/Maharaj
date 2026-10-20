@@ -1,35 +1,90 @@
-import prisma from '../utils/prisma.js';
+import crypto from 'node:crypto';
+import prisma, { rawQuery } from '../utils/prisma.js';
 import { hashPassword } from '../utils/password.js';
 import { userAuthCache, tableCache } from '../utils/cache.js';
+import { fetchUserPermissions, getDefaultPermissionsForRole } from '../utils/permissions.js';
 
 export const updatePermissions = async (userId, permissions) => {
   // Atomic: delete old + create new in one transaction
   await prisma.$transaction(async (tx) => {
-    await tx.userPermission.deleteMany({ where: { userId } });
+    try {
+      await tx.userPermission.deleteMany({ where: { userId } });
+    } catch {
+      await tx.$queryRawUnsafe('DELETE FROM `UserPermission` WHERE `userId` = ?', userId).catch(() => {});
+    }
     if (permissions && permissions.length > 0) {
-      await tx.userPermission.createMany({
-        data: permissions.map(p => ({ userId, permission: p }))
-      });
+      for (const p of permissions) {
+        const id = crypto.randomUUID();
+        const now = new Date();
+        try {
+          await tx.$queryRawUnsafe(
+            'INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (?, ?, ?, ?)',
+            id,
+            userId,
+            p,
+            now
+          );
+        } catch {
+          await tx.$queryRawUnsafe(
+            'INSERT INTO `userpermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (?, ?, ?, ?)',
+            id,
+            userId,
+            p,
+            now
+          ).catch(e => console.error('[User] Insert permission fallback error:', e.message));
+        }
+      }
     }
   });
   userAuthCache.invalidate(userId);
 };
 
 export const getAll = async () => {
-  return prisma.user.findMany({
+  const users = await prisma.user.findMany({
     select: {
       id: true,
       username: true,
       name: true,
       role: true,
       active: true,
-      createdAt: true,
-      permissions: { select: { permission: true } }
+      createdAt: true
     },
     orderBy: {
       createdAt: 'desc'
     }
   });
+
+  if (users.length === 0) return [];
+
+  let allPerms = [];
+  try {
+    allPerms = await rawQuery(
+      'SELECT `userId`, `permission` FROM `UserPermission`'
+    );
+  } catch {
+    try {
+      allPerms = await rawQuery(
+        'SELECT `userId`, `permission` FROM `userpermission`'
+      );
+    } catch (e) {
+      console.warn('[User] Could not load permissions table via raw SQL:', e.message);
+    }
+  }
+
+  const permsByUserId = {};
+  for (const p of (allPerms || [])) {
+    const uId = p.userId || p.USERID;
+    const perm = p.permission || p.PERMISSION;
+    if (uId && perm) {
+      if (!permsByUserId[uId]) permsByUserId[uId] = [];
+      permsByUserId[uId].push({ permission: perm });
+    }
+  }
+
+  return users.map(u => ({
+    ...u,
+    permissions: permsByUserId[u.id] || getDefaultPermissionsForRole(u.role).map(p => ({ permission: p }))
+  }));
 };
 
 export const getById = async (id) => {
@@ -41,8 +96,7 @@ export const getById = async (id) => {
       name: true,
       role: true,
       active: true,
-      createdAt: true,
-      permissions: { select: { permission: true } }
+      createdAt: true
     }
   });
 
@@ -50,7 +104,12 @@ export const getById = async (id) => {
     throw { status: 404, message: 'User not found' };
   }
 
-  return user;
+  const perms = await fetchUserPermissions(id, user.role);
+
+  return {
+    ...user,
+    permissions: perms.map(p => ({ permission: p }))
+  };
 };
 
 export const create = async (data) => {
@@ -83,9 +142,27 @@ export const create = async (data) => {
     });
 
     if (permissions && permissions.length > 0) {
-      await tx.userPermission.createMany({
-        data: permissions.map(p => ({ userId: user.id, permission: p }))
-      });
+      for (const p of permissions) {
+        const id = crypto.randomUUID();
+        const now = new Date();
+        try {
+          await tx.$queryRawUnsafe(
+            'INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (?, ?, ?, ?)',
+            id,
+            user.id,
+            p,
+            now
+          );
+        } catch {
+          await tx.$queryRawUnsafe(
+            'INSERT INTO `userpermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (?, ?, ?, ?)',
+            id,
+            user.id,
+            p,
+            now
+          ).catch(e => console.error('[User] Create permission fallback error:', e.message));
+        }
+      }
     }
 
     return user;
@@ -120,11 +197,33 @@ export const update = async (id, data) => {
     });
 
     if (permissions) {
-      await tx.userPermission.deleteMany({ where: { userId: id } });
+      try {
+        await tx.userPermission.deleteMany({ where: { userId: id } });
+      } catch {
+        await tx.$queryRawUnsafe('DELETE FROM `UserPermission` WHERE `userId` = ?', id).catch(() => {});
+      }
       if (permissions.length > 0) {
-        await tx.userPermission.createMany({
-          data: permissions.map(p => ({ userId: id, permission: p }))
-        });
+        for (const p of permissions) {
+          const permId = crypto.randomUUID();
+          const now = new Date();
+          try {
+            await tx.$queryRawUnsafe(
+              'INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (?, ?, ?, ?)',
+              permId,
+              id,
+              p,
+              now
+            );
+          } catch {
+            await tx.$queryRawUnsafe(
+              'INSERT INTO `userpermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (?, ?, ?, ?)',
+              permId,
+              id,
+              p,
+              now
+            ).catch(e => console.error('[User] Update permission fallback error:', e.message));
+          }
+        }
       }
     }
 
