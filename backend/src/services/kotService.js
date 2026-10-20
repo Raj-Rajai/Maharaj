@@ -177,10 +177,26 @@ export const updateStatus = async (id, status) => {
     throw { status: 404, message: 'KOT not found' };
   }
 
-  const updated = await prisma.kOT.update({
-    where: { id },
-    data: { status },
-  });
+  // If status is SERVED or COMPLETED, also ensure active items are marked SERVED
+  let updated;
+  if (status === 'SERVED' || status === 'COMPLETED') {
+    updated = await prisma.$transaction(async (tx) => {
+      await tx.orderItem.updateMany({
+        where: { kotId: id, status: { notIn: ['CANCELLED', 'SERVED'] } },
+        data: { status: 'SERVED' }
+      });
+      return tx.kOT.update({
+        where: { id },
+        data: { status },
+      });
+    });
+  } else {
+    updated = await prisma.kOT.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
   emitKotUpdated(updated);
   return updated;
 };
@@ -194,16 +210,14 @@ export const updateItemStatus = async (itemId, status) => {
     throw { status: 400, message: 'Order item does not belong to a KOT' };
   }
 
-  const validTransitions = {
-    'SENT': ['PREPARING', 'SERVED'],
-    'PREPARING': ['SERVED'],
-    'READY': ['SERVED'],
-    'SERVED': [],
-    'PENDING': []
-  };
+  // Idempotent: If already in requested status, return immediately without throwing
+  if (orderItem.status === status) {
+    return orderItem;
+  }
 
-  if (!validTransitions[orderItem.status].includes(status)) {
-    throw { status: 400, message: `Invalid status transition from ${orderItem.status} to ${status}` };
+  // Terminal state: Cannot reactivate a cancelled item
+  if (orderItem.status === 'CANCELLED') {
+    throw { status: 400, message: 'Cannot update status of a cancelled item' };
   }
 
   // Wrap item update + KOT status sync in a single transaction

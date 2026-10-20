@@ -58,7 +58,7 @@ async function main() {
 
   const acMasterPerms = [
     'TABLE_VIEW', 'MENU_AC_VIEW', 'ORDER_CREATE', 'ORDER_EDIT',
-    'KOT_CREATE', 'KOT_VIEW', 'KOT_PRINT', 'BILL_VIEW_DRAFT',
+    'KOT_CREATE', 'KOT_VIEW', 'KOT_EDIT', 'KOT_PRINT', 'BILL_VIEW_DRAFT',
     'NOTIFICATION_KOT_AC', 'NOTIFICATION_BILL_AC'
   ];
   await prisma.userPermission.deleteMany({ where: { userId: seededUsers['acmaster'].id } });
@@ -68,7 +68,7 @@ async function main() {
 
   const nonAcMasterPerms = [
     'TABLE_VIEW', 'MENU_NON_AC_VIEW', 'ORDER_CREATE', 'ORDER_EDIT',
-    'KOT_CREATE', 'KOT_VIEW', 'KOT_PRINT', 'BILL_VIEW_DRAFT',
+    'KOT_CREATE', 'KOT_VIEW', 'KOT_EDIT', 'KOT_PRINT', 'BILL_VIEW_DRAFT',
     'NOTIFICATION_KOT_NON_AC', 'NOTIFICATION_BILL_NON_AC'
   ];
   await prisma.userPermission.deleteMany({ where: { userId: seededUsers['nonacmaster'].id } });

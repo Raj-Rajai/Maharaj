@@ -129,6 +129,7 @@ enum KotStatus {
   NEW
   PREPARING
   READY
+  SERVED
   COMPLETED
 }
 
