@@ -46,55 +46,55 @@ export default function TablePerformanceChart({ tables = [] }) {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-5 shadow-xs flex flex-col h-full">
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-border dark:border-slate-800">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-3.5 sm:p-4 shadow-xs flex flex-col h-full min-w-0 overflow-hidden">
+      <div className="flex items-center justify-between pb-2 mb-2 border-b border-border dark:border-slate-800">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center shrink-0">
-            <img src={tableBlue} alt="Table" className="w-4 h-4 object-contain dark:brightness-0 dark:invert" />
+          <div className="w-7 h-7 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center shrink-0">
+            <img src={tableBlue} alt="Table" className="w-3.5 h-3.5 object-contain dark:brightness-0 dark:invert" />
           </div>
           <div>
-            <h3 className="font-semibold text-text dark:text-slate-100 text-sm">Dine-In Table Revenue</h3>
-            <p className="text-[11px] text-text-secondary dark:text-slate-400">Performance by table number & section</p>
+            <h3 className="font-semibold text-text dark:text-slate-100 text-xs sm:text-sm">Dine-In Table Revenue</h3>
+            <p className="text-[10px] sm:text-[11px] text-text-secondary dark:text-slate-400">Performance by table number & section</p>
           </div>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <span className="flex items-center gap-1 text-[11px] text-text-secondary dark:text-slate-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#1E40AF]" /> AC
+          <span className="flex items-center gap-1 text-[10px] text-text-secondary dark:text-slate-400">
+            <span className="w-2 h-2 rounded-full bg-[#1E40AF]" /> AC
           </span>
-          <span className="flex items-center gap-1 text-[11px] text-text-secondary dark:text-slate-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#60A5FA]" /> Non-AC
+          <span className="flex items-center gap-1 text-[10px] text-text-secondary dark:text-slate-400">
+            <span className="w-2 h-2 rounded-full bg-[#60A5FA]" /> Non-AC
           </span>
         </div>
       </div>
 
       {data.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-text-secondary dark:text-slate-400 text-xs py-8">
-          <img src={tableBlue} alt="Table" className="w-8 h-8 object-contain opacity-30 mb-1.5 dark:brightness-0 dark:invert" />
+        <div className="flex-1 flex flex-col items-center justify-center text-text-secondary dark:text-slate-400 text-xs py-6">
+          <img src={tableBlue} alt="Table" className="w-8 h-8 object-contain opacity-30 mb-1 dark:brightness-0 dark:invert" />
           <p className="font-medium text-text dark:text-slate-200">No dine-in orders recorded</p>
-          <p className="text-[11px]">Completed table sessions will be ranked here.</p>
+          <p className="text-[10px]">Completed table sessions will be ranked here.</p>
         </div>
       ) : (
-        <div className="w-full flex-1 min-h-[220px]">
-          <ResponsiveContainer width="100%" height={230}>
+        <div className="w-full flex-1 min-h-[175px] min-w-0 overflow-hidden">
+          <ResponsiveContainer width="100%" height={175}>
             <BarChart
               data={data}
-              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              margin={{ top: 8, right: 10, left: -22, bottom: 0 }}
             >
               <XAxis
                 dataKey="tableNumber"
-                tick={{ fontSize: 11, fill: '#64748B' }}
+                tick={{ fontSize: 10, fill: '#64748B' }}
                 tickLine={false}
                 axisLine={{ stroke: '#CBD5E1' }}
                 tickFormatter={val => `T-${val}`}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: '#64748B' }}
+                tick={{ fontSize: 10, fill: '#64748B' }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={val => `₹${val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}`}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="revenue" radius={[3, 3, 0, 0]}>
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.isAc ? '#1E40AF' : '#60A5FA'} />
                 ))}

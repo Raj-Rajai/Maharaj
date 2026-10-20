@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Grid3x3, ChefHat, ShoppingBag, LogOut, Sun, Moon } from 'lucide-react';
-import { dineInBlue, kitchenBlue, takeAwayBlue } from '../../assets';
+import { dineInBlue, kitchenBlue, takeAwayBlue, logoMarkBlue, logoMarkWhite } from '../../assets';
 
 const navItems = [
   { to: '/tables', logo: dineInBlue, label: 'Tables' },
@@ -26,9 +26,16 @@ export default function CaptainLayout({ children }) {
     <div className="flex flex-col h-screen h-[100dvh] bg-surface dark:bg-slate-950 transition-colors duration-200 overflow-hidden">
       {/* Header */}
       <header className="h-14 sm:h-16 tablet-header-compact bg-white dark:bg-slate-900 border-b border-border dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 shrink-0 z-30">
-        <h1 className="text-base sm:text-lg font-bold text-primary-dark dark:text-white truncate">
-          Maharaj Veg Villa
-        </h1>
+        <div className="flex items-center gap-2 min-w-0">
+          <img
+            src={isDark ? logoMarkWhite : logoMarkBlue}
+            alt="Maharaj Logo"
+            className="w-7 h-7 sm:w-8 sm:h-8 object-contain shrink-0"
+          />
+          <h1 className="text-base sm:text-lg font-bold text-primary-dark dark:text-white truncate">
+            Maharaj Veg Villa
+          </h1>
+        </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
           {/* Desktop Nav */}

@@ -5,7 +5,8 @@ import { Settings, LogOut, Menu, X, Sun, Moon, MoreHorizontal } from 'lucide-rea
 import { useState, useMemo, useEffect } from 'react';
 import {
   dashboardBlue, reportsBlue, menuBlue, dineInBlue, takeAwayBlue,
-  kitchenBlue, billBlue, purchasesBlue, inventoryBlue, usersBlue, settingsBlue
+  kitchenBlue, billBlue, purchasesBlue, inventoryBlue, usersBlue, settingsBlue,
+  logoMarkBlue, logoMarkWhite, logoHorizontalBlue, logoHorizontalWhite
 } from '../../assets';
 import NotificationCenter from '../notifications/NotificationCenter';
 import NotificationToaster from '../notifications/NotificationToaster';
@@ -131,9 +132,11 @@ export default function AdminLayout({ children }) {
         {/* Mobile Drawer Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-border dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-slate-800 border border-transparent dark:border-slate-700/60 flex items-center justify-center text-primary dark:text-white font-bold text-xs shrink-0">
-              POS
-            </div>
+            <img
+              src={isDark ? logoMarkWhite : logoMarkBlue}
+              alt="Maharaj Logo"
+              className="w-7 h-7 object-contain shrink-0"
+            />
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-bold text-text dark:text-white tracking-tight leading-tight truncate">Maharaj Veg Villa</span>
               <span className="text-[10px] font-medium text-text-secondary dark:text-slate-400 uppercase tracking-wider">Navigation Menu</span>
@@ -212,22 +215,37 @@ export default function AdminLayout({ children }) {
         <div className={`h-14 sm:h-16 flex items-center ${collapsed ? 'justify-center' : 'justify-between px-4'} border-b border-border dark:border-slate-800`}>
           {!collapsed && (
             <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-slate-800 border border-transparent dark:border-slate-700/60 flex items-center justify-center text-primary dark:text-white font-bold text-xs shrink-0">
-                POS
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-bold text-text dark:text-white tracking-tight leading-tight truncate">POS Console</span>
-                <span className="text-[10px] font-medium text-text-secondary dark:text-slate-400 uppercase tracking-wider">Operations Hub</span>
-              </div>
+              <img
+                src={isDark ? logoMarkWhite : logoMarkBlue}
+                alt="Maharaj Logo"
+                className="w-6.5 h-6.5 sm:w-7 sm:h-7 object-contain shrink-0"
+              />
+              <span className="text-sm sm:text-base font-semibold text-text dark:text-white tracking-tight truncate">
+                POS Console
+              </span>
             </div>
           )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-2 rounded-lg hover:bg-surface dark:hover:bg-slate-800 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100 cursor-pointer transition-colors"
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <Menu size={22} /> : <X size={22} />}
-          </button>
+          {collapsed ? (
+            <button
+              onClick={() => setCollapsed(false)}
+              className="p-1.5 rounded-lg hover:bg-surface dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              title="Expand sidebar"
+            >
+              <img
+                src={isDark ? logoMarkWhite : logoMarkBlue}
+                alt="Maharaj Logo"
+                className="w-7 h-7 sm:w-8 sm:h-8 object-contain shrink-0 transition-transform hover:scale-105"
+              />
+            </button>
+          ) : (
+            <button
+              onClick={() => setCollapsed(true)}
+              className="p-2 rounded-lg hover:bg-surface dark:hover:bg-slate-800 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-100 cursor-pointer transition-colors"
+              title="Collapse sidebar"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
         <nav className="flex-1 py-3 overflow-y-auto">
           {visibleNavItems.map(({ to, icon: Icon, logo, label }) => (
@@ -268,7 +286,7 @@ export default function AdminLayout({ children }) {
               <Menu size={22} />
             </button>
 
-            <h1 className="text-base sm:text-xl font-bold tracking-tight text-primary-dark dark:text-white flex items-center gap-1.5 sm:gap-2 truncate">
+            <h1 className="text-base sm:text-xl font-bold tracking-tight text-primary-dark dark:text-white truncate">
               Maharaj Veg Villa
             </h1>
             <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
@@ -335,7 +353,7 @@ export default function AdminLayout({ children }) {
         </header>
 
         {/* Main Content Area: In-flow flex item strictly bounded between header and bottom nav */}
-        <main className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-3.5 md:p-5 pb-20 sm:pb-24 md:pb-6 tablet-compact-pad bg-surface dark:bg-slate-950 transition-colors duration-200">
+        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3.5 md:p-5 pb-20 sm:pb-24 md:pb-6 tablet-compact-pad bg-surface dark:bg-slate-950 transition-colors duration-200">
           {children}
         </main>
 

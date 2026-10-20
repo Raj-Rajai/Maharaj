@@ -1,5 +1,5 @@
 import prisma, { rawQuery } from '../utils/prisma.js';
-import { settingsCache } from '../utils/cache.js';
+import { settingsCache, categoryCache } from '../utils/cache.js';
 import { parseDateRange, getPrismaDateFilter } from '../utils/dateUtils.js';
 
 const getDateRangeFilter = (startDate, endDate) => {
@@ -252,8 +252,19 @@ export const salesSummary = async (startDate, endDate) => {
     }
   }) : [];
 
+  const allActiveCategories = categoryCache.get() || await prisma.category.findMany({
+    where: { active: true },
+    orderBy: { displayOrder: 'asc' }
+  });
+
   const itemMap = {};
   const catMap = {};
+
+  // Pre-populate with all active DB categories so every category is available
+  (allActiveCategories || []).forEach(c => {
+    catMap[c.name] = { id: c.id, name: c.name, displayOrder: c.displayOrder, revenue: 0, quantity: 0 };
+  });
+
   orderItems.forEach(it => {
     const name = it.itemNameSnapshot || it.menuItem?.name || 'Unknown Item';
     const category = it.menuItem?.category?.name || 'Other';
@@ -275,7 +286,7 @@ export const salesSummary = async (startDate, endDate) => {
   });
 
   const topItems = Object.values(itemMap).sort((a, b) => b.revenue - a.revenue).slice(0, 100);
-  const categorySales = Object.values(catMap).sort((a, b) => b.revenue - a.revenue);
+  const categorySales = Object.values(catMap);
 
   const settings = settingsCache.get() || await prisma.settings.findFirst();
   let purchaseCost = 0;
@@ -310,7 +321,8 @@ export const salesSummary = async (startDate, endDate) => {
     includePurchasesInReports: !!settings?.includePurchasesInReports,
     timeline,
     topItems,
-    categorySales
+    categorySales,
+    categories: allActiveCategories.map(c => ({ id: c.id, name: c.name, displayOrder: c.displayOrder }))
   };
 };
 
@@ -835,8 +847,19 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   }
 
   // Top Items & Category Sales
+  const allActiveCategories = categoryCache.get() || await prisma.category.findMany({
+    where: { active: true },
+    orderBy: { displayOrder: 'asc' }
+  });
+
   const itemMap = {};
   const catMap = {};
+
+  // Pre-populate with all active DB categories so every category is available
+  (allActiveCategories || []).forEach(c => {
+    catMap[c.name] = { id: c.id, name: c.name, displayOrder: c.displayOrder, revenue: 0, quantity: 0 };
+  });
+
   orderItems.forEach(it => {
     const name = it.itemNameSnapshot || it.menuItem?.name || 'Unknown Item';
     const category = it.menuItem?.category?.name || 'Other';
@@ -858,7 +881,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   });
 
   const topItems = Object.values(itemMap).sort((a, b) => b.revenue - a.revenue).slice(0, 100);
-  const categorySales = Object.values(catMap).sort((a, b) => b.revenue - a.revenue);
+  const categorySales = Object.values(catMap);
 
   const sales = {
     totalRevenue,
@@ -878,7 +901,8 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     includePurchasesInReports: !!settings?.includePurchasesInReports,
     timeline,
     topItems,
-    categorySales
+    categorySales,
+    categories: allActiveCategories.map(c => ({ id: c.id, name: c.name, displayOrder: c.displayOrder }))
   };
 
   // --- 2. ORDERS SUMMARY ---

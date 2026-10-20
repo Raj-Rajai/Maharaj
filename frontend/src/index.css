@@ -145,6 +145,37 @@ body {
   animation: pulseAmber 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Logo entrance and subtle floating animation */
+@keyframes logoEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes logoFloat {
+  0%, 100% {
+    transform: translateY(0px);
+    filter: drop-shadow(0 4px 10px rgba(30, 64, 175, 0.18));
+  }
+  50% {
+    transform: translateY(-5px);
+    filter: drop-shadow(0 12px 20px rgba(37, 99, 235, 0.32));
+  }
+}
+
+.animate-logo-entrance {
+  animation: logoEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-logo-float {
+  animation: logoFloat 4s ease-in-out infinite;
+}
+
 .stagger-1 { animation-delay: 60ms; }
 .stagger-2 { animation-delay: 120ms; }
 .stagger-3 { animation-delay: 180ms; }
@@ -413,5 +444,25 @@ main {
     padding-right: 0.75rem !important;
   }
 }
+
+/* ==========================================================================
+   Scroll-Revealed Progressive Lazy Loading Animations
+   ========================================================================== */
+@keyframes scrollRevealFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scroll-reveal-active {
+  animation: scrollRevealFadeIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
 
 

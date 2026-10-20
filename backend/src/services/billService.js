@@ -8,8 +8,8 @@ const formatBill = (bill) => {
   if (!bill) return bill;
   return {
     ...bill,
-    sgstPercent: bill.sgstPercent !== null && bill.sgstPercent !== undefined ? Number(bill.sgstPercent).toFixed(3) : '2.500',
-    cgstPercent: bill.cgstPercent !== null && bill.cgstPercent !== undefined ? Number(bill.cgstPercent).toFixed(3) : '2.500',
+    sgstPercent: bill.sgstPercent !== null && bill.sgstPercent !== undefined ? Number(bill.sgstPercent).toFixed(2) : '2.50',
+    cgstPercent: bill.cgstPercent !== null && bill.cgstPercent !== undefined ? Number(bill.cgstPercent).toFixed(2) : '2.50',
   };
 };
 
@@ -19,8 +19,8 @@ const getSettings = async () => {
 
   const settings = await prisma.settings.findFirst();
   const result = {
-    sgstPercent: settings ? Number(Number(settings.sgstPercent).toFixed(3)) : 2.500,
-    cgstPercent: settings ? Number(Number(settings.cgstPercent).toFixed(3)) : 2.500,
+    sgstPercent: settings ? Number(Number(settings.sgstPercent).toFixed(2)) : 2.50,
+    cgstPercent: settings ? Number(Number(settings.cgstPercent).toFixed(2)) : 2.50,
     restaurantName: settings?.restaurantName || 'Maharaj Veg Villa',
     address: settings?.address || '',
     phone: settings?.phone || '',
@@ -43,18 +43,18 @@ export const calculateBill = async (items, menuType = 'NON_AC', discount = 0) =>
   const discountAmount = Number(discount) || 0;
   const taxableAmount = Math.max(0, subtotal - discountAmount);
 
-  const sgstAmount = (taxableAmount * settings.sgstPercent) / 100;
-  const cgstAmount = (taxableAmount * settings.cgstPercent) / 100;
+  const sgstAmount = Number(((taxableAmount * settings.sgstPercent) / 100).toFixed(2));
+  const cgstAmount = Number(((taxableAmount * settings.cgstPercent) / 100).toFixed(2));
 
   const rawTotal = taxableAmount + sgstAmount + cgstAmount;
   const total = Math.round(rawTotal);
-  const roundOff = total - rawTotal;
+  const roundOff = Number((total - rawTotal).toFixed(2));
 
   return {
-    subtotal,
-    discount: discountAmount,
-    sgstPercent: Number(settings.sgstPercent).toFixed(3),
-    cgstPercent: Number(settings.cgstPercent).toFixed(3),
+    subtotal: Number(subtotal.toFixed(2)),
+    discount: Number(discountAmount.toFixed(2)),
+    sgstPercent: Number(settings.sgstPercent).toFixed(2),
+    cgstPercent: Number(settings.cgstPercent).toFixed(2),
     sgstAmount,
     cgstAmount,
     roundOff,
@@ -389,13 +389,13 @@ export const amendBill = async (billId, changes, reason, userId, discount, custo
     }
   }
 
-  const discountAmount = discount !== undefined ? Number(discount) : Number(bill.discount);
+  const discountAmount = discount !== undefined ? Number(Number(discount).toFixed(2)) : Number(Number(bill.discount).toFixed(2));
   const taxable = Math.max(0, newSubtotal - discountAmount);
   const newSgstAmount = Number((taxable * (settings.sgstPercent / 100)).toFixed(2));
   const newCgstAmount = Number((taxable * (settings.cgstPercent / 100)).toFixed(2));
   const newTotal = Math.round(taxable + newSgstAmount + newCgstAmount);
-  const originalTotal = Number(bill.total);
-  const difference = newTotal - originalTotal;
+  const originalTotal = Number(Number(bill.total).toFixed(2));
+  const difference = Number((newTotal - originalTotal).toFixed(2));
 
   const amendment = await prisma.$transaction(async (tx) => {
     const created = await tx.billAmendment.create({
@@ -523,20 +523,20 @@ export const editDraft = async (billId, changes, discount, userId, customerName 
     });
 
     const validItems = updatedItems.filter(i => i.status !== 'CANCELLED');
-    const newSubtotal = validItems.reduce((sum, item) => sum + (Number(item.priceSnapshot) * item.quantity), 0);
+    const newSubtotal = Number(validItems.reduce((sum, item) => sum + (Number(item.priceSnapshot) * item.quantity), 0).toFixed(2));
 
-    const discountAmount = discount !== undefined ? Number(discount) : Number(bill.discount);
+    const discountAmount = discount !== undefined ? Number(Number(discount).toFixed(2)) : Number(Number(bill.discount).toFixed(2));
     const taxable = Math.max(0, newSubtotal - discountAmount);
-    const newSgstAmount = taxable * (settings.sgstPercent / 100);
-    const newCgstAmount = taxable * (settings.cgstPercent / 100);
+    const newSgstAmount = Number((taxable * (settings.sgstPercent / 100)).toFixed(2));
+    const newCgstAmount = Number((taxable * (settings.cgstPercent / 100)).toFixed(2));
     const grandTotal = taxable + newSgstAmount + newCgstAmount;
     const newTotal = Math.round(grandTotal);
     const newRoundOff = Number((newTotal - grandTotal).toFixed(2));
 
     const updateData = {
       subtotal: newSubtotal,
-      sgstAmount: Number(newSgstAmount.toFixed(2)),
-      cgstAmount: Number(newCgstAmount.toFixed(2)),
+      sgstAmount: newSgstAmount,
+      cgstAmount: newCgstAmount,
       discount: discountAmount,
       total: newTotal,
       roundOff: newRoundOff,

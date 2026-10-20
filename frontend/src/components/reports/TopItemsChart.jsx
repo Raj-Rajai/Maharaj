@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -8,34 +8,92 @@ import {
   Tooltip,
   Cell,
 } from 'recharts';
-import { Utensils, Award, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Utensils, Award, Layers, BarChart2, ListOrdered } from 'lucide-react';
+import api from '../../services/api';
+import useRealtime from '../../hooks/useRealtime';
 
 const COLORS = ['#1E40AF', '#2563EB', '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE'];
-const STANDARD_ORDER = ['Starters', 'Main Course', 'Breads', 'Rice', 'Beverages', 'Desserts'];
-const ITEMS_PER_PAGE = 4;
 
-export default function TopItemsChart({ topItems = [], categorySales = [] }) {
+export default function TopItemsChart({ topItems = [], categorySales = [], categories = [] }) {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [catPage, setCatPage] = useState(0);
+  const [viewMode, setViewMode] = useState('chart'); // 'chart' (default Recharts bar chart) or 'list' (ranked progress bars)
+  const [dbCategories, setDbCategories] = useState(categories || []);
 
+  // Update whenever categories prop from parent changes
+  useEffect(() => {
+    if (Array.isArray(categories) && categories.length > 0) {
+      setDbCategories(categories);
+    }
+  }, [categories]);
+
+  // Fetch live active categories from backend
+  const fetchLiveCategories = async () => {
+    try {
+      const res = await api.get('/menu/categories');
+      const list = Array.isArray(res.data) ? res.data : (res.data?.value || []);
+      if (Array.isArray(list) && list.length > 0) {
+        setDbCategories(list);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveCategories();
+  }, []);
+
+  // Real-time listener: immediately reflect any added, updated, or removed category
+  useRealtime({
+    'categories:updated': () => {
+      fetchLiveCategories();
+    }
+  });
+
+  // Dynamic category options based purely on database categories + any sales categories
   const categoryOptions = useMemo(() => {
-    const set = new Set();
-    (categorySales || []).forEach(c => c?.name && set.add(c.name));
-    (topItems || []).forEach(it => it?.category && set.add(it.category));
+    const list = ['ALL'];
+    const added = new Set();
 
-    STANDARD_ORDER.forEach(c => set.add(c));
+    // 1. Add all categories from DB in their exact configured displayOrder
+    (dbCategories || []).forEach(c => {
+      const name = c?.name?.trim();
+      if (name && !added.has(name.toLowerCase())) {
+        added.add(name.toLowerCase());
+        list.push(name);
+      }
+    });
 
-    const extra = Array.from(set).filter(c => !STANDARD_ORDER.includes(c)).sort();
-    const ordered = [...STANDARD_ORDER.filter(c => set.has(c)), ...extra];
+    // 2. Also add any categories from categorySales that might exist
+    (categorySales || []).forEach(c => {
+      const name = c?.name?.trim();
+      if (name && !added.has(name.toLowerCase())) {
+        added.add(name.toLowerCase());
+        list.push(name);
+      }
+    });
 
-    return ['ALL', ...ordered];
-  }, [categorySales, topItems]);
+    // 3. Fallback for any items in topItems with an unlisted category
+    (topItems || []).forEach(it => {
+      const name = it?.category?.trim();
+      if (name && !added.has(name.toLowerCase())) {
+        added.add(name.toLowerCase());
+        list.push(name);
+      }
+    });
 
-  const totalPages = Math.max(1, Math.ceil(categoryOptions.length / ITEMS_PER_PAGE));
-  const currentCategoryPage = useMemo(() => {
-    const start = catPage * ITEMS_PER_PAGE;
-    return categoryOptions.slice(start, start + ITEMS_PER_PAGE);
-  }, [categoryOptions, catPage]);
+    return list;
+  }, [dbCategories, categorySales, topItems]);
+
+  // If active selected category is removed/deleted from DB, gracefully reset to 'ALL'
+  useEffect(() => {
+    if (selectedCategory !== 'ALL') {
+      const exists = categoryOptions.some(c => c.toLowerCase() === selectedCategory.toLowerCase());
+      if (!exists) {
+        setSelectedCategory('ALL');
+      }
+    }
+  }, [categoryOptions, selectedCategory]);
 
   const totalRevenue = useMemo(() => {
     return (topItems || []).reduce((sum, it) => sum + Number(it.revenue || 0), 0);
@@ -45,7 +103,7 @@ export default function TopItemsChart({ topItems = [], categorySales = [] }) {
     let items = topItems || [];
     if (selectedCategory !== 'ALL') {
       items = items.filter(
-        it => (it.category || 'Other').toLowerCase() === selectedCategory.toLowerCase()
+        it => (it.category || 'Other').toLowerCase().trim() === selectedCategory.toLowerCase().trim()
       );
     }
     return items.slice(0, 6).map((item, idx) => ({
@@ -59,6 +117,11 @@ export default function TopItemsChart({ topItems = [], categorySales = [] }) {
     }));
   }, [topItems, selectedCategory]);
 
+  const maxRevenue = useMemo(() => {
+    if (!filteredDishes.length) return 1;
+    return Math.max(...filteredDishes.map(d => d.revenue), 1);
+  }, [filteredDishes]);
+
   const activeCategoryMeta = useMemo(() => {
     if (selectedCategory === 'ALL') {
       return {
@@ -68,63 +131,33 @@ export default function TopItemsChart({ topItems = [], categorySales = [] }) {
       };
     }
     const catItems = (topItems || []).filter(
-      it => (it.category || 'Other').toLowerCase() === selectedCategory.toLowerCase()
+      it => (it.category || 'Other').toLowerCase().trim() === selectedCategory.toLowerCase().trim()
     );
-    const rev = catItems.reduce((sum, it) => sum + Number(it.revenue || 0), 0);
-    const qty = catItems.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
+    const catSale = (categorySales || []).find(
+      c => (c.name || '').toLowerCase().trim() === selectedCategory.toLowerCase().trim()
+    );
+    const rev = catSale?.revenue ? Number(catSale.revenue) : catItems.reduce((sum, it) => sum + Number(it.revenue || 0), 0);
+    const qty = catSale?.quantity ? Number(catSale.quantity) : catItems.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
     return {
       name: selectedCategory,
       revenue: rev,
       count: qty,
     };
-  }, [selectedCategory, totalRevenue, topItems]);
+  }, [selectedCategory, totalRevenue, topItems, categorySales]);
 
-  const yAxisWidth = selectedCategory === 'ALL' ? 140 : 105;
-
-  const CustomYAxisTick = ({ x, y, payload }) => {
-    const item = filteredDishes.find(d => d.displayName === payload.value || d.fullName === payload.value);
-    const cat = item?.category || '';
-    const shortCat = cat.length > 7 ? cat.substring(0, 6) + '…' : cat;
-
-    return (
-      <g transform={`translate(${x},${y})`}>
-
-        {selectedCategory === 'ALL' && cat && (
-          <text
-            x={-(yAxisWidth - 4)}
-            y={0}
-            dy={4}
-            textAnchor="start"
-            fontSize={9.5}
-            fill="#2563EB"
-            fontWeight={600}
-            opacity={0.9}
-          >
-            {shortCat}
-          </text>
-        )}
-
-        <text
-          x={-5}
-          y={0}
-          dy={4}
-          textAnchor="end"
-          fontSize={11}
-          fill="#334155"
-          className="fill-slate-700 dark:fill-slate-300"
-          fontWeight={500}
-        >
-          {payload.value}
-        </text>
-      </g>
-    );
+  const getCategoryCount = (catKey) => {
+    if (catKey === 'ALL') return topItems.length;
+    return (topItems || []).filter(
+      it => (it.category || 'Other').toLowerCase().trim() === catKey.toLowerCase().trim()
+    ).length;
   };
 
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload || !payload.length) return null;
     const item = payload[0].payload;
+    const share = totalRevenue > 0 ? ((item.revenue / totalRevenue) * 100).toFixed(1) : 0;
     return (
-      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-3 rounded-xl shadow-xl border border-border dark:border-slate-800 text-xs min-w-[170px] z-50">
+      <div className="bg-white dark:bg-slate-900 p-3 rounded-xl shadow-2xl border border-border dark:border-slate-800 text-xs min-w-[180px] z-50 pointer-events-none select-none">
         <div className="flex items-center gap-1.5 font-bold text-text dark:text-slate-100 mb-1">
           <Award size={14} className="text-amber-500 shrink-0" />
           <span className="truncate">#{item.rank} {item.fullName || item.name}</span>
@@ -145,33 +178,61 @@ export default function TopItemsChart({ topItems = [], categorySales = [] }) {
         {totalRevenue > 0 && (
           <div className="flex items-center justify-between mt-1 pt-1 border-t border-dashed border-border dark:border-slate-800 text-[11px]">
             <span className="text-text-secondary dark:text-slate-400">Menu Share:</span>
-            <span className="font-mono font-semibold text-text dark:text-slate-100">
-              {((item.revenue / totalRevenue) * 100).toFixed(1)}%
-            </span>
+            <span className="font-mono font-semibold text-text dark:text-slate-100">{share}%</span>
           </div>
         )}
       </div>
     );
   };
 
-  return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-4 sm:p-5 shadow-xs flex flex-col h-full">
+  const getRankBadge = (rank) => {
+    if (rank === 1) {
+      return (
+        <span className="w-5 h-5 rounded-md flex items-center justify-center font-bold text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800/60 shadow-2xs shrink-0">
+          #1
+        </span>
+      );
+    }
+    if (rank === 2) {
+      return (
+        <span className="w-5 h-5 rounded-md flex items-center justify-center font-bold text-[10px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 border border-slate-300/60 dark:border-slate-700/60 shadow-2xs shrink-0">
+          #2
+        </span>
+      );
+    }
+    if (rank === 3) {
+      return (
+        <span className="w-5 h-5 rounded-md flex items-center justify-center font-bold text-[10px] bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/40 shadow-2xs shrink-0">
+          #3
+        </span>
+      );
+    }
+    return (
+      <span className="w-5 h-5 rounded-md flex items-center justify-center font-semibold text-[10px] bg-gray-50 text-text-secondary dark:bg-slate-800 dark:text-slate-400 border border-gray-200 dark:border-slate-800 shrink-0">
+        #{rank}
+      </span>
+    );
+  };
 
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-border dark:border-slate-800">
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-3.5 sm:p-4 shadow-xs flex flex-col h-full min-w-0 overflow-hidden">
+
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-border dark:border-slate-800">
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary dark:text-blue-400 shrink-0">
-            <Utensils size={18} />
+          <div className="p-1.5 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary dark:text-blue-400 shrink-0">
+            <Utensils size={15} />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <h3 className="font-semibold text-text dark:text-slate-100 text-sm">Top Selling Dishes</h3>
+              <h3 className="font-semibold text-text dark:text-slate-100 text-xs sm:text-sm">Top Selling Dishes</h3>
               {selectedCategory !== 'ALL' && (
-                <span className="text-[10px] bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-semibold px-2 py-0.5 rounded-full border border-blue-200/60 dark:border-blue-900/60">
+                <span className="text-[9px] bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-semibold px-1.5 py-0.2 rounded-full border border-blue-200/60 dark:border-blue-900/60">
                   {selectedCategory}
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-text-secondary dark:text-slate-400">
+            <p className="text-[10px] sm:text-[11px] text-text-secondary dark:text-slate-400">
               {selectedCategory === 'ALL'
                 ? 'Most ordered menu items ranked by revenue'
                 : `Top selling dishes in ${selectedCategory}`}
@@ -179,143 +240,184 @@ export default function TopItemsChart({ topItems = [], categorySales = [] }) {
           </div>
         </div>
 
-        <span className="text-[11px] font-medium text-text-secondary dark:text-slate-400">
-          Top {filteredDishes.length} Items
-        </span>
+        {/* View Switcher & Counter */}
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-lg border border-border dark:border-slate-800 bg-surface dark:bg-slate-800/60 p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] sm:text-[11px] font-medium transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-white dark:bg-slate-900 text-primary dark:text-white shadow-2xs font-semibold'
+                  : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-white'
+              }`}
+              title="Ranked Progress View"
+            >
+              <ListOrdered size={12} />
+              <span>Ranked</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('chart')}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] sm:text-[11px] font-medium transition-colors ${
+                viewMode === 'chart'
+                  ? 'bg-white dark:bg-slate-900 text-primary dark:text-white shadow-2xs font-semibold'
+                  : 'text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-white'
+              }`}
+              title="Bar Chart View"
+            >
+              <BarChart2 size={12} />
+              <span>Chart</span>
+            </button>
+          </div>
+          <span className="text-[10px] sm:text-[11px] font-medium text-text-secondary dark:text-slate-400 hidden sm:inline">
+            Top {filteredDishes.length}
+          </span>
+        </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-3 flex-1 min-h-0">
+      {/* Category Pills Bar: Full width horizontal scroll */}
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 mb-2 scrollbar-none no-scrollbar w-full min-w-0">
+        {categoryOptions.map((catKey) => {
+          const isAll = catKey === 'ALL';
+          const isSelected = isAll
+            ? selectedCategory === 'ALL'
+            : selectedCategory.toLowerCase().trim() === catKey.toLowerCase().trim();
+          const displayName = isAll ? 'All Dishes' : catKey;
+          const count = getCategoryCount(catKey);
 
-        <div className="w-full md:w-36 lg:w-40 shrink-0 flex flex-col justify-between border-b md:border-b-0 md:border-r border-border dark:border-slate-800 md:pr-3 pb-2 md:pb-0">
-          <div>
-            <div className="flex items-center justify-between px-1 py-1 mb-1.5 text-[10px] font-bold text-text-secondary dark:text-slate-400 uppercase tracking-wider">
-              <span className="flex items-center gap-1">
-                <Layers size={11} className="text-primary dark:text-blue-400" /> Categories
+          return (
+            <button
+              key={catKey}
+              type="button"
+              onClick={() => setSelectedCategory(catKey)}
+              className={`px-2 py-0.5 rounded-md text-[11px] font-medium whitespace-nowrap transition-all flex items-center gap-1 shrink-0 ${
+                isSelected
+                  ? 'bg-primary text-white shadow-2xs font-semibold'
+                  : 'bg-surface dark:bg-slate-800/60 text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-border dark:border-slate-800'
+              }`}
+            >
+              <span>{displayName}</span>
+              <span
+                className={`text-[9px] px-1 py-0 rounded-full font-mono ${
+                  isSelected
+                    ? 'bg-white/20 text-white'
+                    : 'bg-slate-200/70 dark:bg-slate-700/70 text-text-secondary dark:text-slate-400'
+                }`}
+              >
+                {count}
               </span>
-              <span className="text-[9px] bg-gray-100 dark:bg-slate-800 dark:text-slate-300 px-1.5 py-0.2 rounded font-mono">
-                {categoryOptions.length - 1}
-              </span>
-            </div>
+            </button>
+          );
+        })}
+      </div>
 
-            <div className="space-y-1">
-              {currentCategoryPage.map((catKey) => {
-                const isAll = catKey === 'ALL';
-                const isSelected = isAll
-                  ? selectedCategory === 'ALL'
-                  : selectedCategory.toLowerCase() === catKey.toLowerCase();
-                const displayName = isAll ? 'All Dishes' : catKey;
-
-                const itemCount = isAll
-                  ? topItems.length
-                  : topItems.filter(it => (it.category || 'Other').toLowerCase() === catKey.toLowerCase()).length;
-
-                return (
-                  <button
-                    key={catKey}
-                    type="button"
-                    onClick={() => setSelectedCategory(catKey)}
-                    className={`w-full px-2.5 py-1.5 rounded-lg text-xs text-left flex items-center justify-between transition-all ${
-                      isSelected
-                        ? 'bg-primary text-white shadow-xs font-semibold'
-                        : 'text-text dark:text-slate-300 hover:bg-gray-100/90 dark:hover:bg-slate-800 bg-gray-50/60 dark:bg-slate-800/40 border border-gray-100/80 dark:border-slate-800'
-                    }`}
-                    title={displayName}
-                  >
-                    <span className="truncate">{displayName}</span>
-                    <span
-                      className={`text-[10px] font-mono px-1 rounded ml-1 shrink-0 ${
-                        isSelected
-                          ? 'bg-white/20 text-white'
-                          : 'text-text-secondary dark:text-slate-400'
-                      }`}
-                    >
-                      {itemCount}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col justify-between min-h-0">
+        {filteredDishes.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-text-secondary dark:text-slate-400 text-xs py-6">
+            <Utensils size={24} className="text-gray-300 dark:text-slate-600 mb-1" />
+            <p className="font-medium text-text dark:text-slate-200">No sales recorded in {activeCategoryMeta.name}</p>
+            <p className="text-[10px]">Finalized bills for this category will rank here.</p>
           </div>
+        ) : viewMode === 'list' ? (
+          /* Ranked Progress Bar List */
+          <div className="space-y-1.5 py-0.5">
+            {filteredDishes.map((item) => {
+              const share = totalRevenue > 0 ? ((item.revenue / totalRevenue) * 100).toFixed(1) : 0;
+              const barWidth = Math.max(6, Math.round((item.revenue / maxRevenue) * 100));
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2 mt-2 border-t border-border/70 dark:border-slate-800 text-xs">
-              <button
-                type="button"
-                onClick={() => setCatPage(p => Math.max(0, p - 1))}
-                disabled={catPage === 0}
-                className="p-1 rounded text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                title="Previous categories"
-              >
-                <ChevronLeft size={13} />
-              </button>
-              <span className="text-[10px] font-mono text-text-secondary dark:text-slate-400 font-medium">
-                {catPage + 1} / {totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setCatPage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={catPage >= totalPages - 1}
-                className="p-1 rounded text-text-secondary dark:text-slate-400 hover:text-text dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                title="Next categories"
-              >
-                <ChevronRight size={13} />
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0 flex flex-col justify-center">
-          {filteredDishes.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-text-secondary dark:text-slate-400 text-xs py-8">
-              <Utensils size={28} className="text-gray-300 dark:text-slate-600 mb-1.5" />
-              <p className="font-medium text-text dark:text-slate-200">No sales recorded in {activeCategoryMeta.name}</p>
-              <p className="text-[11px]">Finalized bills for this category will rank here.</p>
-            </div>
-          ) : (
-            <div className="w-full h-[225px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  layout="vertical"
-                  data={filteredDishes}
-                  margin={{ top: 5, right: 25, left: 5, bottom: 5 }}
+              return (
+                <div
+                  key={item.id || item.name}
+                  className="group relative flex flex-col gap-1 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                 >
-                  <XAxis
-                    type="number"
-                    tick={{ fontSize: 10, fill: '#64748B' }}
-                    tickFormatter={val => `₹${val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}`}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="displayName"
-                    tick={<CustomYAxisTick />}
-                    axisLine={false}
-                    tickLine={false}
-                    width={yAxisWidth}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="revenue" radius={[0, 4, 4, 0]} barSize={16}>
-                    {filteredDishes.map((_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+                  <div className="flex items-center justify-between text-xs gap-2 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      {getRankBadge(item.rank)}
+                      <span
+                        className="font-semibold text-text dark:text-slate-100 truncate text-[11px]"
+                        title={item.fullName}
+                      >
+                        {item.fullName}
+                      </span>
+                      {item.category && (
+                        <span className="text-[9px] px-1 py-0 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-medium shrink-0 border border-blue-200/50 dark:border-blue-900/50">
+                          {item.category}
+                        </span>
+                      )}
+                    </div>
 
-          <div className="flex items-center justify-between text-[10px] text-text-secondary dark:text-slate-400 pt-1 border-t border-gray-100 dark:border-slate-800 px-1 mt-1">
-            <span>
-              Showing top {filteredDishes.length} items in {selectedCategory === 'ALL' ? 'All Dishes' : selectedCategory}
-            </span>
-            <span className="font-mono font-medium text-primary dark:text-blue-400">
-              ₹{activeCategoryMeta.revenue.toLocaleString('en-IN')} total
-            </span>
+                    <div className="flex items-center gap-2 shrink-0 font-mono text-[11px]">
+                      <span className="text-text-secondary dark:text-slate-400 text-[10px]">
+                        {item.quantity} sold
+                      </span>
+                      <span className="font-bold text-text dark:text-slate-100">
+                        ₹{item.revenue.toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-[9px] px-1 py-0 rounded bg-slate-100 dark:bg-slate-800 text-text-secondary dark:text-slate-400 font-semibold">
+                        {share}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Relative Revenue Bar */}
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-500"
+                      style={{ width: `${barWidth}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
+        ) : (
+          /* Recharts Horizontal Bar Chart with Fixed Non-Overlapping Layout */
+          <div className="w-full h-[175px] min-w-0 overflow-hidden">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                layout="vertical"
+                data={filteredDishes}
+                margin={{ top: 2, right: 15, left: 0, bottom: 2 }}
+              >
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 9, fill: '#64748B' }}
+                  tickFormatter={val => `₹${val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}`}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="displayName"
+                  tick={{ fontSize: 9, fill: '#475569', fontWeight: 500 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={105}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="revenue" radius={[0, 4, 4, 0]} barSize={12}>
+                  {filteredDishes.map((_, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Footer Summary */}
+        <div className="flex items-center justify-between text-[10px] text-text-secondary dark:text-slate-400 pt-1.5 border-t border-gray-100 dark:border-slate-800 px-1 mt-1">
+          <span>
+            Showing top {filteredDishes.length} items in {selectedCategory === 'ALL' ? 'All Dishes' : selectedCategory}
+          </span>
+          <span className="font-mono font-bold text-primary dark:text-blue-400">
+            ₹{activeCategoryMeta.revenue.toLocaleString('en-IN')} total
+          </span>
         </div>
       </div>
     </div>

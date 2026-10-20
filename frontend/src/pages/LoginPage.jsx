@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { UtensilsCrossed, User, Lock, Sun, Moon } from 'lucide-react';
+import { User, Lock, Sun, Moon } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { logoFullBlue, logoFullWhite } from '../assets';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -61,12 +62,12 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-md my-auto">
-        <div className="text-center mb-4 sm:mb-8">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 dark:bg-slate-800 border border-transparent dark:border-slate-700/60 rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-4">
-            <UtensilsCrossed className="text-primary dark:text-white" size={26} />
-          </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-text dark:text-white">Maharaj Veg Villa</h1>
-          <p className="text-xs sm:text-sm text-text-secondary dark:text-slate-400 mt-0.5">Hotel Operations Management</p>
+        <div className="flex justify-center mb-4 sm:mb-6 animate-logo-float">
+          <img
+            src={isDark ? logoFullWhite : logoFullBlue}
+            alt="Maharaj Veg Villa"
+            className="h-32 sm:h-40 w-auto max-w-[320px] object-contain animate-logo-entrance transition-transform duration-300 hover:scale-105 active:scale-95 cursor-pointer select-none"
+          />
         </div>
         <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-border dark:border-slate-800 p-4 sm:p-8 space-y-3.5 sm:space-y-5 transition-colors">
           <div>

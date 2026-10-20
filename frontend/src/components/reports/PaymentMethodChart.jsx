@@ -43,27 +43,27 @@ export default function PaymentMethodChart({ payments = {} }) {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-5 shadow-xs flex flex-col h-full">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 p-3.5 sm:p-4 shadow-xs flex flex-col h-full min-w-0 overflow-hidden">
 
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-border dark:border-slate-800">
+      <div className="flex items-center justify-between pb-2 mb-2 border-b border-border dark:border-slate-800">
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
-            <Wallet size={18} />
+          <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+            <Wallet size={16} />
           </div>
           <div>
-            <h3 className="font-semibold text-text dark:text-slate-100 text-sm">Payment Methods</h3>
-            <p className="text-[11px] text-text-secondary dark:text-slate-400">Distribution of tender types</p>
+            <h3 className="font-semibold text-text dark:text-slate-100 text-xs sm:text-sm">Payment Methods</h3>
+            <p className="text-[10px] sm:text-[11px] text-text-secondary dark:text-slate-400">Distribution of tender types</p>
           </div>
         </div>
         <div className="text-right">
           <p className="text-xs font-mono font-bold text-text dark:text-slate-100">₹{totalPayments.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
-          <p className="text-[10px] text-text-secondary dark:text-slate-400">{totalTxns} total txns</p>
+          <p className="text-[9px] sm:text-[10px] text-text-secondary dark:text-slate-400">{totalTxns} total txns</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 items-center gap-4 py-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 items-center gap-2.5 sm:gap-3 py-1 min-w-0">
 
-        <div className="relative w-full h-[160px] flex items-center justify-center">
+        <div className="relative w-full h-[140px] flex items-center justify-center min-w-0">
           {chartData.length === 0 ? (
             <div className="text-center text-text-secondary dark:text-slate-500 text-xs">
               <CreditCard size={28} className="text-gray-300 dark:text-slate-600 mx-auto mb-1" />
@@ -71,14 +71,14 @@ export default function PaymentMethodChart({ payments = {} }) {
             </div>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height={160}>
+              <ResponsiveContainer width="100%" height={140}>
                 <PieChart>
                   <Pie
                     data={chartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={42}
-                    outerRadius={65}
+                    innerRadius={35}
+                    outerRadius={55}
                     paddingAngle={3}
                     dataKey="value"
                     stroke="none"
@@ -107,7 +107,7 @@ export default function PaymentMethodChart({ payments = {} }) {
           )}
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5 min-w-0">
           {['CASH', 'UPI', 'CARD'].map(k => {
             const conf = METHOD_CONFIG[k];
             const Icon = conf.icon;
@@ -116,17 +116,17 @@ export default function PaymentMethodChart({ payments = {} }) {
             const pct = totalPayments > 0 ? ((amount / totalPayments) * 100).toFixed(0) : 0;
 
             return (
-              <div key={k} className="p-2.5 rounded-lg bg-surface/70 dark:bg-slate-800/60 border border-border/60 dark:border-slate-800 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <div className={`p-1.5 rounded-md ${conf.bg}`}>
-                    <Icon size={14} />
+              <div key={k} className="p-2 rounded-lg bg-surface/70 dark:bg-slate-800/60 border border-border/60 dark:border-slate-800 flex items-center justify-between text-xs min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className={`p-1 rounded-md shrink-0 ${conf.bg}`}>
+                    <Icon size={13} />
                   </div>
-                  <div>
-                    <p className="font-semibold text-text dark:text-slate-200">{conf.label}</p>
-                    <p className="text-[10px] text-text-secondary dark:text-slate-400">{count} txns ({pct}%)</p>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-text dark:text-slate-200 truncate text-[11px]">{conf.label}</p>
+                    <p className="text-[9px] text-text-secondary dark:text-slate-400">{count} txns ({pct}%)</p>
                   </div>
                 </div>
-                <p className="font-mono font-bold text-text dark:text-slate-100">₹{amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+                <p className="font-mono font-bold text-text dark:text-slate-100 shrink-0 text-xs ml-1">₹{amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
               </div>
             );
           })}
