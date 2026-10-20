@@ -13,7 +13,7 @@ import useRealtime from '../hooks/useRealtime';
 
 const statusColors = { SENT: 'info', PREPARING: 'info', READY: 'info', SERVED: 'neutral', CANCELLED: 'danger', PENDING: 'neutral' };
 const statusOrder = ['PREPARING', 'SERVED'];
-const nextStatus = { SENT: 'PREPARING', PREPARING: 'SERVED', READY: 'SERVED' };
+const nextStatus = { PENDING: 'PREPARING', SENT: 'PREPARING', PREPARING: 'SERVED', READY: 'SERVED' };
 
 export default function KitchenPage() {
   const { hasPermission } = useAuth();
@@ -251,14 +251,14 @@ export default function KitchenPage() {
                     </div>
                     {item.status !== 'CANCELLED' && item.status !== 'SERVED' && (
                       <div className="flex items-center gap-1 shrink-0">
-                        {hasPermission('KOT_EDIT') && nextStatus[item.status] && (
+                        {(hasPermission('KOT_EDIT') || hasPermission('ORDER_EDIT')) && nextStatus[item.status] && (
                           <button onClick={() => advanceItem(item.id, nextStatus[item.status])}
                             className="min-h-[34px] min-w-[34px] sm:min-h-[30px] sm:min-w-[30px] px-2 py-1 text-xs bg-primary text-white rounded-lg hover:bg-primary-light active:scale-95 flex items-center justify-center gap-1 cursor-pointer shadow-xs" title={`Advance to ${nextStatus[item.status]}`}>
                             <Check size={14} />
                             <span className="text-[10px] hidden sm:inline">{nextStatus[item.status]}</span>
                           </button>
                         )}
-                        {hasPermission('KOT_EDIT') && (
+                        {(hasPermission('KOT_EDIT') || hasPermission('ORDER_EDIT')) && (
                           <button onClick={() => openEdit(item)} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-border dark:hover:bg-slate-700 text-text-secondary dark:text-slate-400 cursor-pointer" title="Edit qty"><Edit2 size={14} /></button>
                         )}
                         {hasPermission('ORDER_CANCEL') && (
