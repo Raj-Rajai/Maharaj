@@ -95,3 +95,7 @@ ehthumbs.db
 Thumbs.db
 [Dd]esktop.ini
 $RECYCLE.BIN/
+# Deploy config with production secrets — never commit
+nimbus.yml
+# Database dumps contain real user data — never commit
+*.sql
