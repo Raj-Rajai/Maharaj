@@ -109,7 +109,12 @@ class RealtimeService {
     }
     this.listeners.get(event).add(callback);
 
-    if (!this.socket || !this.socket.connected) {
+    // Only init if no socket instance exists yet.
+    // Do NOT check !this.socket.connected here — during the ~30-50ms WebSocket
+    // handshake, connected=false while the socket IS being created. Checking
+    // connected would call init() again for each synchronous on() call,
+    // spawning zombie sockets (the "11 connections in 1 second" nginx pattern).
+    if (!this.socket) {
       this.init();
     }
 

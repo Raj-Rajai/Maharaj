@@ -44,20 +44,22 @@ export function useOnRouteActive(onActive, options = {}) {
   }, [isActive, minInterval]);
 }
 
-// Primary operational pages that should be cached in memory once loaded
+// Only keep the high-frequency operational pages cached in memory.
+// Heavy / infrequent pages (reports, purchases, inventory, users, settings)
+// are excluded to protect 1.5 GB RAM tablets — they will simply re-mount
+// when navigated to, which is fine because staff rarely toggle between them.
 const CACHEABLE_ROUTES = new Set([
   '/dashboard',
   '/tables',
   '/kitchen',
   '/bills',
   '/take-away',
-  '/users',
   '/menu',
-  '/purchases',
-  '/inventory',
-  '/reports',
-  '/settings',
 ]);
+
+// Safety cap — even among cacheable routes, never hold more than this many
+// in the DOM simultaneously. If exceeded, the oldest inactive route is evicted.
+const MAX_CACHED = 5;
 
 export default function RouteKeepAlive() {
   const location = useLocation();
@@ -80,13 +82,36 @@ export default function RouteKeepAlive() {
     prevUserIdRef.current = user?.id;
   }, [user?.id]);
 
+  // Track route visit order for LRU eviction
+  const visitOrderRef = useRef([]);
+
   useEffect(() => {
     const path = location.pathname;
     if (CACHEABLE_ROUTES.has(path) && currentOutlet) {
       setCachedRoutes((prev) => {
         if (prev[path]) return prev;
-        return { ...prev, [path]: currentOutlet };
+        let next = { ...prev, [path]: currentOutlet };
+
+        // Evict oldest inactive route if we exceed the safety cap
+        const keys = Object.keys(next);
+        if (keys.length > MAX_CACHED) {
+          // Find the oldest route that is NOT the currently active one
+          const order = visitOrderRef.current;
+          const evictCandidate = order.find((p) => p !== path && next[p]);
+          if (evictCandidate) {
+            delete next[evictCandidate];
+            visitOrderRef.current = order.filter((p) => p !== evictCandidate);
+          }
+        }
+
+        return next;
       });
+
+      // Update visit order (move current to end = most recent)
+      visitOrderRef.current = [
+        ...visitOrderRef.current.filter((p) => p !== path),
+        path,
+      ];
     }
   }, [location.pathname, currentOutlet]);
 

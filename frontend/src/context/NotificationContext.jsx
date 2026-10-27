@@ -1,16 +1,29 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api';
 import realtime from '../services/realtime';
 import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext(null);
 
+// Shared AudioContext — created once and reused across all chimes.
+// Never creating a new AudioContext per chime prevents the Chromium Android
+// limit of 6-32 simultaneous AudioContext instances from being breached,
+// which was causing the browser audio/rendering thread to stall on low-RAM devices.
+let _sharedAudioCtx = null;
+function getSharedAudioCtx() {
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return null;
+  if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed') {
+    _sharedAudioCtx = new AudioCtx();
+  }
+  return _sharedAudioCtx;
+}
+
 // Gentle Web Audio API synthesizer for notification sounds (zero external files required)
 function playChime(type = 'KOT') {
   try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
+    const ctx = getSharedAudioCtx();
+    if (!ctx) return;
     if (ctx.state === 'suspended') {
       ctx.resume().catch(() => {});
     }
