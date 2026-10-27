@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { TrendingUp, Clock } from 'lucide-react';
 
-export default function HourlyWaveChart({ timeline = [] }) {
+function HourlyWaveChart({ timeline = [] }) {
 
   const data = (timeline || []).map(item => ({
     ...item,
@@ -123,3 +123,5 @@ export default function HourlyWaveChart({ timeline = [] }) {
     </div>
   );
 }
+
+export default memo(HourlyWaveChart);

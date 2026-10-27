@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -697,7 +697,7 @@ export default function ReportsPage() {
   const zomatoRevenue = Number(sales?.zomatoRevenue ?? onlineOrders?.zomatoRevenue ?? 0);
 
   // Filtered timeline based on active segment filter
-  const filteredTimeline = (sales?.timeline || []).map(item => {
+  const filteredTimeline = useMemo(() => (sales?.timeline || []).map(item => {
     if (selectedSegment === 'dinein') {
       return {
         ...item,
@@ -717,10 +717,10 @@ export default function ReportsPage() {
       };
     }
     return item;
-  });
+  }), [sales, selectedSegment]);
 
   // Filtered sales data for channel donut
-  const filteredSalesForDonut = {
+  const filteredSalesForDonut = useMemo(() => ({
     ...sales,
     acSales: selectedSegment === 'takeaway' ? 0 : acSales,
     nonAcSales: selectedSegment === 'takeaway' ? 0 : nonAcSales,
@@ -732,7 +732,7 @@ export default function ReportsPage() {
       : selectedSegment === 'takeaway'
       ? selfPickupSales + swiggyRevenue + zomatoRevenue
       : totalRev,
-  };
+  }), [sales, selectedSegment, acSales, nonAcSales, selfPickupSales, swiggyRevenue, zomatoRevenue, totalRev]);
 
   return (
     <div className="space-y-6">

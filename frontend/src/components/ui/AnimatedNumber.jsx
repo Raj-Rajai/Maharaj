@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 
 export function useCountUp(targetValue, duration = 800) {
   const [displayValue, setDisplayValue] = useState(0);
@@ -38,7 +38,7 @@ export function useCountUp(targetValue, duration = 800) {
   return displayValue;
 }
 
-export default function AnimatedNumber({
+function AnimatedNumber({
   value = 0,
   decimals = 0,
   prefix = '',
@@ -63,3 +63,5 @@ export default function AnimatedNumber({
     </span>
   );
 }
+
+export default memo(AnimatedNumber);

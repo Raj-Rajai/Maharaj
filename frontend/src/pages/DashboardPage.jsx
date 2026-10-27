@@ -20,6 +20,21 @@ import QuickOperations from '../components/dashboard/QuickOperations';
 import LazyScrollSection from '../components/common/LazyScrollSection';
 import { useRouteActive } from '../components/common/RouteKeepAlive';
 
+// Isolated so the 1s tick re-renders only this text, not the whole dashboard.
+// Paused while the route is hidden behind RouteKeepAlive.
+function LiveClock({ isActive }) {
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!isActive) return;
+    setCurrentTime(new Date());
+    const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(clockInterval);
+  }, [isActive]);
+
+  return currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
 export default function DashboardPage() {
   const isActive = useRouteActive();
   const [salesData, setSalesData] = useState({
@@ -63,14 +78,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  // Live second clock ticker
-  useEffect(() => {
-    const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(clockInterval);
-  }, []);
-
   const fetchData = async (showToast = false) => {
     try {
       setIsRefreshing(true);
@@ -267,7 +274,7 @@ export default function DashboardPage() {
           <div className="hidden sm:flex items-center gap-1.5 bg-surface dark:bg-slate-800 border border-border dark:border-slate-700 px-3 py-1.5 rounded-full text-xs font-mono text-text dark:text-slate-200 shadow-2xs">
             <Clock size={13} className="text-text-secondary dark:text-slate-400" />
             <span>
-              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              <LiveClock isActive={isActive} />
             </span>
           </div>
 

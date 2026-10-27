@@ -1,4 +1,6 @@
-export default function Badge({ children, variant = 'info', dot = false, className = '' }) {
+import { memo } from 'react';
+
+function Badge({ children, variant = 'info', dot = false, className = '' }) {
   const variants = {
     success: 'bg-green-100 dark:bg-green-950/60 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800/80',
     warning: 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/80',
@@ -24,3 +26,5 @@ export default function Badge({ children, variant = 'info', dot = false, classNa
     </span>
   );
 }
+
+export default memo(Badge);
