@@ -15,6 +15,13 @@ const statusColors = { SENT: 'info', PREPARING: 'info', READY: 'info', SERVED: '
 const statusOrder = ['PREPARING', 'SERVED'];
 const nextStatus = { PENDING: 'PREPARING', SENT: 'PREPARING', PREPARING: 'SERVED', READY: 'SERVED' };
 
+// Table a KOT was raised for (kept even if the order later moved), and where the order sits now
+const kotTableNumber = (kot) => kot.tableNumber ?? kot.order?.table?.number;
+const movedTo = (kot) => {
+  const now = kot.order?.table?.number;
+  return kot.tableNumber && now && now !== kot.tableNumber ? now : null;
+};
+
 export default function KitchenPage() {
   const { hasPermission } = useAuth();
   const [kots, setKots] = useState([]);
@@ -45,6 +52,9 @@ export default function KitchenPage() {
       fetchKots({ background: true });
     },
     'kot:updated': () => {
+      fetchKots({ background: true });
+    },
+    'table:changed': () => {
       fetchKots({ background: true });
     },
   }, isActive, ['kitchen']);
@@ -152,7 +162,9 @@ export default function KitchenPage() {
     if (src === 'SELF_PICKUP') sourceLabel = 'Self Pickup';
     else if (src === 'SWIGGY') sourceLabel = 'Swiggy Delivery';
     else if (src === 'ZOMATO') sourceLabel = 'Zomato Delivery';
-    else if (kot.order?.table?.number) sourceLabel = `Table ${kot.order.table.number} (${kot.order.table.type})`;
+    else if (kotTableNumber(kot)) sourceLabel = movedTo(kot)
+      ? `Table ${kotTableNumber(kot)} (moved to Table ${movedTo(kot)})`
+      : `Table ${kotTableNumber(kot)} (${kot.order?.table?.type || ''})`;
     else sourceLabel = kot.order?.tableId ? `Table ${kot.order.tableId}` : 'Take Away';
 
     const time = new Date(kot.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
@@ -221,10 +233,17 @@ export default function KitchenPage() {
                       <img src={zomatoIcon} alt="Zomato" className="w-3.5 h-3.5 object-contain" />
                       Zomato
                     </span>
-                  ) : kot.order?.table?.number ? (
-                    <span className="text-[11px] font-semibold text-text dark:text-slate-100 bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-border dark:border-slate-600">
-                      Table {kot.order.table.number} ({kot.order.table.type})
-                    </span>
+                  ) : kotTableNumber(kot) ? (
+                    <>
+                      <span className="text-[11px] font-semibold text-text dark:text-slate-100 bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-border dark:border-slate-600">
+                        Table {kotTableNumber(kot)}{movedTo(kot) ? '' : ` (${kot.order?.table?.type})`}
+                      </span>
+                      {movedTo(kot) && (
+                        <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800" title="The customer moved after this KOT was sent">
+                          → now Table {movedTo(kot)}
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <span className="text-[11px] text-text-secondary dark:text-slate-400">Take Away</span>
                   )}

@@ -1,4 +1,5 @@
 import * as billService from '../services/billService.js';
+import * as billArchiveService from '../services/billArchiveService.js';
 
 export const preview = async (req, res, next) => {
   try {
@@ -80,6 +81,27 @@ export const editDraft = async (req, res, next) => {
   try {
     const { changes, discount, customerName, customerPhone } = req.body;
     const result = await billService.editDraft(req.params.id, changes, discount, req.user.id, customerName, customerPhone);
+    res.json(result);
+  } catch (error) { next(error); }
+};
+
+export const prepareArchive = async (req, res, next) => {
+  try {
+    const result = await billArchiveService.prepare(req.body, req.user.id);
+    res.json(result);
+  } catch (error) { next(error); }
+};
+
+export const downloadArchive = async (req, res, next) => {
+  try {
+    // Streams the zip itself; errors after streaming starts abort the response instead
+    await billArchiveService.download(req.params.token, req.user.id, res);
+  } catch (error) { next(error); }
+};
+
+export const confirmArchive = async (req, res, next) => {
+  try {
+    const result = await billArchiveService.confirmDelete(req.params.token, req.user);
     res.json(result);
   } catch (error) { next(error); }
 };

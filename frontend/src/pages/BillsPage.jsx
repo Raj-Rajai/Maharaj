@@ -15,6 +15,7 @@ import {
   Filter,
   RotateCcw,
   RefreshCw,
+  Archive,
 } from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
@@ -255,7 +256,17 @@ const getThermalHtml = (bill, settings, validItems) => {
 };
 
 export default function BillsPage() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
+  // Download & remove (super admin): a ZIP of bill PDFs for a date range, then those bills are deleted
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveRange, setArchiveRange] = useState({ from: '', to: '' });
+  const [archivePreview, setArchivePreview] = useState(null);
+  const [archivePreviewLoading, setArchivePreviewLoading] = useState(false);
+  const [archiveRunning, setArchiveRunning] = useState(false);
+  const [archiveResult, setArchiveResult] = useState(null);
+  const archiveRequestRef = useRef(0);
   const getTodayStr = () => {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, '0');
@@ -824,6 +835,105 @@ export default function BillsPage() {
     setColumnSort(null);
   };
 
+  const formatDay = (str) => {
+    if (!str) return '';
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const loadArchivePreview = async (from, to) => {
+    const requestId = ++archiveRequestRef.current;
+    setArchivePreview(null);
+    if (!from || !to) return;
+    if (from > to) {
+      setArchivePreview({ error: '"From" date must be on or before the "To" date' });
+      return;
+    }
+    setArchivePreviewLoading(true);
+    try {
+      const res = await api.post('/bills/archive/prepare', { startDate: from, endDate: to });
+      if (requestId === archiveRequestRef.current) setArchivePreview(res.data);
+    } catch (err) {
+      if (requestId === archiveRequestRef.current) {
+        setArchivePreview({ error: err.response?.data?.message || 'Could not count the bills in this range' });
+      }
+    } finally {
+      if (requestId === archiveRequestRef.current) setArchivePreviewLoading(false);
+    }
+  };
+
+  const openArchiveModal = () => {
+    const today = getTodayStr();
+    const range = { from: startDate || today, to: endDate || today };
+    setArchiveRange(range);
+    setArchiveResult(null);
+    setArchiveOpen(true);
+    loadArchivePreview(range.from, range.to);
+  };
+
+  const changeArchiveRange = (key, value) => {
+    const range = { ...archiveRange, [key]: value };
+    setArchiveRange(range);
+    loadArchivePreview(range.from, range.to);
+  };
+
+  const closeArchiveModal = () => {
+    if (archiveRunning) return;
+    if (archiveResult?.url) URL.revokeObjectURL(archiveResult.url);
+    archiveRequestRef.current++;
+    setArchiveResult(null);
+    setArchivePreview(null);
+    setArchiveOpen(false);
+  };
+
+  const saveBlobUrl = (url, fileName) => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const runArchive = async () => {
+    const preview = archivePreview;
+    if (!preview?.token || !preview.count) return;
+    setArchiveRunning(true);
+    const fileName = `Bills_${preview.startDate}_to_${preview.endDate}.zip`;
+
+    // 1. Download — if this fails nothing is deleted
+    let url;
+    try {
+      const res = await api.get(`/bills/archive/${preview.token}/download`, { responseType: 'blob', skipCache: true });
+      if (!(res.data instanceof Blob) || res.data.size === 0) throw new Error('Empty download');
+      url = URL.createObjectURL(res.data);
+      saveBlobUrl(url, fileName);
+    } catch (err) {
+      let message = err.response?.data?.message;
+      if (err.response?.data instanceof Blob) {
+        try { message = JSON.parse(await err.response.data.text()).message; } catch { /* keep generic */ }
+      }
+      toast.error(message || 'Download failed — no bills were deleted');
+      setArchiveRunning(false);
+      loadArchivePreview(archiveRange.from, archiveRange.to);
+      return;
+    }
+
+    // 2. Only after the whole ZIP arrived: remove those bills
+    try {
+      const res = await api.post(`/bills/archive/${preview.token}/confirm`);
+      setArchiveResult({ deletedCount: res.data.deletedCount, fileName, url });
+      toast.success(`Downloaded and removed ${res.data.deletedCount} bill(s)`);
+      fetchBills({ background: true });
+    } catch (err) {
+      const message = err.response?.data?.message || 'please try again';
+      setArchiveResult({ deletedCount: 0, fileName, url, error: message });
+      toast.error(`Bills were downloaded but not removed: ${message}`);
+    } finally {
+      setArchiveRunning(false);
+    }
+  };
+
   const handleExportCSV = () => {
     if (!displayedBills || displayedBills.length === 0) {
       toast.error('No bills available to export');
@@ -1077,7 +1187,7 @@ export default function BillsPage() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => fetchBills({ background: true })}
               disabled={isSyncing}
@@ -1096,6 +1206,17 @@ export default function BillsPage() {
               <Download size={14} className="text-primary dark:text-blue-400" />
               <span>Export CSV</span>
             </button>
+
+            {isSuperAdmin && (
+              <button
+                onClick={openArchiveModal}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 text-red-700 dark:text-red-300 text-xs font-semibold shadow-xs transition-colors cursor-pointer whitespace-nowrap"
+                title="Download the bills of a date range as PDFs, then remove them from the database"
+              >
+                <Archive size={14} />
+                <span>Download Selected Bills</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1880,6 +2001,135 @@ export default function BillsPage() {
           )}
         </div>
       </Modal>
+
+      {isSuperAdmin && (
+        <Modal isOpen={archiveOpen} onClose={closeArchiveModal} title="Download & Remove Bills" size="md">
+          {archiveResult ? (
+            <div className="space-y-4">
+              {archiveResult.error ? (
+                <div className="flex items-start gap-3 p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 rounded-xl text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-semibold text-sm">Downloaded, but nothing was removed</p>
+                    <p>{archiveResult.error}. Your bills are still in the database.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 rounded-xl text-emerald-800 dark:text-emerald-300">
+                  <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-semibold text-sm">{archiveResult.deletedCount} bill(s) downloaded and removed</p>
+                    <p>Saved as <span className="font-mono font-semibold">{archiveResult.fileName}</span> — one PDF per bill, grouped by day, plus a CSV summary.</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => saveBlobUrl(archiveResult.url, archiveResult.fileName)}
+                  className="px-4 py-2 border border-border dark:border-slate-700 rounded-lg text-xs font-medium text-text dark:text-slate-200 hover:bg-surface dark:hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Download size={14} /> Download ZIP again
+                </button>
+                <button
+                  type="button"
+                  onClick={closeArchiveModal}
+                  className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary-light transition-colors cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                {[['from', 'From'], ['to', 'To']].map(([key, label]) => (
+                  <div key={key}>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">{label}</label>
+                    <input
+                      type="date"
+                      value={archiveRange[key]}
+                      max={getTodayStr()}
+                      disabled={archiveRunning}
+                      onChange={(e) => changeArchiveRange(key, e.target.value)}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {archivePreviewLoading ? (
+                <div className="flex justify-center py-4"><Spinner size="md" /></div>
+              ) : archivePreview?.error ? (
+                <p className="text-xs text-red-600 dark:text-red-400">{archivePreview.error}</p>
+              ) : archivePreview && archivePreview.count === 0 ? (
+                <p className="text-sm text-center text-text-secondary dark:text-slate-400 py-3">No settled or cancelled bills between {formatDay(archiveRange.from)} and {formatDay(archiveRange.to)}.</p>
+              ) : archivePreview ? (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-xl border border-border dark:border-slate-700 bg-surface dark:bg-slate-800/60 p-2.5">
+                    <div className="text-lg font-bold font-mono text-text dark:text-slate-100">{archivePreview.count}</div>
+                    <div className="text-[11px] text-text-secondary dark:text-slate-400">bills{archivePreview.cancelledCount > 0 ? ` (${archivePreview.cancelledCount} cancelled)` : ''}</div>
+                  </div>
+                  <div className="rounded-xl border border-border dark:border-slate-700 bg-surface dark:bg-slate-800/60 p-2.5">
+                    <div className="text-sm font-bold font-mono text-text dark:text-slate-100 pt-1">#{archivePreview.firstBillNumber}–#{archivePreview.lastBillNumber}</div>
+                    <div className="text-[11px] text-text-secondary dark:text-slate-400 pt-0.5">bill numbers</div>
+                  </div>
+                  <div className="rounded-xl border border-border dark:border-slate-700 bg-surface dark:bg-slate-800/60 p-2.5">
+                    <div className="text-sm font-bold font-mono text-text dark:text-slate-100 pt-1">₹{Number(archivePreview.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                    <div className="text-[11px] text-text-secondary dark:text-slate-400 pt-0.5">settled value</div>
+                  </div>
+                </div>
+              ) : null}
+
+              {archivePreview?.skippedOpenBills > 0 && (
+                <p className="text-[11px] text-text-secondary dark:text-slate-400">
+                  {archivePreview.skippedOpenBills} draft or running bill(s) in this range will be skipped.
+                </p>
+              )}
+
+              <div className="flex items-start gap-3 p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 rounded-xl text-red-800 dark:text-red-300">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0 text-red-500 mt-0.5" />
+                <div className="text-xs space-y-1.5">
+                  <p className="font-semibold text-sm">Your bills will be deleted from the database</p>
+                  <p className="text-red-700 dark:text-red-300/90 leading-relaxed">
+                    These bills are downloaded as a ZIP of PDFs and then permanently removed together with their orders, KOTs and payments. Reports for these dates will no longer include them. This cannot be undone.
+                  </p>
+                  <p className="font-semibold">Do you wish to continue?</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={archiveRunning}
+                  onClick={closeArchiveModal}
+                  className="px-4 py-2 border border-border dark:border-slate-700 rounded-lg text-xs font-medium text-text-secondary dark:text-slate-300 hover:bg-surface dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!archivePreview?.count || archivePreviewLoading || archiveRunning}
+                  onClick={runArchive}
+                  className="px-4 py-2 bg-danger text-white rounded-lg text-xs font-semibold hover:bg-red-600 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-sm"
+                >
+                  {archiveRunning ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Downloading…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Archive size={14} />
+                      <span>Yes, download & delete{archivePreview?.count ? ` ${archivePreview.count} bill(s)` : ''}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

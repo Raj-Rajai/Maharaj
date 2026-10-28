@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { UtensilsCrossed, Plus, Edit2, Trash2, Check, X, CopyPlus } from 'lucide-react';
+import { UtensilsCrossed, Plus, Edit2, Trash2, Check, X, CopyPlus, Package, PenLine, Search } from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
@@ -16,6 +16,8 @@ const TABS = [
   { id: 'SWIGGY', label: 'Swiggy Menu', logo: swiggyIcon, perm: 'MENU_SWIGGY_VIEW' },
   { id: 'ZOMATO', label: 'Zomato Menu', logo: zomatoIcon, perm: 'MENU_ZOMATO_VIEW' },
 ];
+
+const MENU_SHORT = { AC: 'AC', NON_AC: 'Non-AC', SWIGGY: 'Swiggy', ZOMATO: 'Zomato' };
 
 const MENU_META = {
   AC: { label: 'AC Menu', logo: acBlue, type: 'Dine-In AC', bgActive: 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500 ring-1 ring-blue-300 dark:ring-blue-800' },
@@ -51,13 +53,21 @@ export default function MenuPage() {
   const [itemModal, setItemModal] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', displayOrder: 0 });
   const [itemForm, setItemForm] = useState({
-    name: '', categoryId: '', menuType: defaultTab, price: '', description: '',
+    name: '', categoryId: '', menuType: defaultTab, price: '', description: '', inventoryItemId: null,
   });
+
+  // "Add from inventory": menu items linked to a stock item deduct stock when ordered
+  const canUseInventory = hasPermission('INVENTORY_VIEW');
+  const [inventory, setInventory] = useState([]);
+  const [itemSource, setItemSource] = useState('manual');
+  const [bulkSource, setBulkSource] = useState('manual');
+  const [invSearch, setInvSearch] = useState('');
+  const inventoryById = useMemo(() => new Map(inventory.map(i => [i.id, i])), [inventory]);
 
   const [bulkModal, setBulkModal] = useState(false);
   const [basePrice, setBasePrice] = useState('');
   const [bulkForm, setBulkForm] = useState({
-    name: '', categoryId: '', description: '',
+    name: '', categoryId: '', description: '', inventoryItemId: null,
     menus: { AC: false, NON_AC: false, SWIGGY: false, ZOMATO: false },
     prices: { AC: '', NON_AC: '', SWIGGY: '', ZOMATO: '' }
   });
@@ -83,7 +93,8 @@ export default function MenuPage() {
   const toggleAllMenus = (select) => {
     setBulkForm(f => ({
       ...f,
-      menus: { AC: select, NON_AC: select, SWIGGY: select, ZOMATO: select }
+      // Menus that already carry the picked stock item stay unselected
+      menus: Object.fromEntries(['AC', 'NON_AC', 'SWIGGY', 'ZOMATO'].map(m => [m, select && !(bulkSource === 'inventory' && bulkLinkedMenus.has(m))]))
     }));
   };
 
@@ -109,11 +120,22 @@ export default function MenuPage() {
     }
   };
 
+  const fetchInventory = async () => {
+    if (!canUseInventory) return;
+    try {
+      const res = await api.get('/inventory');
+      setInventory(Array.isArray(res.data) ? res.data : res.data.value || []);
+    } catch {
+      // Stock badges are optional; the menu still works without them
+    }
+  };
+
   const loadInitialData = async () => {
     try {
       setLoading(true);
       await fetchCategories();
       await fetchItems(menuType);
+      fetchInventory();
     } catch {
       toast.error('Failed to initialize menu data');
     } finally {
@@ -131,6 +153,7 @@ export default function MenuPage() {
 
   useOnRouteActive(() => {
     fetchCategories();
+    fetchInventory();
     if (menuType) {
       fetchItems(menuType);
     }
@@ -179,7 +202,11 @@ export default function MenuPage() {
       menuType: menuType,
       price: '',
       description: '',
+      inventoryItemId: null,
     });
+    setItemSource('manual');
+    setInvSearch('');
+    fetchInventory();
     setItemModal('new');
   };
 
@@ -190,6 +217,7 @@ export default function MenuPage() {
       menuType: item.menuType || menuType,
       price: item.price,
       description: item.description || '',
+      inventoryItemId: item.inventoryItemId || null,
     });
     setItemModal(item);
   };
@@ -198,6 +226,7 @@ export default function MenuPage() {
     if (!itemForm.name.trim()) return toast.error('Item name is required');
     if (!itemForm.categoryId) return toast.error('Please select a category');
     if (!itemForm.price || isNaN(parseFloat(itemForm.price))) return toast.error('Please enter a valid price');
+    if (itemModal === 'new' && itemSource === 'inventory' && !itemForm.inventoryItemId) return toast.error('Pick an inventory item');
 
     try {
       const payload = {
@@ -207,6 +236,11 @@ export default function MenuPage() {
         price: parseFloat(itemForm.price),
         description: itemForm.description?.trim() || undefined,
       };
+      if (itemModal === 'new') {
+        if (itemForm.inventoryItemId) payload.inventoryItemId = itemForm.inventoryItemId;
+      } else if ((itemForm.inventoryItemId || null) !== (itemModal.inventoryItemId || null)) {
+        payload.inventoryItemId = itemForm.inventoryItemId || null;
+      }
 
       if (itemModal === 'new') {
         await api.post('/menu/items', payload);
@@ -218,6 +252,7 @@ export default function MenuPage() {
       setItemModal(null);
       await fetchItems(menuType);
       await fetchCategories();
+      if (payload.inventoryItemId !== undefined) fetchInventory();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save menu item');
     }
@@ -236,15 +271,35 @@ export default function MenuPage() {
   const openBulkModal = () => {
     setBasePrice('');
     setBulkForm({
-      name: '', categoryId: categories[0]?.id || '', description: '',
+      name: '', categoryId: categories[0]?.id || '', description: '', inventoryItemId: null,
       menus: { AC: true, NON_AC: true, SWIGGY: false, ZOMATO: false },
       prices: { AC: '', NON_AC: '', SWIGGY: '', ZOMATO: '' }
     });
+    setBulkSource('manual');
+    setInvSearch('');
+    fetchInventory();
     setBulkModal(true);
+  };
+
+  // Menus that already carry the stock item picked in the bulk modal — it can be added to each menu only once
+  const bulkLinkedMenus = useMemo(() => {
+    const inv = bulkForm.inventoryItemId ? inventoryById.get(bulkForm.inventoryItemId) : null;
+    return new Set((inv?.menuItems || []).map(m => m.menuType));
+  }, [bulkForm.inventoryItemId, inventoryById]);
+
+  const pickBulkInventory = (inv) => {
+    const linked = new Set((inv.menuItems || []).map(m => m.menuType));
+    setBulkForm(f => ({
+      ...f,
+      inventoryItemId: inv.id,
+      name: inv.name,
+      menus: Object.fromEntries(Object.entries(f.menus).map(([k, v]) => [k, v && !linked.has(k)])),
+    }));
   };
 
   const submitBulk = async (forceUpdate = false) => {
     const selectedMenus = Object.keys(bulkForm.menus).filter(m => bulkForm.menus[m]);
+    if (bulkSource === 'inventory' && !bulkForm.inventoryItemId) return toast.error('Pick an inventory item');
     if (selectedMenus.length === 0) return toast.error('Select at least one menu');
     if (!bulkForm.name.trim()) return toast.error('Item name is required');
     if (!bulkForm.categoryId) return toast.error('Category is required');
@@ -263,6 +318,7 @@ export default function MenuPage() {
       description: bulkForm.description?.trim() || undefined,
       items: itemsPayload
     };
+    if (bulkSource === 'inventory' && bulkForm.inventoryItemId) payload.inventoryItemId = bulkForm.inventoryItemId;
 
     try {
       if (forceUpdate) {
@@ -281,12 +337,17 @@ export default function MenuPage() {
             message: `Item already exists in: ${existing.map(e => e.menuType).join(', ')}`
           });
         } else {
-          toast.success(`Added to ${results.length} menu(s)`);
+          const createdCount = results.filter(r => r.status === 'CREATED').length;
+          const linkedCount = results.filter(r => r.status === 'LINKED').length;
+          toast.success(linkedCount > 0
+            ? `Added to ${createdCount} menu(s), linked ${linkedCount} existing item(s) to stock`
+            : `Added to ${createdCount} menu(s)`);
           setBulkModal(false);
           fetchItems(menuType);
         }
       }
       fetchCategories();
+      if (payload.inventoryItemId) fetchInventory();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Bulk add failed');
     }
@@ -300,6 +361,98 @@ export default function MenuPage() {
     const start = (currentPage - 1) * pageSize;
     return filteredItems.slice(start, start + pageSize);
   }, [filteredItems, currentPage, pageSize]);
+
+  const sourceSwitch = (source, setSource, onManual) => (
+    <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+      {[
+        { id: 'manual', label: 'New item', icon: PenLine },
+        { id: 'inventory', label: 'From inventory', icon: Package },
+      ].map(opt => (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => { setSource(opt.id); setInvSearch(''); if (opt.id === 'manual') onManual(); }}
+          className={`flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+            source === opt.id ? 'bg-white dark:bg-slate-900 text-primary dark:text-blue-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <opt.icon size={14} /> {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  // blockedMenuType: the single-item modal refuses stock items already on that menu (one time per menu)
+  const inventoryPicker = (selectedId, onPick, blockedMenuType = null) => {
+    const q = invSearch.trim().toLowerCase();
+    const list = inventory.filter(i => !q || i.name.toLowerCase().includes(q));
+    return (
+      <div className="space-y-2">
+        <div className="relative">
+          <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
+          <input
+            type="text"
+            value={invSearch}
+            onChange={e => setInvSearch(e.target.value)}
+            placeholder="Search inventory items..."
+            className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          />
+        </div>
+        <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800">
+          {list.length === 0 ? (
+            <p className="px-3 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
+              {inventory.length === 0 ? 'No inventory items yet — add stock items on the Inventory page first.' : 'No matching inventory items'}
+            </p>
+          ) : list.map(inv => {
+            const onMenus = (inv.menuItems || []).map(m => m.menuType);
+            const blocked = blockedMenuType && onMenus.includes(blockedMenuType);
+            const selected = selectedId === inv.id;
+            return (
+              <button
+                key={inv.id}
+                type="button"
+                disabled={blocked}
+                onClick={() => onPick(inv)}
+                className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-left transition-colors ${
+                  selected ? 'bg-primary/10 dark:bg-primary/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                } ${blocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <div className="min-w-0">
+                  <div className={`text-sm font-medium truncate ${selected ? 'text-primary dark:text-blue-400' : 'text-slate-900 dark:text-slate-100'}`}>{inv.name}</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {blocked
+                      ? `Already on the ${MENU_SHORT[blockedMenuType]} menu`
+                      : onMenus.length > 0 ? `On ${[...new Set(onMenus)].map(m => MENU_SHORT[m]).join(', ')} menu` : 'Not on any menu yet'}
+                  </div>
+                </div>
+                <span className={`shrink-0 text-xs font-mono font-semibold ${inv.currentStock <= 0 ? 'text-red-600 dark:text-red-400' : inv.lowStock ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-300'}`}>
+                  {inv.currentStock} {inv.unit}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const stockBadge = (item) => {
+    if (!item.inventoryItemId) return null;
+    const inv = inventoryById.get(item.inventoryItemId);
+    if (!inv) {
+      return <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400"><Package size={11} /> Stock-linked</span>;
+    }
+    const tone = inv.currentStock <= 0
+      ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/60'
+      : inv.lowStock
+        ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60'
+        : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60';
+    return (
+      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${tone}`} title={`Linked to inventory: ${inv.name}`}>
+        <Package size={11} /> {inv.currentStock <= 0 ? 'Out of stock' : `${inv.currentStock} ${inv.unit} in stock`}
+      </span>
+    );
+  };
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
   if (availableTabs.length === 0) return <div className="p-8 text-center text-text-secondary">You do not have permission to view any menus.</div>;
@@ -416,7 +569,10 @@ export default function MenuPage() {
                 {paginatedItems.map(item => (
                   <tr key={item.id} className="hover:bg-surface/50 dark:hover:bg-slate-800/50">
                     <td className="px-4 py-3 tablet-table-cell font-medium text-text dark:text-slate-100">
-                      <div>{item.name}</div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span>{item.name}</span>
+                        {stockBadge(item)}
+                      </div>
                       {item.description && <div className="text-xs text-text-secondary dark:text-slate-400 font-normal truncate max-w-xs">{item.description}</div>}
                     </td>
                     <td className="px-4 py-3 tablet-table-cell text-text-secondary dark:text-slate-400 text-xs">{item.category?.name || '-'}</td>
@@ -470,14 +626,43 @@ export default function MenuPage() {
 
       <Modal isOpen={!!itemModal} onClose={() => setItemModal(null)} title={itemModal === 'new' ? 'Add Menu Item' : 'Edit Menu Item'}>
         <div className="space-y-4">
+          {itemModal === 'new' && canUseInventory && sourceSwitch(itemSource, setItemSource, () => setItemForm(f => ({ ...f, inventoryItemId: null })))}
           <div>
             <label className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Menu Type</label>
             <div className="flex gap-2 flex-wrap">
               {availableTabs.map(t => (
-                <button key={t.id} type="button" onClick={() => setItemForm(f => ({...f, menuType: t.id}))} className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold border ${itemForm.menuType === t.id ? 'bg-primary text-white border-primary' : 'bg-surface dark:bg-slate-800 text-text dark:text-slate-200 border-border dark:border-slate-700'}`}>{t.label}</button>
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setItemForm(f => {
+                    // A stock item already on the newly chosen menu can't be added there again
+                    const inv = f.inventoryItemId ? inventoryById.get(f.inventoryItemId) : null;
+                    const clash = itemModal === 'new' && inv?.menuItems?.some(m => m.menuType === t.id);
+                    return { ...f, menuType: t.id, ...(clash ? { inventoryItemId: null } : {}) };
+                  })}
+                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold border ${itemForm.menuType === t.id ? 'bg-primary text-white border-primary' : 'bg-surface dark:bg-slate-800 text-text dark:text-slate-200 border-border dark:border-slate-700'}`}
+                >
+                  {t.label}
+                </button>
               ))}
             </div>
           </div>
+          {itemModal === 'new' && itemSource === 'inventory' && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Inventory Item</label>
+              {inventoryPicker(itemForm.inventoryItemId, inv => setItemForm(f => ({ ...f, inventoryItemId: inv.id, name: inv.name })), itemForm.menuType)}
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">Each order of this menu item deducts the same quantity from this stock item.</p>
+            </div>
+          )}
+          {itemModal !== 'new' && itemForm.inventoryItemId && (
+            <div className="flex items-center justify-between gap-2 p-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-lg text-xs text-emerald-800 dark:text-emerald-300">
+              <span className="flex items-center gap-1.5 min-w-0">
+                <Package size={14} className="shrink-0" />
+                <span className="truncate">Linked to stock: <strong>{inventoryById.get(itemForm.inventoryItemId)?.name || 'inventory item'}</strong></span>
+              </span>
+              <button type="button" onClick={() => setItemForm(f => ({ ...f, inventoryItemId: null }))} className="shrink-0 px-2 py-1 rounded font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 cursor-pointer">Unlink</button>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Item Name</label>
             <input
@@ -526,6 +711,16 @@ export default function MenuPage() {
 
       <Modal isOpen={bulkModal} onClose={() => setBulkModal(false)} title="Bulk Add Menu Item" size="lg">
         <div className="space-y-4">
+          {canUseInventory && sourceSwitch(bulkSource, setBulkSource, () => setBulkForm(f => ({ ...f, inventoryItemId: null })))}
+          {bulkSource === 'inventory' && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                Inventory Item <span className="text-red-500">*</span>
+              </label>
+              {inventoryPicker(bulkForm.inventoryItemId, pickBulkInventory)}
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">Orders from any of the selected menus deduct the same quantity from this stock item.</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
@@ -619,6 +814,7 @@ export default function MenuPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {TABS.map(t => {
                 const isChecked = !!bulkForm.menus[t.id];
+                const alreadyLinked = bulkSource === 'inventory' && bulkLinkedMenus.has(t.id);
                 const meta = MENU_META[t.id] || { label: t.label, icon: '📋', type: 'Menu', bgActive: 'bg-slate-50 dark:bg-slate-800 border-primary' };
                 return (
                   <div
@@ -634,6 +830,7 @@ export default function MenuPage() {
                         <input
                           type="checkbox"
                           checked={isChecked}
+                          disabled={alreadyLinked}
                           onChange={e =>
                             setBulkForm(f => ({
                               ...f,
@@ -648,7 +845,7 @@ export default function MenuPage() {
                         </span>
                       </label>
                       <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                        {meta.type}
+                        {alreadyLinked ? 'Already on this menu' : meta.type}
                       </span>
                     </div>
 

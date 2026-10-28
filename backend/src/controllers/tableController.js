@@ -71,3 +71,12 @@ export const closeTable = async (req, res, next) => {
     next(error);
   }
 };
+
+export const changeTable = async (req, res, next) => {
+  try {
+    const result = await tableService.changeTable(req.params.id, req.body.targetTableId, req.user);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};

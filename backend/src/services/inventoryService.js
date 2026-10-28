@@ -1,9 +1,14 @@
 import prisma from '../utils/prisma.js';
 import * as auditService from './auditService.js';
 import { parseDateRange } from '../utils/dateUtils.js';
+import { invalidateMenuCaches } from '../utils/cache.js';
+import { notifyStockChanged } from './stockService.js';
 
 export const getAll = async () => {
-  const items = await prisma.inventoryItem.findMany({ orderBy: { name: 'asc' } });
+  const items = await prisma.inventoryItem.findMany({
+    orderBy: { name: 'asc' },
+    include: { menuItems: { select: { id: true, name: true, menuType: true, active: true } } },
+  });
   return items.map(item => ({
     ...item,
     currentStock: Number(item.currentStock),
@@ -57,7 +62,7 @@ export const adjust = async (data, userId) => {
   const { inventoryItemId, quantity, type, notes, referenceId } = data;
   const adjustQty = Number(quantity);
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRawUnsafe(`
       SELECT id, name, unit, currentStock, lowStockThreshold
       FROM \`InventoryItem\`
@@ -106,12 +111,15 @@ export const adjust = async (data, userId) => {
       }
     };
   });
+  notifyStockChanged([inventoryItemId]);
+  return result;
 };
 
 export const remove = async (id, userId) => {
   const item = await prisma.inventoryItem.findUnique({ where: { id } });
   if (!item) throw { status: 404, message: 'Inventory item not found' };
   await prisma.inventoryItem.delete({ where: { id } });
+  invalidateMenuCaches(); // linked menu items were unlinked by the delete
   if (userId) {
     await auditService.log({ userId, action: 'DELETE', entity: 'INVENTORY', entityId: id, before: { name: item.name, stock: Number(item.currentStock) } });
   }

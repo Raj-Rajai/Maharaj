@@ -201,6 +201,7 @@ const LIVE_OPERATIONAL_PATTERNS = [
   '/kots',
   '/bills',
   '/online-orders',
+  '/inventory', // stock moves with every order of a stock-linked menu item
 ];
 
 const isLiveOperationalEndpoint = (url) => {

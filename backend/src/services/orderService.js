@@ -1,7 +1,17 @@
+import crypto from 'node:crypto';
 import prisma, { rawQuery } from '../utils/prisma.js';
 import { settingsCache } from '../utils/cache.js';
 import { emitKotCreated, emitBillCreated, emitOrderUpdated } from '../utils/socket.js';
 import { parseDateRange } from '../utils/dateUtils.js';
+import { syncStock, notifyStockChanged } from './stockService.js';
+
+// Stock lines for order items just created from menu items (ids are generated up-front for this)
+const stockLinesFor = (orderItemsData, menuItemMap) => orderItemsData.map((oi) => ({
+  orderItemId: oi.id,
+  inventoryItemId: menuItemMap.get(oi.menuItemId)?.inventoryItemId,
+  quantity: oi.quantity,
+  name: oi.itemNameSnapshot,
+}));
 
 const getSettings = async () => {
   const cached = settingsCache.get();
@@ -154,6 +164,7 @@ export const createTakeAwayOrder = async (data, userId) => {
     });
 
     const orderItemsData = items.map((item, idx) => ({
+      id: crypto.randomUUID(),
       orderId: newOrder.id,
       menuItemId: item.menuItemId,
       itemNameSnapshot: dbItems[idx].name,
@@ -166,6 +177,7 @@ export const createTakeAwayOrder = async (data, userId) => {
     await tx.orderItem.createMany({
       data: orderItemsData,
     });
+    const stockChanged = await syncStock(tx, stockLinesFor(orderItemsData, dbItemMap), { fresh: true });
 
     let createdKot = null;
     if (generateKot) {
@@ -228,12 +240,15 @@ export const createTakeAwayOrder = async (data, userId) => {
       order: fullOrder,
       kot: createdKot ? { ...createdKot, orderSource: newOrder.orderSource, order: fullOrder } : null,
       bill: createdBill ? { ...createdBill, orderSource: newOrder.orderSource, order: fullOrder } : null,
+      stockChanged,
     };
   });
 
   if (result.kot) emitKotCreated(result.kot);
   if (result.bill) emitBillCreated(result.bill);
   if (result.order) emitOrderUpdated(result.order);
+  notifyStockChanged(result.stockChanged);
+  delete result.stockChanged;
 
   return result;
 };
@@ -364,7 +379,10 @@ export const getById = async (id) => {
 };
 
 export const addItems = async (orderId, items, generateKot = true, captainId = null) => {
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { table: { select: { number: true } } },
+  });
   if (!order) {
     throw { status: 404, message: 'Order not found' };
   }
@@ -417,6 +435,7 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
           sessionId: order.sessionId || null,
           captainId: captainId || order.captainId,
           status: 'PREPARING',
+          tableNumber: order.table?.number ?? null,
         },
       });
 
@@ -424,6 +443,7 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
         const menuItem = menuItemMap.get(item.menuItemId);
         const qty = parseInt(item.quantity, 10) || 1;
         return {
+          id: crypto.randomUUID(),
           orderId,
           menuItemId: item.menuItemId,
           itemNameSnapshot: menuItem.name,
@@ -438,6 +458,7 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
       await tx.orderItem.createMany({
         data: orderItemsData,
       });
+      const stockChanged = await syncStock(tx, stockLinesFor(orderItemsData, menuItemMap), { fresh: true });
 
       const fullOrder = await tx.order.findUnique({
         where: { id: orderId },
@@ -454,11 +475,14 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
         order: fullOrder,
         kot: newKot,
         itemsCount: orderItemsData.length,
+        stockChanged,
       };
     });
 
     if (result.kot) emitKotCreated(result.kot);
     if (result.order) emitOrderUpdated(result.order);
+    notifyStockChanged(result.stockChanged);
+    delete result.stockChanged;
     return result;
   }
 
@@ -467,6 +491,7 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
     const menuItem = menuItemMap.get(item.menuItemId);
     const qty = parseInt(item.quantity, 10) || 1;
     return {
+      id: crypto.randomUUID(),
       orderId,
       menuItemId: item.menuItemId,
       itemNameSnapshot: menuItem.name,
@@ -477,12 +502,16 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
     };
   });
 
-  await prisma.orderItem.createMany({
-    data: orderItemsData,
+  const stockChanged = await prisma.$transaction(async (tx) => {
+    await tx.orderItem.createMany({
+      data: orderItemsData,
+    });
+    return syncStock(tx, stockLinesFor(orderItemsData, menuItemMap), { fresh: true });
   });
 
   const updatedOrder = await getById(orderId);
   emitOrderUpdated(updatedOrder);
+  notifyStockChanged(stockChanged);
   return updatedOrder;
 };
 
@@ -588,6 +617,7 @@ export const sendKotOrder = async (data, captainId) => {
           sessionId: session.id,
           captainId,
           status: 'PREPARING',
+          tableNumber: session.table?.number ?? null,
         },
       });
     }
@@ -600,6 +630,7 @@ export const sendKotOrder = async (data, captainId) => {
         ? (customerNotes && !item.notes.includes(customerNotes) ? `${item.notes} (${customerNotes})` : item.notes)
         : (customerNotes || null);
       return {
+        id: crypto.randomUUID(),
         orderId: order.id,
         menuItemId: item.menuItemId,
         itemNameSnapshot: menuItem.name,
@@ -614,6 +645,7 @@ export const sendKotOrder = async (data, captainId) => {
     await tx.orderItem.createMany({
       data: orderItemsData,
     });
+    const stockChanged = await syncStock(tx, stockLinesFor(orderItemsData, menuItemMap), { fresh: true });
 
     // Return the fresh full order with items, table, captain, and bill
     const fullOrder = await tx.order.findUnique({
@@ -633,8 +665,11 @@ export const sendKotOrder = async (data, captainId) => {
       order: fullOrder,
       kot: newKot,
       itemsCount: orderItemsData.length,
+      stockChanged,
     };
   });
+  notifyStockChanged(result.stockChanged);
+  delete result.stockChanged;
 
   if (result.kot) {
     const enrichedKot = {

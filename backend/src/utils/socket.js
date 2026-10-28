@@ -82,6 +82,16 @@ export function emitTableUpdated(table) {
   io.emit('table:updated', table);
 }
 
+export function emitTableChanged(change) {
+  if (!io) return;
+  io.emit('table:changed', change);
+}
+
+export function emitInventoryUpdated(payload) {
+  if (!io) return;
+  io.emit('inventory:updated', payload);
+}
+
 export function emitSessionOpened(session) {
   if (!io) return;
   io.emit('session:opened', session);

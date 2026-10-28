@@ -3,6 +3,7 @@ import * as auditService from './auditService.js';
 import { settingsCache, tableCache } from '../utils/cache.js';
 import { emitBillCreated, emitBillUpdated, emitBillFinalized } from '../utils/socket.js';
 import { parseDateRange } from '../utils/dateUtils.js';
+import { syncStock, notifyStockChanged } from './stockService.js';
 
 const formatBill = (bill) => {
   if (!bill) return bill;
@@ -485,11 +486,12 @@ export const settleAmendment = async (amendmentId, paymentMethod) => {
 };
 
 export const editDraft = async (billId, changes, discount, userId, customerName = null, customerPhone = null) => {
+  let stockChanged = [];
   // Wrap entire operation in a transaction for atomicity
   const updatedBill = await prisma.$transaction(async (tx) => {
     const bill = await tx.bill.findUnique({
       where: { id: billId },
-      include: { order: { include: { items: true } } }
+      include: { order: { include: { items: { include: { menuItem: { select: { inventoryItemId: true } } } } } } }
     });
     if (!bill) throw { status: 404, message: 'Bill not found' };
     if (bill.status !== 'DRAFT') throw { status: 400, message: 'Only DRAFT bills can be edited' };
@@ -497,9 +499,16 @@ export const editDraft = async (billId, changes, discount, userId, customerName 
     const settings = await getSettings();
 
     const itemUpdates = [];
+    const stockLines = [];
     for (const change of changes) {
       const item = bill.order.items.find(i => i.itemNameSnapshot === change.itemName && i.status !== 'CANCELLED');
       if (item && item.quantity !== change.newQty) {
+        stockLines.push({
+          orderItemId: item.id,
+          inventoryItemId: item.menuItem?.inventoryItemId,
+          quantity: Math.max(change.newQty, 0),
+          name: item.itemNameSnapshot,
+        });
         if (change.newQty === 0) {
           itemUpdates.push(tx.orderItem.update({
             where: { id: item.id },
@@ -516,6 +525,7 @@ export const editDraft = async (billId, changes, discount, userId, customerName 
     if (itemUpdates.length > 0) {
       await Promise.all(itemUpdates);
     }
+    stockChanged = await syncStock(tx, stockLines);
 
     // Re-fetch items within the transaction to get updated quantities
     const updatedItems = await tx.orderItem.findMany({
@@ -556,5 +566,6 @@ export const editDraft = async (billId, changes, discount, userId, customerName 
 
   const formattedUpdatedBill = formatBill(updatedBill);
   emitBillUpdated(formattedUpdatedBill);
+  notifyStockChanged(stockChanged);
   return formattedUpdatedBill;
 };

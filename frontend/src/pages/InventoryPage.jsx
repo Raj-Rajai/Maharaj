@@ -7,10 +7,13 @@ import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
-import { useOnRouteActive } from '../components/common/RouteKeepAlive';
+import { useOnRouteActive, useRouteActive } from '../components/common/RouteKeepAlive';
+import useRealtime from '../hooks/useRealtime';
 import { inventoryBlue } from '../assets';
 import MasterColumnFilter from '../components/ui/MasterColumnFilter';
 import Pagination from '../components/ui/Pagination';
+
+const MENU_SHORT = { AC: 'AC', NON_AC: 'Non-AC', SWIGGY: 'Swiggy', ZOMATO: 'Zomato' };
 
 const INVENTORY_COLUMNS = [
   { key: 'name', label: 'Item Name', sortType: 'text' },
@@ -77,6 +80,14 @@ export default function InventoryPage() {
   useOnRouteActive(() => {
     fetchItems();
   });
+
+  // Orders of stock-linked menu items move stock; refresh live
+  const isActive = useRouteActive();
+  useRealtime({
+    'inventory:updated': () => {
+      fetchItems();
+    },
+  }, isActive);
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -440,7 +451,14 @@ export default function InventoryPage() {
 
                       <td className="px-5 py-4 tablet-table-cell font-medium text-text dark:text-slate-100 relative group/cell">
                         <div className="flex items-center justify-between gap-1.5">
-                          <span>{row.name}</span>
+                          <div className="min-w-0">
+                            <span>{row.name}</span>
+                            {item.menuItems?.length > 0 && (
+                              <div className="text-[11px] font-normal text-emerald-700 dark:text-emerald-400 mt-0.5" title={item.menuItems.map(m => `${m.name} (${MENU_SHORT[m.menuType]})`).join(', ')}>
+                                On menu: {[...new Set(item.menuItems.map(m => MENU_SHORT[m.menuType]))].join(', ')} · deducts on order
+                              </div>
+                            )}
+                          </div>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -838,6 +856,8 @@ export default function InventoryPage() {
                   if (tx.type === 'PURCHASE') { badgeType = 'success'; txLabel = 'Purchase'; }
                   else if (tx.type === 'PURCHASE_REVERSAL') { badgeType = 'danger'; txLabel = 'Purchase Reversal'; }
                   else if (tx.type === 'MANUAL_ADJUSTMENT') { badgeType = 'info'; txLabel = 'Adjustment'; }
+                  else if (tx.type === 'SALE') { badgeType = 'warning'; txLabel = 'Sold (Order)'; }
+                  else if (tx.type === 'SALE_REVERSAL') { badgeType = 'success'; txLabel = 'Order Cancelled / Reduced'; }
 
                   return (
                     <div key={tx.id || idx} className="relative pl-6">

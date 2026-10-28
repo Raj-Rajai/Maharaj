@@ -43,6 +43,7 @@ enum Permission {
   TABLE_CREATE
   TABLE_EDIT
   TABLE_DELETE
+  TABLE_CHANGE
   MENU_AC_VIEW
   MENU_AC_CREATE
   MENU_AC_EDIT
@@ -176,6 +177,8 @@ enum InventoryTransactionType {
   PURCHASE
   PURCHASE_REVERSAL
   MANUAL_ADJUSTMENT
+  SALE
+  SALE_REVERSAL
 }
 
 enum ChangeType {
@@ -255,16 +258,20 @@ model Category {
 }
 
 model MenuItem {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   categoryId  String
-  category    Category  @relation(fields: [categoryId], references: [id])
+  category    Category @relation(fields: [categoryId], references: [id])
   menuType    MenuType
-  price       Decimal   @db.Decimal(10, 2)
+  price       Decimal  @db.Decimal(10, 2)
   description String?
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Optional link to a stock item: ordering this menu item deducts the same quantity from inventory
+  inventoryItemId String?
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
 
   orderItems OrderItem[]
 
@@ -274,6 +281,7 @@ model MenuItem {
   @@index([active])
   @@index([menuType, active])
   @@index([categoryId, active])
+  @@index([inventoryItemId])
 }
 
 model TableSession {
@@ -367,15 +375,17 @@ model OrderItemHistory {
 }
 
 model KOT {
-  id        String        @id @default(uuid())
-  kotNumber Int
-  orderId   String
-  order     Order         @relation(fields: [orderId], references: [id])
-  sessionId String?
-  session   TableSession? @relation(fields: [sessionId], references: [id])
-  captainId String
-  status    KotStatus     @default(NEW)
-  createdAt DateTime      @default(now())
+  id          String        @id @default(uuid())
+  kotNumber   Int
+  orderId     String
+  order       Order         @relation(fields: [orderId], references: [id])
+  sessionId   String?
+  session     TableSession? @relation(fields: [sessionId], references: [id])
+  captainId   String
+  status      KotStatus     @default(NEW)
+  // Table number when the KOT was raised — stays as printed even if the order later moves table
+  tableNumber Int?
+  createdAt   DateTime      @default(now())
 
   items OrderItem[]
 
@@ -524,14 +534,15 @@ model PurchaseItem {
 }
 
 model InventoryItem {
-  id                String                 @id @default(uuid())
-  name              String                 @unique
-  currentStock      Decimal                @db.Decimal(10, 2)
+  id                String   @id @default(uuid())
+  name              String   @unique
+  currentStock      Decimal  @db.Decimal(10, 2)
   unit              String
-  lowStockThreshold Decimal                @default(0.00) @db.Decimal(10, 2)
-  updatedAt         DateTime               @updatedAt
+  lowStockThreshold Decimal  @default(0.00) @db.Decimal(10, 2)
+  updatedAt         DateTime @updatedAt
 
   transactions InventoryTransaction[]
+  menuItems    MenuItem[]
 }
 
 model InventoryTransaction {
@@ -548,6 +559,7 @@ model InventoryTransaction {
   @@index([type])
   @@index([createdAt])
   @@index([inventoryItemId, createdAt])
+  @@index([referenceId])
 }
 
 model Settings {

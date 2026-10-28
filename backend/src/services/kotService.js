@@ -1,6 +1,7 @@
 import prisma, { rawQuery } from '../utils/prisma.js';
 import { emitKotCreated, emitKotUpdated } from '../utils/socket.js';
 import { parseDateRange } from '../utils/dateUtils.js';
+import { syncStock, notifyStockChanged } from './stockService.js';
 
 export const create = async (orderId, captainId, sessionId = null) => {
   const order = await prisma.order.findUnique({
@@ -35,6 +36,7 @@ export const create = async (orderId, captainId, sessionId = null) => {
         sessionId,
         captainId,
         status: 'PREPARING',
+        tableNumber: order.table?.number ?? null,
       },
     });
 
@@ -85,7 +87,7 @@ export const getAll = async (filters) => {
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const sql = `
-    SELECT k.id, k.kotNumber, k.orderId, k.sessionId, k.captainId, k.status, k.createdAt,
+    SELECT k.id, k.kotNumber, k.orderId, k.sessionId, k.captainId, k.status, k.tableNumber, k.createdAt,
            o.id as order_id, o.orderSource, o.tableId,
            t.id as table_id, t.number as table_number, t.type as table_type
     FROM \`KOT\` k
@@ -135,6 +137,7 @@ export const getAll = async (filters) => {
     sessionId: row.sessionId,
     captainId: row.captainId,
     status: row.status,
+    tableNumber: row.tableNumber,
     createdAt: row.createdAt,
     items: itemsByKotId[row.id] || [],
     order: row.order_id ? {
@@ -260,7 +263,7 @@ export const updateItemStatus = async (itemId, status) => {
 export const editItemQuantity = async (orderItemId, newQuantity, reason, userId) => {
   const orderItem = await prisma.orderItem.findUnique({
     where: { id: orderItemId },
-    include: { order: true },
+    include: { order: true, menuItem: { select: { inventoryItemId: true } } },
   });
   if (!orderItem) throw { status: 404, message: 'Order item not found' };
   if (orderItem.status === 'CANCELLED') throw { status: 400, message: 'Cannot edit cancelled item' };
@@ -290,11 +293,19 @@ export const editItemQuantity = async (orderItemId, newQuantity, reason, userId)
       },
     });
 
-    return updated;
+    const stockChanged = await syncStock(tx, [{
+      orderItemId,
+      inventoryItemId: orderItem.menuItem?.inventoryItemId,
+      quantity: newQuantity,
+      name: orderItem.itemNameSnapshot,
+    }]);
+
+    return { updated, stockChanged };
   });
 
   emitKotUpdated({ itemId: orderItemId, quantity: newQuantity, kotId: orderItem.kotId });
-  return result;
+  notifyStockChanged(result.stockChanged);
+  return result.updated;
 };
 
 export const cancelItem = async (orderItemId, reason, userId) => {
@@ -323,6 +334,7 @@ export const cancelItem = async (orderItemId, reason, userId) => {
       where: { id: orderItemId },
       data: { status: 'CANCELLED', originalQuantity: orderItem.originalQuantity || orderItem.quantity },
     });
+    const stockChanged = await syncStock(tx, [{ orderItemId, quantity: 0, name: orderItem.itemNameSnapshot }]);
 
     let newKotStatus = null;
     if (orderItem.kotId) {
@@ -339,9 +351,10 @@ export const cancelItem = async (orderItemId, reason, userId) => {
       }
     }
 
-    return { updated, newKotStatus };
+    return { updated, newKotStatus, stockChanged };
   });
 
   emitKotUpdated({ itemId: orderItemId, status: 'CANCELLED', kotId: orderItem.kotId, kotStatus: result.newKotStatus });
+  notifyStockChanged(result.stockChanged);
   return result.updated;
 };

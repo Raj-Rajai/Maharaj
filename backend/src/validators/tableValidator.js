@@ -12,6 +12,10 @@ export const updateTableSchema = z.object({
   type: z.enum(['AC', 'NON_AC']).optional(),
 });
 
+export const changeTableSchema = z.object({
+  targetTableId: z.string().uuid('Invalid target table ID'),
+});
+
 export const updateStatusSchema = z.object({
   status: z.enum(['AVAILABLE', 'OCCUPIED', 'BILLING'], { required_error: 'Status must be AVAILABLE, OCCUPIED, or BILLING' }),
 });

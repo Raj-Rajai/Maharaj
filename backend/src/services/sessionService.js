@@ -1,6 +1,7 @@
 import prisma from '../utils/prisma.js';
 import { tableCache } from '../utils/cache.js';
 import { emitSessionOpened, emitSessionClosed, emitTableUpdated, emitOrderUpdated, emitKotUpdated } from '../utils/socket.js';
+import { syncStock, notifyStockChanged } from './stockService.js';
 
 export const create = async (data, captainId) => {
   const session = await prisma.$transaction(async (tx) => {
@@ -87,6 +88,7 @@ export const close = async (id, options = {}) => {
     const activeOrders = session.orders.filter(
       (o) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED'
     );
+    const stockLines = [];
 
     if (activeOrders.length > 0) {
       if (!cancelOrders) {
@@ -106,6 +108,9 @@ export const close = async (id, options = {}) => {
           },
           data: { status: 'CANCELLED' },
         });
+        stockLines.push(...order.items
+          .filter((i) => i.status !== 'SERVED' && i.status !== 'CANCELLED')
+          .map((i) => ({ orderItemId: i.id, quantity: 0, name: i.itemNameSnapshot })));
 
         if (order.bill && order.bill.status === 'DRAFT') {
           await tx.bill.update({
@@ -148,13 +153,17 @@ export const close = async (id, options = {}) => {
       }),
     ]);
 
+    const stockChanged = await syncStock(tx, stockLines);
+
     return {
       closedSession,
       tableId: session.tableId,
       cancelledOrders: activeOrders,
       cancelledKots: activeKots,
+      stockChanged,
     };
   });
+  notifyStockChanged(result.stockChanged);
 
   tableCache.invalidate();
   emitSessionClosed(result.closedSession);

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Search, Plus, Minus, Send, Receipt, Trash2, ShoppingBag, LogOut, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Minus, Send, Receipt, Trash2, ShoppingBag, LogOut, AlertTriangle, ArrowLeftRight } from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
@@ -12,10 +12,12 @@ import { acBlue, nonAcBlue, tableBlue } from '../assets';
 export default function OrderPage() {
   const { tableId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, hasPermission } = useAuth();
   const canOrder = hasPermission('ORDER_CREATE');
   const canBill = hasPermission('BILL_VIEW_DRAFT');
   const canCloseTable = user?.role === 'SUPER_ADMIN' || hasPermission('TABLE_EDIT') || hasPermission('ORDER_CANCEL') || hasPermission('ORDER_EDIT') || hasPermission('BILL_FINALIZE');
+  const canChangeTable = hasPermission('TABLE_CHANGE');
   const [table, setTable] = useState(null);
   const [session, setSession] = useState(null);
   const [order, setOrder] = useState(null);
@@ -23,7 +25,8 @@ export default function OrderPage() {
   const [menuItems, setMenuItems] = useState([]);
   const [selectedCat, setSelectedCat] = useState('ALL');
   const [searchQ, setSearchQ] = useState('');
-  const [cart, setCart] = useState([]);
+  // Unsent cart items follow the customer when the table is changed
+  const [cart, setCart] = useState(() => location.state?.carriedCart || []);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [billModal, setBillModal] = useState(false);
@@ -39,6 +42,18 @@ export default function OrderPage() {
   const [closingTable, setClosingTable] = useState(false);
   const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const [activeNoteId, setActiveNoteId] = useState(null);
+  const [showChangeModal, setShowChangeModal] = useState(false);
+  const [freeTables, setFreeTables] = useState([]);
+  const [loadingFreeTables, setLoadingFreeTables] = useState(false);
+  const [changeTargetId, setChangeTargetId] = useState(null);
+  const [changingTable, setChangingTable] = useState(false);
+
+  // Drop the carried cart from history so a reload doesn't bring it back
+  useEffect(() => {
+    if (location.state?.carriedCart) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -248,6 +263,45 @@ export default function OrderPage() {
     }
   };
 
+  const openChangeModal = async () => {
+    setChangeTargetId(null);
+    setShowChangeModal(true);
+    setLoadingFreeTables(true);
+    try {
+      const res = await api.get('/tables', { skipCache: true });
+      const all = Array.isArray(res.data) ? res.data : res.data.value || [];
+      // Captains can only move within their own section (matches what the Tables page shows them)
+      const section = user?.role === 'AC_MASTER' ? 'AC' : user?.role === 'NON_AC_MASTER' ? 'NON_AC' : null;
+      const free = all
+        .filter(t => t.id !== tableId && t.active !== false && t.status === 'AVAILABLE' && !(t.sessions?.length > 0))
+        .filter(t => !section || t.type === section)
+        .sort((a, b) => a.number - b.number);
+      setFreeTables(free);
+    } catch {
+      toast.error('Failed to load tables');
+    } finally {
+      setLoadingFreeTables(false);
+    }
+  };
+
+  const handleChangeTable = async () => {
+    const target = freeTables.find(t => t.id === changeTargetId);
+    if (!target) return;
+    setChangingTable(true);
+    try {
+      await api.post(`/tables/${tableId}/change`, { targetTableId: target.id });
+      toast.success(`Moved Table ${table?.number} → Table ${target.number}`);
+      setShowChangeModal(false);
+      navigate(`/tables/${target.id}/order`, { replace: true, state: cart.length > 0 ? { carriedCart: cart } : null });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to change table');
+    } finally {
+      setChangingTable(false);
+    }
+  };
+
+  const changeTarget = freeTables.find(t => t.id === changeTargetId);
+
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
 
   return (
@@ -277,8 +331,20 @@ export default function OrderPage() {
           {table?.status && <Badge variant={table.status === 'OCCUPIED' ? 'info' : 'success'}>{table.status}</Badge>}
         </div>
 
-        {/* Right Action: Close Table & Mobile View Switcher */}
+        {/* Right Action: Change Table, Close Table & Mobile View Switcher */}
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
+          {canChangeTable && session && (
+            <button
+              type="button"
+              onClick={openChangeModal}
+              className="px-3 py-1.5 bg-white hover:bg-surface text-text dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-200 border border-border dark:border-slate-700 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+              title="Move this order to another table"
+            >
+              <ArrowLeftRight size={15} />
+              <span>Change Table</span>
+            </button>
+          )}
+
           {canCloseTable && (table?.status === 'OCCUPIED' || table?.status === 'BILLING' || session) && (
             <button
               type="button"
@@ -733,6 +799,88 @@ export default function OrderPage() {
             {finalizing ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Receipt size={16} />}
             Create Draft Bill
           </button>
+        </div>
+      </Modal>
+
+      {/* Change Table Modal */}
+      <Modal isOpen={showChangeModal} onClose={() => !changingTable && setShowChangeModal(false)} title={`Change Table ${table?.number || ''}`} size="md">
+        <div className="space-y-4">
+          <p className="text-xs text-text-secondary dark:text-slate-400 leading-relaxed">
+            Pick a free table. KOTs already sent keep <span className="font-semibold text-text dark:text-slate-200">Table {table?.number}</span>; new KOTs and the bill will use the new table.
+          </p>
+
+          {loadingFreeTables ? (
+            <div className="flex justify-center py-8"><Spinner size="md" /></div>
+          ) : freeTables.length === 0 ? (
+            <div className="py-8 text-center text-sm text-text-secondary dark:text-slate-400">No free tables right now.</div>
+          ) : (
+            ['AC', 'NON_AC']
+              .filter(type => freeTables.some(t => t.type === type))
+              .sort((a, b) => (a === table?.type ? -1 : b === table?.type ? 1 : 0))
+              .map(type => (
+                <div key={type}>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <img src={type === 'AC' ? acBlue : nonAcBlue} alt={type} className="w-3.5 h-3.5 object-contain opacity-75 dark:brightness-0 dark:invert" />
+                    <span className="text-xs font-semibold text-text dark:text-slate-200">{type === 'AC' ? 'AC' : 'Non-AC'} tables</span>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                    {freeTables.filter(t => t.type === type).map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setChangeTargetId(t.id)}
+                        className={`flex flex-col items-center justify-center py-2.5 rounded-xl border text-center transition-all cursor-pointer min-h-[60px] ${
+                          changeTargetId === t.id
+                            ? 'bg-primary text-white border-primary shadow-sm'
+                            : 'bg-surface dark:bg-slate-800 text-text dark:text-slate-200 border-border dark:border-slate-700 hover:border-primary/50'
+                        }`}
+                      >
+                        <span className="text-base font-bold font-mono leading-none">{t.number}</span>
+                        <span className={`text-[10px] mt-1 ${changeTargetId === t.id ? 'text-white/80' : 'text-text-secondary dark:text-slate-400'}`}>{t.capacity} seats</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))
+          )}
+
+          {changeTarget && changeTarget.type !== table?.type && (
+            <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 rounded-xl text-xs text-amber-800 dark:text-amber-300">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>
+                Moving to the {changeTarget.type === 'AC' ? 'AC' : 'Non-AC'} section: items already ordered keep their prices; new items come from the {changeTarget.type === 'AC' ? 'AC' : 'Non-AC'} menu.
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              type="button"
+              disabled={changingTable}
+              onClick={() => setShowChangeModal(false)}
+              className="px-4 py-2 border border-border dark:border-slate-700 rounded-lg text-xs font-medium text-text-secondary dark:text-slate-300 hover:bg-surface dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!changeTarget || changingTable}
+              onClick={handleChangeTable}
+              className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary-light transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-sm"
+            >
+              {changingTable ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Moving...</span>
+                </>
+              ) : (
+                <>
+                  <ArrowLeftRight size={14} />
+                  <span>{changeTarget ? `Move to Table ${changeTarget.number}` : 'Select a table'}</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </Modal>
 

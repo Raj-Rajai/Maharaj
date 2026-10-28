@@ -6,6 +6,7 @@ export const createMenuItemSchema = z.object({
   menuType: z.enum(['AC', 'NON_AC', 'SWIGGY', 'ZOMATO'], { required_error: 'Menu type must be AC, NON_AC, SWIGGY, or ZOMATO' }),
   price: z.number().positive('Price must be positive'),
   description: z.string().optional(),
+  inventoryItemId: z.string().uuid('Invalid inventory item ID').nullable().optional(),
 });
 
 export const updateMenuItemSchema = z.object({
@@ -15,6 +16,7 @@ export const updateMenuItemSchema = z.object({
   price: z.number().positive().optional(),
   description: z.string().optional(),
   active: z.boolean().optional(),
+  inventoryItemId: z.string().uuid('Invalid inventory item ID').nullable().optional(),
 });
 
 export const updateAvailabilitySchema = z.object({
@@ -25,6 +27,7 @@ export const bulkAddMenuItemSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   categoryId: z.string().uuid('Invalid category ID'),
   description: z.string().optional(),
+  inventoryItemId: z.string().uuid('Invalid inventory item ID').optional(),
   items: z.array(z.object({
     menuType: z.enum(['AC', 'NON_AC', 'SWIGGY', 'ZOMATO']),
     price: z.number().positive('Price must be positive')

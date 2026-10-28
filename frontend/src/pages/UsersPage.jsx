@@ -28,7 +28,7 @@ import { usersBlue } from '../assets';
 
 const PERMISSION_GROUPS = [
   { group: 'Dashboard', perms: ['DASHBOARD_VIEW'] },
-  { group: 'Tables', perms: ['TABLE_VIEW', 'TABLE_CREATE', 'TABLE_EDIT', 'TABLE_DELETE'] },
+  { group: 'Tables', perms: ['TABLE_VIEW', 'TABLE_CREATE', 'TABLE_EDIT', 'TABLE_DELETE', 'TABLE_CHANGE'] },
   { group: 'Menu AC', perms: ['MENU_AC_VIEW', 'MENU_AC_CREATE', 'MENU_AC_EDIT', 'MENU_AC_DELETE'] },
   { group: 'Menu Non-AC', perms: ['MENU_NON_AC_VIEW', 'MENU_NON_AC_CREATE', 'MENU_NON_AC_EDIT', 'MENU_NON_AC_DELETE'] },
   { group: 'Menu Swiggy', perms: ['MENU_SWIGGY_VIEW', 'MENU_SWIGGY_CREATE', 'MENU_SWIGGY_EDIT', 'MENU_SWIGGY_DELETE'] },
@@ -53,6 +53,7 @@ const PERMISSION_LABELS = {
   TABLE_CREATE: 'Create New Tables',
   TABLE_EDIT: 'Edit Table Details',
   TABLE_DELETE: 'Delete Tables',
+  TABLE_CHANGE: 'Change / Move Running Table',
 
   MENU_AC_VIEW: 'View AC Menu',
   MENU_AC_CREATE: 'Add AC Menu Items',

@@ -17,3 +17,10 @@ export const finalizeBillSchema = z.object({
   customerName: z.string().optional().nullable(),
   customerPhone: z.string().optional().nullable(),
 });
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');
+
+export const prepareArchiveSchema = z.object({
+  startDate: isoDate,
+  endDate: isoDate,
+});

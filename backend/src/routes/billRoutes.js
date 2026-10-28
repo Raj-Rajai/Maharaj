@@ -1,12 +1,17 @@
 import { Router } from 'express';
 import * as billController from '../controllers/billController.js';
-import { authenticate, requirePermission } from '../middleware/auth.js';
+import { authenticate, authorize, requirePermission } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
-import { previewBillSchema, createBillSchema, finalizeBillSchema } from '../validators/billValidator.js';
+import { previewBillSchema, createBillSchema, finalizeBillSchema, prepareArchiveSchema } from '../validators/billValidator.js';
 
 const router = Router();
 
 router.use(authenticate);
+
+// Download & remove a date range of bills — super admin only
+router.post('/archive/prepare', authorize('SUPER_ADMIN'), validate(prepareArchiveSchema), billController.prepareArchive);
+router.get('/archive/:token/download', authorize('SUPER_ADMIN'), billController.downloadArchive);
+router.post('/archive/:token/confirm', authorize('SUPER_ADMIN'), billController.confirmArchive);
 
 router.post('/preview', validate(previewBillSchema), billController.preview);
 router.post('/', requirePermission('BILL_VIEW_DRAFT'), validate(createBillSchema), billController.create);
