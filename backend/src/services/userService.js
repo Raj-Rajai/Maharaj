@@ -258,26 +258,3 @@ export const updateStatus = async (id, active) => {
   return user;
 };
 
-export const remove = async (id, currentUserId) => {
-  if (id === currentUserId) {
-    throw { status: 400, message: 'You cannot delete your own account' };
-  }
-  const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) {
-    throw { status: 404, message: 'User not found' };
-  }
-  if (user.role === 'SUPER_ADMIN') {
-    throw { status: 403, message: 'Super Admin accounts cannot be deleted' };
-  }
-
-  // Atomic: delete permissions + tokens + user in one transaction
-  await prisma.$transaction(async (tx) => {
-    await tx.userPermission.deleteMany({ where: { userId: id } });
-    await tx.refreshToken.deleteMany({ where: { userId: id } });
-    await tx.user.delete({ where: { id } });
-  });
-
-  userAuthCache.invalidate(id);
-  tableCache.invalidate();
-  return { message: 'User deleted successfully' };
-};

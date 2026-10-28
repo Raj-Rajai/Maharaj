@@ -17,7 +17,6 @@ import {
   Lock,
   RotateCcw,
   CheckCheck,
-  Trash2,
 } from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
@@ -40,7 +39,7 @@ const PERMISSION_GROUPS = [
   { group: 'Purchases', perms: ['PURCHASE_VIEW', 'PURCHASE_CREATE', 'PURCHASE_EDIT', 'PURCHASE_DELETE'] },
   { group: 'Inventory', perms: ['INVENTORY_VIEW', 'INVENTORY_CREATE', 'INVENTORY_EDIT', 'INVENTORY_ADJUST'] },
   { group: 'Reports & Export', perms: ['REPORT_VIEW', 'REPORT_PDF', 'REPORT_CSV'] },
-  { group: 'Users & Roles', perms: ['USER_VIEW', 'USER_CREATE', 'USER_EDIT', 'USER_DELETE'] },
+  { group: 'Users & Roles', perms: ['USER_VIEW', 'USER_CREATE', 'USER_EDIT'] },
   { group: 'Settings', perms: ['SETTINGS_VIEW', 'SETTINGS_EDIT'] },
   { group: 'Online Orders', perms: ['ONLINE_ORDER_VIEW', 'ONLINE_ORDER_CREATE', 'ONLINE_ORDER_EDIT'] },
   { group: 'Notifications', perms: ['NOTIFICATION_KOT_AC', 'NOTIFICATION_KOT_NON_AC', 'NOTIFICATION_BILL_AC', 'NOTIFICATION_BILL_NON_AC'] },
@@ -110,7 +109,6 @@ const PERMISSION_LABELS = {
   USER_VIEW: 'View Users List',
   USER_CREATE: 'Create New Users',
   USER_EDIT: 'Edit Users & Permissions',
-  USER_DELETE: 'Delete Users',
 
   SETTINGS_VIEW: 'View Settings',
   SETTINGS_EDIT: 'Modify Settings',
@@ -158,7 +156,6 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false);
   const { user: currentUser, hasPermission, refreshUser } = useAuth();
   const canEdit = hasPermission('USER_EDIT');
-  const canDelete = hasPermission('USER_DELETE');
 
   const fetchUsers = async () => {
     try {
@@ -266,27 +263,6 @@ export default function UsersPage() {
       fetchUsers();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update user status');
-    }
-  };
-
-  const deleteUser = async (u) => {
-    if (u.id === currentUser?.id) {
-      toast.error("You cannot delete your own account");
-      return;
-    }
-    if (u.role === 'SUPER_ADMIN') {
-      toast.error("Super Admin accounts cannot be deleted");
-      return;
-    }
-    if (!window.confirm(`Are you sure you want to delete user @${u.username}? This action cannot be undone.`)) {
-      return;
-    }
-    try {
-      await api.delete(`/users/${u.id}`);
-      toast.success(`User @${u.username} deleted successfully`);
-      fetchUsers();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete user');
     }
   };
 
@@ -452,15 +428,6 @@ export default function UsersPage() {
                             title={isCurrent ? "You cannot disable yourself" : u.active ? "Deactivate User" : "Activate User"}
                           >
                             {u.active ? 'Deactivate' : 'Activate'}
-                          </button>
-                        )}
-                        {canDelete && !isCurrent && u.role !== 'SUPER_ADMIN' && (
-                          <button
-                            onClick={() => deleteUser(u)}
-                            className="p-1.5 rounded-lg text-text-secondary dark:text-slate-400 hover:text-danger hover:bg-red-50 dark:hover:bg-red-950/30 border border-transparent hover:border-red-200 dark:hover:border-red-800 transition-colors cursor-pointer"
-                            title="Delete User Account"
-                          >
-                            <Trash2 size={13} />
                           </button>
                         )}
                       </div>

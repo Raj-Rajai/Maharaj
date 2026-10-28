@@ -15,6 +15,6 @@ router.patch('/:id', requirePermission('USER_EDIT'), validate(updateUserSchema),
 router.patch('/:id/status', requirePermission('USER_EDIT'), validate(updateStatusSchema), userController.updateStatus);
 router.get('/:id/permissions', requirePermission('USER_VIEW'), userController.getPermissions);
 router.put('/:id/permissions', requirePermission('USER_EDIT'), userController.updatePermissions);
-router.delete('/:id', requirePermission('USER_DELETE'), userController.remove);
+// Users are never deleted (their orders and audit history reference them) — deactivate instead
 
 export default router;

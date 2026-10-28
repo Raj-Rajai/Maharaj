@@ -70,12 +70,3 @@ export const getPermissions = async (req, res, next) => {
   }
 };
 
-export const remove = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const result = await userService.remove(id, req.user.id);
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
-};

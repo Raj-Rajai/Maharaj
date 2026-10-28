@@ -1069,6 +1069,8 @@ export default function BillsPage() {
 
   const hasActiveColumnFilters = Object.keys(columnFilters).length > 0 || !!columnSort;
 
+  const showSettlePanel = billDetails?.bill?.status === 'DRAFT' && (hasPermission('BILL_FINALIZE') || hasPermission('BILL_CANCEL'));
+
   return (
     <div className="space-y-6">
 
@@ -1587,7 +1589,7 @@ export default function BillsPage() {
         isOpen={!!selectedBill}
         onClose={closeModal}
         title={`Bill Details #${selectedBill?.billNumber}`}
-        size="lg"
+        size={showSettlePanel ? 'xl' : 'lg'}
       >
         {selectedBill && (
           <div className="space-y-4">
@@ -1645,6 +1647,8 @@ export default function BillsPage() {
                   </div>
                 </div>
 
+                {/* Receipt preview on the left, settle panel on the right (stacks on narrow screens) */}
+                <div className={showSettlePanel ? 'grid grid-cols-1 md:grid-cols-2 gap-4 items-start' : ''}>
                 {/* Thermal Bill Preview - authentic white receipt paper inside dark container */}
                 <div className="bg-slate-100 dark:bg-slate-950 p-4 rounded-xl border border-border dark:border-slate-800 flex justify-center">
                   <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-200 w-full max-w-sm font-mono text-xs text-slate-900 space-y-2.5">
@@ -1759,14 +1763,14 @@ export default function BillsPage() {
                   </div>
                 </div>
 
-                {billDetails.bill.status === 'DRAFT' && (hasPermission('BILL_FINALIZE') || hasPermission('BILL_CANCEL')) && (
-                  <div className="bg-surface dark:bg-slate-800/80 p-4 rounded-xl border border-border dark:border-slate-700 space-y-3">
+                {showSettlePanel && (
+                  <div className="bg-surface dark:bg-slate-800/80 p-4 rounded-xl border border-border dark:border-slate-700 space-y-3 md:sticky md:top-0">
 
                     <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-border dark:border-slate-700 space-y-2">
                       <p className="text-xs font-semibold text-text dark:text-slate-100 uppercase tracking-wider">
                         Customer Details (Optional)
                       </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="grid grid-cols-1 gap-2.5">
                         <div>
                           <label className="block text-[11px] text-text-secondary dark:text-slate-400 mb-1">
                             Customer Name
@@ -1838,6 +1842,7 @@ export default function BillsPage() {
                     </div>
                   </div>
                 )}
+                </div>
               </>
             ) : (
               <div className="text-center py-6 text-text-secondary dark:text-slate-400">
