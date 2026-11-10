@@ -21,6 +21,7 @@ const HourlyWaveChart = lazy(loadHourlyWaveChart);
 import QuickOperations from '../components/dashboard/QuickOperations';
 import LazyScrollSection from '../components/common/LazyScrollSection';
 import { useRouteActive } from '../components/common/RouteKeepAlive';
+import useRealtime from '../hooks/useRealtime';
 
 // Isolated so the 1s tick re-renders only this text, not the whole dashboard.
 // Paused while the route is hidden behind RouteKeepAlive.
@@ -80,19 +81,23 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
-  const fetchData = async (showToast = false) => {
+  const fetchData = async (showToast = false, forceFresh = false) => {
     try {
       setIsRefreshing(true);
+      if (showToast || forceFresh) {
+        api.invalidateCache('/reports');
+      }
+      const reqCfg = (showToast || forceFresh) ? { skipCache: true } : {};
       const now = new Date();
       const pad = (n) => String(n).padStart(2, '0');
       const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
       
       // Parallel calls — MySQL handles 5 concurrent connections fine
       const [salesRes, tablesRes, kotsRes, paymentsRes, inventoryRes] = await Promise.allSettled([
-        api.get(`/reports/sales?startDate=${todayStr}&endDate=${todayStr}`),
+        api.get(`/reports/sales?startDate=${todayStr}&endDate=${todayStr}`, reqCfg),
         api.get('/tables'),
         api.get('/kots'),
-        api.get(`/reports/payments?startDate=${todayStr}&endDate=${todayStr}`),
+        api.get(`/reports/payments?startDate=${todayStr}&endDate=${todayStr}`, reqCfg),
         api.get('/inventory').catch(() => api.get('/reports/inventory')),
       ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : { data: {} }));
 
@@ -219,9 +224,23 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!isActive) return;
     fetchData(false);
-    const interval = setInterval(() => fetchData(false), 45000);
+    const interval = setInterval(() => fetchData(false, true), 45000);
     return () => clearInterval(interval);
   }, [isActive]);
+
+  // Live Socket.IO monitoring: refresh Dashboard automatically when any operational event occurs
+  useRealtime({
+    'table:updated': () => fetchData(false, true),
+    'table:changed': () => fetchData(false, true),
+    'session:opened': () => fetchData(false, true),
+    'session:closed': () => fetchData(false, true),
+    'kot:created': () => fetchData(false, true),
+    'kot:updated': () => fetchData(false, true),
+    'bill:created': () => fetchData(false, true),
+    'bill:updated': () => fetchData(false, true),
+    'bill:finalized': () => fetchData(false, true),
+    'inventory:updated': () => fetchData(false, true),
+  }, isActive, [], 600);
 
   const { totalPayments, cashPct, upiPct, cardPct } = useMemo(() => {
     const total = paymentsData.cash + paymentsData.upi + paymentsData.card;

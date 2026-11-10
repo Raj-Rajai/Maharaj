@@ -7,7 +7,8 @@ import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
 import Pagination from '../components/ui/Pagination';
 import { useAuth } from '../context/AuthContext';
-import { useOnRouteActive } from '../components/common/RouteKeepAlive';
+import { useOnRouteActive, useRouteActive } from '../components/common/RouteKeepAlive';
+import useRealtime from '../hooks/useRealtime';
 import { menuBlue, acBlue, nonAcBlue, swiggyIcon, zomatoIcon } from '../assets';
 
 const TABS = [
@@ -133,9 +134,7 @@ export default function MenuPage() {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      await fetchCategories();
-      await fetchItems(menuType);
-      fetchInventory();
+      await Promise.all([fetchCategories(), fetchItems(menuType), fetchInventory()]);
     } catch {
       toast.error('Failed to initialize menu data');
     } finally {
@@ -158,6 +157,20 @@ export default function MenuPage() {
       fetchItems(menuType);
     }
   });
+
+  const isActive = useRouteActive();
+  useRealtime({
+    'menu:updated': () => {
+      fetchCategories();
+      if (menuType) fetchItems(menuType);
+    },
+    'categories:updated': () => {
+      fetchCategories();
+    },
+    'inventory:updated': () => {
+      fetchInventory();
+    },
+  }, isActive);
 
   const handleMenuTypeChange = (newType) => {
     setMenuType(newType);

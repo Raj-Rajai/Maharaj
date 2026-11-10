@@ -3,6 +3,7 @@ import * as auditService from './auditService.js';
 import { parseDateRange } from '../utils/dateUtils.js';
 import { invalidateMenuCaches } from '../utils/cache.js';
 import { notifyStockChanged } from './stockService.js';
+import { emitMenuUpdated } from '../utils/socket.js';
 
 const MENU_LABELS = { AC: 'AC', NON_AC: 'Non-AC', SWIGGY: 'Swiggy', ZOMATO: 'Zomato' };
 
@@ -151,6 +152,7 @@ export const remove = async (id, userId) => {
   ]);
 
   invalidateMenuCaches();
+  emitMenuUpdated({ action: 'inventoryDeleted', inventoryItemId: id });
   if (userId) {
     await auditService.log({ userId, action: 'DELETE', entity: 'INVENTORY', entityId: id, before: { name: item.name, stock: Number(item.currentStock) } });
   }

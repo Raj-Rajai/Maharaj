@@ -192,6 +192,31 @@ const invalidateForMutation = (url) => {
   }
 };
 
+// Socket-driven cross-device cache invalidation:
+// When another device mutates data, Socket.IO broadcasts an event which realtime.js
+// forwards here as 'pos:realtime-event' so browser cache is cleared BEFORE any handler refetches.
+if (typeof window !== 'undefined') {
+  window.addEventListener('pos:realtime-event', (e) => {
+    const event = e?.detail?.event || '';
+    if (
+      event.startsWith('bill:') ||
+      event.startsWith('order:') ||
+      event.startsWith('kot:') ||
+      event.startsWith('table:') ||
+      event.startsWith('session:')
+    ) {
+      api.invalidateCache('/reports');
+    } else if (event === 'menu:updated' || event === 'categories:updated') {
+      api.invalidateCache('/menu');
+      api.invalidateCache('/reports');
+    } else if (event === 'inventory:updated') {
+      api.invalidateCache('/inventory');
+      api.invalidateCache('/menu');
+      api.invalidateCache('/reports');
+    }
+  });
+}
+
 // Live operational endpoints must NEVER be served from stale client cache
 // This ensures all devices (captains, kitchen, cashiers) always see live state without F5
 const LIVE_OPERATIONAL_PATTERNS = [
@@ -248,10 +273,11 @@ api.get = async (url, config = {}) => {
       return inFlightRequests.get(cacheKey);
     }
 
+    const effectiveTtl = config.ttl || (url.includes('/reports') ? 15_000 : DEFAULT_TTL_MS);
     const requestPromise = (async () => {
       try {
         const response = await originalGet(url, config);
-        saveToCache(cacheKey, response.data, response.headers, config.ttl);
+        saveToCache(cacheKey, response.data, response.headers, effectiveTtl);
         return response;
       } finally {
         inFlightRequests.delete(cacheKey);
@@ -267,7 +293,8 @@ api.get = async (url, config = {}) => {
   // Only save to cache if it's NOT a live operational endpoint and NOT auth
   if (!isLive && !url.includes('/auth/') && !skipCache) {
     const cacheKey = normalizeCacheKey(url, config.params);
-    saveToCache(cacheKey, response.data, response.headers, config.ttl);
+    const effectiveTtl = config.ttl || (url.includes('/reports') ? 15_000 : DEFAULT_TTL_MS);
+    saveToCache(cacheKey, response.data, response.headers, effectiveTtl);
   }
   return response;
 };

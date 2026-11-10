@@ -80,8 +80,11 @@ class RealtimeService {
       }
     });
 
-    // Wire up all registered event listeners
+    // Wire up all registered event listeners and notify client cache layer
     this.socket.onAny((event, ...args) => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pos:realtime-event', { detail: { event, args } }));
+      }
       const handlers = this.listeners.get(event);
       if (handlers && handlers.size > 0) {
         for (const handler of handlers) {

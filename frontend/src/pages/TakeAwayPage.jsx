@@ -10,7 +10,8 @@ import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../context/AuthContext';
-import { useOnRouteActive } from '../components/common/RouteKeepAlive';
+import { useOnRouteActive, useRouteActive } from '../components/common/RouteKeepAlive';
+import useRealtime from '../hooks/useRealtime';
 import { swiggyIcon, zomatoIcon, takeAwayBlue } from '../assets';
 
 const CHANNELS = [
@@ -106,12 +107,14 @@ export default function TakeAwayPage() {
 
   const activeChannelConfig = CHANNELS.find(c => c.id === selectedChannel) || CHANNELS[0];
 
-  // Fetch categories & menu items for active channel
+  // Fetch categories & menu items for active channel in parallel
   const loadMenuData = useCallback(async () => {
     setLoadingMenu(true);
     try {
-      const catRes = await api.get('/menu/categories');
-      const itemRes = await api.get('/menu/items', { params: { menuType: activeChannelConfig.menuType } });
+      const [catRes, itemRes] = await Promise.all([
+        api.get('/menu/categories'),
+        api.get('/menu/items', { params: { menuType: activeChannelConfig.menuType } }),
+      ]);
       setCategories(Array.isArray(catRes.data) ? catRes.data : catRes.data.value || []);
       setMenuItems(Array.isArray(itemRes.data) ? itemRes.data : itemRes.data.value || []);
     } catch {
@@ -120,6 +123,12 @@ export default function TakeAwayPage() {
       setLoadingMenu(false);
     }
   }, [activeChannelConfig.menuType]);
+
+  const isActive = useRouteActive();
+  useRealtime({
+    'menu:updated': () => loadMenuData(),
+    'categories:updated': () => loadMenuData(),
+  }, isActive);
 
   useEffect(() => {
     loadMenuData();

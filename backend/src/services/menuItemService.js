@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { menuCache, categoryCache, invalidateMenuCaches } from '../utils/cache.js';
+import { emitMenuUpdated } from '../utils/socket.js';
 
 const MENU_LABELS = { AC: 'AC', NON_AC: 'Non-AC', SWIGGY: 'Swiggy', ZOMATO: 'Zomato' };
 
@@ -68,6 +69,7 @@ export const create = async (data) => {
   }
   const created = await prisma.menuItem.create({ data });
   invalidateMenuCaches();
+  emitMenuUpdated({ action: 'created', menuType: data.menuType });
   return created;
 };
 
@@ -83,18 +85,21 @@ export const update = async (id, data) => {
   }
   const updated = await prisma.menuItem.update({ where: { id }, data });
   invalidateMenuCaches();
+  emitMenuUpdated({ action: 'updated', id });
   return updated;
 };
 
 export const updateAvailability = async (id, active) => {
   const updated = await prisma.menuItem.update({ where: { id }, data: { active } });
   invalidateMenuCaches();
+  emitMenuUpdated({ action: 'availability', id, active });
   return updated;
 };
 
 export const softDelete = async (id) => {
   const deleted = await prisma.menuItem.update({ where: { id }, data: { active: false, inventoryItemId: null } });
   invalidateMenuCaches();
+  emitMenuUpdated({ action: 'deleted', id });
   return deleted;
 };
 
@@ -189,6 +194,7 @@ export const bulkAdd = async (data) => {
   });
 
   invalidateMenuCaches();
+  emitMenuUpdated({ action: 'bulkAdd' });
   return results;
 };
 
@@ -237,5 +243,6 @@ export const bulkUpdate = async (data) => {
   });
 
   invalidateMenuCaches();
+  emitMenuUpdated({ action: 'bulkUpdate' });
   return results;
 };

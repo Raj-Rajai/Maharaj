@@ -138,3 +138,8 @@ export function emitCategoriesUpdated() {
   if (!io) return;
   io.emit('categories:updated');
 }
+
+export function emitMenuUpdated(payload) {
+  if (!io) return;
+  io.emit('menu:updated', payload);
+}
