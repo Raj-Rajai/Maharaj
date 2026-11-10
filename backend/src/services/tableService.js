@@ -26,6 +26,11 @@ export const getAll = async () => {
 };
 
 export const getById = async (id) => {
+  const cached = tableCache.get();
+  if (cached) {
+    const found = cached.find((t) => t.id === id);
+    if (found && found.active) return found;
+  }
   const table = await prisma.table.findUnique({ where: { id } });
   if (!table || !table.active) throw { status: 404, message: 'Table not found' };
   return table;
@@ -86,21 +91,21 @@ export const remove = async (id) => {
 export const closeTable = async (tableId) => {
   const openSession = await prisma.tableSession.findFirst({
     where: { tableId, status: 'OPEN' },
+    select: { id: true },
   });
 
   if (openSession) {
     await sessionService.close(openSession.id, { cancelOrders: true });
-  } else {
-    // If no open session exists, directly release table to AVAILABLE
-    await prisma.table.update({
-      where: { id: tableId },
-      data: { status: 'AVAILABLE' },
-    });
-    tableCache.invalidate();
-    emitTableUpdated({ id: tableId, status: 'AVAILABLE' });
+    return prisma.table.findUnique({ where: { id: tableId } });
   }
 
-  const updatedTable = await prisma.table.findUnique({ where: { id: tableId } });
+  // If no open session exists, directly release table to AVAILABLE and return in 1 query
+  const updatedTable = await prisma.table.update({
+    where: { id: tableId },
+    data: { status: 'AVAILABLE' },
+  });
+  tableCache.invalidate();
+  emitTableUpdated({ id: tableId, status: 'AVAILABLE' });
   return updatedTable;
 };
 

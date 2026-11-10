@@ -6,37 +6,78 @@ const getDateRangeFilter = (startDate, endDate) => {
   return getPrismaDateFilter(startDate, endDate, 'createdAt');
 };
 
+const getCachedCategories = async () => {
+  const cached = categoryCache.get();
+  if (cached) return cached;
+  const categories = await prisma.category.findMany({
+    where: { active: true },
+    orderBy: { displayOrder: 'asc' },
+    include: {
+      _count: {
+        select: { menuItems: { where: { active: true } } }
+      }
+    }
+  });
+  categoryCache.set(categories);
+  return categories;
+};
+
+const getCachedSettings = async () => {
+  const cached = settingsCache.get();
+  if (cached) return cached;
+  const s = await prisma.settings.findFirst();
+  if (!s) return null;
+  const formatted = {
+    ...s,
+    sgstPercent: s.sgstPercent !== undefined && s.sgstPercent !== null ? Number(s.sgstPercent).toFixed(2) : '2.50',
+    cgstPercent: s.cgstPercent !== undefined && s.cgstPercent !== null ? Number(s.cgstPercent).toFixed(2) : '2.50',
+  };
+  settingsCache.set(formatted);
+  return formatted;
+};
+
+const AGGREGATED_ITEMS_SQL = `
+  SELECT COALESCE(NULLIF(oi.itemNameSnapshot, ''), m.name, 'Unknown Item') AS itemName,
+         COALESCE(c.name, 'Other') AS categoryName,
+         COALESCE(SUM(oi.quantity), 0) AS totalQuantity,
+         COALESCE(SUM(oi.quantity * COALESCE(oi.priceSnapshot, m.price, 0)), 0) AS totalRevenue
+  FROM \`Bill\` b
+  INNER JOIN \`OrderItem\` oi ON oi.orderId = b.orderId
+  LEFT JOIN \`MenuItem\` m ON m.id = oi.menuItemId
+  LEFT JOIN \`Category\` c ON c.id = m.categoryId
+  WHERE b.status = 'FINALIZED'
+    AND b.createdAt >= ? AND b.createdAt <= ?
+    AND oi.status != 'CANCELLED'
+  GROUP BY COALESCE(NULLIF(oi.itemNameSnapshot, ''), m.name, 'Unknown Item'),
+           COALESCE(c.name, 'Other')
+`;
+
+const SALES_BILLS_SQL = `
+  SELECT b.id, b.orderId, b.total, b.sgstAmount, b.cgstAmount, b.createdAt,
+         o.orderSource,
+         COALESCE(st.type, ot.type) as tableType
+  FROM \`Bill\` b
+  LEFT JOIN \`Order\` o ON o.id = b.orderId
+  LEFT JOIN \`Table\` ot ON ot.id = o.tableId
+  LEFT JOIN \`TableSession\` s ON s.id = b.sessionId
+  LEFT JOIN \`Table\` st ON st.id = s.tableId
+  WHERE b.status = 'FINALIZED' AND b.createdAt >= ? AND b.createdAt <= ?
+  ORDER BY b.createdAt ASC
+`;
+
 export const salesSummary = async (startDate, endDate) => {
   const { start: dateStart, end: dateEnd, isSingleDay } = parseDateRange(startDate, endDate);
   const dateFilter = { createdAt: { gte: dateStart, lte: dateEnd } };
 
-  const [bills, onlineOrders] = await Promise.all([
-    prisma.bill.findMany({
-      where: { status: 'FINALIZED', ...dateFilter },
-      select: {
-        orderId: true,
-        total: true,
-        sgstAmount: true,
-        cgstAmount: true,
-        createdAt: true,
-        order: {
-          select: {
-            orderSource: true,
-            table: { select: { type: true } },
-          }
-        },
-        session: {
-          select: {
-            table: { select: { type: true } }
-          }
-        }
-      },
-      orderBy: { createdAt: 'asc' }
-    }),
+  const [bills, onlineOrders, groupedItems, allActiveCategories, settings] = await Promise.all([
+    rawQuery(SALES_BILLS_SQL, dateStart, dateEnd),
     prisma.onlineOrder.findMany({
       where: { status: 'COMPLETED', ...dateFilter },
       select: { platform: true, total: true }
-    })
+    }),
+    rawQuery(AGGREGATED_ITEMS_SQL, dateStart, dateEnd),
+    getCachedCategories(),
+    getCachedSettings(),
   ]);
 
   let acSales = 0;
@@ -47,7 +88,7 @@ export const salesSummary = async (startDate, endDate) => {
 
   bills.forEach(b => {
     const total = Number(b.total);
-    const source = b.order?.orderSource;
+    const source = b.orderSource;
 
     if (source === 'DINE_IN_AC') {
       acSales += total;
@@ -60,7 +101,7 @@ export const salesSummary = async (startDate, endDate) => {
     } else if (source === 'ZOMATO') {
       zomatoRevenue += total;
     } else {
-      if (b.session?.table?.type === 'AC' || b.order?.table?.type === 'AC') {
+      if (b.tableType === 'AC') {
         acSales += total;
       } else {
         nonAcSales += total;
@@ -124,7 +165,7 @@ export const salesSummary = async (startDate, endDate) => {
         };
       }
       const total = Number(b.total);
-      const source = b.order?.orderSource;
+      const source = b.orderSource;
       hourMap[h].orders += 1;
       hourMap[h].total += total;
 
@@ -144,7 +185,7 @@ export const salesSummary = async (startDate, endDate) => {
         hourMap[h].zomatoRevenue += total;
         hourMap[h].takeAway += total;
       } else {
-        if (b.session?.table?.type === 'AC' || b.order?.table?.type === 'AC') {
+        if (b.tableType === 'AC') {
           hourMap[h].acSales += total;
           hourMap[h].dineIn += total;
         } else {
@@ -199,7 +240,7 @@ export const salesSummary = async (startDate, endDate) => {
         };
       }
       const total = Number(b.total);
-      const source = b.order?.orderSource;
+      const source = b.orderSource;
       dateMap[key].orders += 1;
       dateMap[key].total += total;
 
@@ -219,7 +260,7 @@ export const salesSummary = async (startDate, endDate) => {
         dateMap[key].zomatoRevenue += total;
         dateMap[key].takeAway += total;
       } else {
-        if (b.session?.table?.type === 'AC' || b.order?.table?.type === 'AC') {
+        if (b.tableType === 'AC') {
           dateMap[key].acSales += total;
           dateMap[key].dineIn += total;
         } else {
@@ -232,31 +273,6 @@ export const salesSummary = async (startDate, endDate) => {
     timeline = Object.keys(dateMap).sort().map(k => dateMap[k]);
   }
 
-  const orderIds = bills.map(b => b.orderId).filter(Boolean);
-  const orderItems = orderIds.length > 0 ? await prisma.orderItem.findMany({
-    where: {
-      orderId: { in: orderIds },
-      status: { not: 'CANCELLED' }
-    },
-    select: {
-      itemNameSnapshot: true,
-      priceSnapshot: true,
-      quantity: true,
-      menuItem: {
-        select: {
-          name: true,
-          price: true,
-          category: { select: { name: true } }
-        }
-      }
-    }
-  }) : [];
-
-  const allActiveCategories = categoryCache.get() || await prisma.category.findMany({
-    where: { active: true },
-    orderBy: { displayOrder: 'asc' }
-  });
-
   const itemMap = {};
   const catMap = {};
 
@@ -265,12 +281,11 @@ export const salesSummary = async (startDate, endDate) => {
     catMap[c.name] = { id: c.id, name: c.name, displayOrder: c.displayOrder, revenue: 0, quantity: 0 };
   });
 
-  orderItems.forEach(it => {
-    const name = it.itemNameSnapshot || it.menuItem?.name || 'Unknown Item';
-    const category = it.menuItem?.category?.name || 'Other';
-    const qty = Number(it.quantity || 1);
-    const price = Number(it.priceSnapshot || it.menuItem?.price || 0);
-    const revenue = qty * price;
+  groupedItems.forEach(it => {
+    const name = it.itemName || 'Unknown Item';
+    const category = it.categoryName || 'Other';
+    const qty = Number(it.totalQuantity || 0);
+    const revenue = Number(it.totalRevenue || 0);
 
     if (!itemMap[name]) {
       itemMap[name] = { name, category, quantity: 0, revenue: 0 };
@@ -287,8 +302,6 @@ export const salesSummary = async (startDate, endDate) => {
 
   const topItems = Object.values(itemMap).sort((a, b) => b.revenue - a.revenue).slice(0, 100);
   const categorySales = Object.values(catMap);
-
-  const settings = settingsCache.get() || await prisma.settings.findFirst();
   let purchaseCost = 0;
   let netSalesAfterPurchases = totalRevenue;
 
@@ -393,67 +406,61 @@ export const orderSummary = async (startDate, endDate) => {
 };
 
 export const paymentBreakdown = async (startDate, endDate) => {
-  const dateFilter = getDateRangeFilter(startDate, endDate);
+  const { start, end } = parseDateRange(startDate, endDate);
 
-  const bills = await prisma.bill.findMany({
-    where: { status: 'FINALIZED', ...dateFilter },
-    select: {
-      total: true,
-      payment: { select: { method: true } },
-    },
-  });
+  const rows = await rawQuery(
+    `SELECT COALESCE(p.method, 'UNKNOWN') AS method,
+            COALESCE(SUM(b.total), 0) AS total,
+            COUNT(*) AS count
+     FROM \`Bill\` b
+     LEFT JOIN \`Payment\` p ON p.billId = b.id
+     WHERE b.status = 'FINALIZED' AND b.createdAt >= ? AND b.createdAt <= ?
+     GROUP BY COALESCE(p.method, 'UNKNOWN')`,
+    start,
+    end
+  );
 
   const breakdown = {};
-  for (const bill of bills) {
-    const method = bill.payment?.method || 'UNKNOWN';
-    if (!breakdown[method]) breakdown[method] = { total: 0, count: 0 };
-    breakdown[method].total += Number(bill.total);
-    breakdown[method].count += 1;
+  for (const row of rows) {
+    const method = row.method || 'UNKNOWN';
+    breakdown[method] = {
+      total: Number(row.total || 0),
+      count: Number(row.count || 0),
+    };
   }
   return breakdown;
 };
 
 export const tableSummary = async (startDate, endDate) => {
-  const dateFilter = getDateRangeFilter(startDate, endDate);
+  const { start, end } = parseDateRange(startDate, endDate);
 
-  const bills = await prisma.bill.findMany({
-    where: { status: 'FINALIZED', ...dateFilter },
-    select: {
-      total: true,
-      order: {
-        select: {
-          table: { select: { id: true, number: true, type: true } },
-        },
-      },
-      session: {
-        select: {
-          table: { select: { id: true, number: true, type: true } },
-        },
-      },
-    },
-  });
+  const rows = await rawQuery(
+    `SELECT COALESCE(st.id, ot.id) AS tableId,
+            COALESCE(st.number, ot.number) AS tableNumber,
+            COALESCE(st.type, ot.type) AS type,
+            COALESCE(SUM(b.total), 0) AS revenue,
+            COUNT(*) AS ordersCount
+     FROM \`Bill\` b
+     LEFT JOIN \`Order\` o ON o.id = b.orderId
+     LEFT JOIN \`Table\` ot ON ot.id = o.tableId
+     LEFT JOIN \`TableSession\` s ON s.id = b.sessionId
+     LEFT JOIN \`Table\` st ON st.id = s.tableId
+     WHERE b.status = 'FINALIZED'
+       AND b.createdAt >= ? AND b.createdAt <= ?
+       AND COALESCE(st.id, ot.id) IS NOT NULL
+     GROUP BY COALESCE(st.id, ot.id), COALESCE(st.number, ot.number), COALESCE(st.type, ot.type)
+     ORDER BY revenue DESC`,
+    start,
+    end
+  );
 
-  const summary = bills.reduce((acc, bill) => {
-    const table = bill.session?.table || bill.order?.table;
-    if (!table) return acc;
-
-    const tableNo = table.number;
-    if (!acc[tableNo]) {
-      acc[tableNo] = {
-        tableId: table.id,
-        tableNumber: tableNo,
-        type: table.type,
-        revenue: 0,
-        ordersCount: 0
-      };
-    }
-
-    acc[tableNo].revenue += Number(bill.total);
-    acc[tableNo].ordersCount += 1;
-    return acc;
-  }, {});
-
-  return Object.values(summary).sort((a, b) => b.revenue - a.revenue);
+  return rows.map(r => ({
+    tableId: r.tableId,
+    tableNumber: Number(r.tableNumber),
+    type: r.type,
+    revenue: Number(r.revenue || 0),
+    ordersCount: Number(r.ordersCount || 0),
+  }));
 };
 
 export const onlineOrderSummary = async (startDate, endDate) => {
@@ -590,7 +597,6 @@ export const inventoryStatus = async () => {
 export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   const { start: sqlStartDate, end: sqlEndDate, isSingleDay } = parseDateRange(startDate, endDate);
   const dateFilter = { createdAt: { gte: sqlStartDate, lte: sqlEndDate } };
-  const settings = settingsCache.get() || await prisma.settings.findFirst();
   const purchaseDateFilter = { purchaseDate: { gte: sqlStartDate, lte: sqlEndDate } };
 
   const billsQuery = `
@@ -611,8 +617,8 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     ORDER BY b.createdAt ASC
   `;
 
-  // Run the 4 core queries in parallel ONCE
-  const [bills, onlineOrders, allOrders, purchases] = await Promise.all([
+  // Run all queries (including SQL-grouped order items, categories, and settings) in a SINGLE parallel roundtrip
+  const [bills, onlineOrders, allOrders, purchases, groupedItems, allActiveCategories, settings] = await Promise.all([
     rawQuery(billsQuery, sqlStartDate, sqlEndDate),
 
     prisma.onlineOrder.findMany({
@@ -631,25 +637,12 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
         totalAmount: true,
         supplier: { select: { name: true } }
       }
-    })
-  ]);
+    }),
 
-  // Fetch non-cancelled order items in a flat batch query to prevent connection resets and 5-level deep joins
-  const orderIds = bills.map(b => b.orderId).filter(Boolean);
-  const orderItems = orderIds.length > 0 ? await prisma.orderItem.findMany({
-    where: {
-      orderId: { in: orderIds },
-      status: { not: 'CANCELLED' }
-    },
-    select: {
-      itemNameSnapshot: true,
-      priceSnapshot: true,
-      quantity: true,
-      menuItem: {
-        select: { name: true, price: true, category: { select: { name: true } } }
-      }
-    }
-  }) : [];
+    rawQuery(AGGREGATED_ITEMS_SQL, sqlStartDate, sqlEndDate),
+    getCachedCategories(),
+    getCachedSettings(),
+  ]);
 
   // --- 1. SALES SUMMARY ---
   let acSales = 0;
@@ -846,12 +839,7 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     timeline = Object.keys(dateMap).sort().map(k => dateMap[k]);
   }
 
-  // Top Items & Category Sales
-  const allActiveCategories = categoryCache.get() || await prisma.category.findMany({
-    where: { active: true },
-    orderBy: { displayOrder: 'asc' }
-  });
-
+  // Top Items & Category Sales (pre-aggregated in SQL)
   const itemMap = {};
   const catMap = {};
 
@@ -860,12 +848,11 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     catMap[c.name] = { id: c.id, name: c.name, displayOrder: c.displayOrder, revenue: 0, quantity: 0 };
   });
 
-  orderItems.forEach(it => {
-    const name = it.itemNameSnapshot || it.menuItem?.name || 'Unknown Item';
-    const category = it.menuItem?.category?.name || 'Other';
-    const qty = Number(it.quantity || 1);
-    const price = Number(it.priceSnapshot || it.menuItem?.price || 0);
-    const revenue = qty * price;
+  groupedItems.forEach(it => {
+    const name = it.itemName || 'Unknown Item';
+    const category = it.categoryName || 'Other';
+    const qty = Number(it.totalQuantity || 0);
+    const revenue = Number(it.totalRevenue || 0);
 
     if (!itemMap[name]) {
       itemMap[name] = { name, category, quantity: 0, revenue: 0 };

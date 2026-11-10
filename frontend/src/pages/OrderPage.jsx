@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -57,48 +57,32 @@ export default function OrderPage() {
 
   const loadData = useCallback(async () => {
     try {
-      // Phase 1: Parallel fetch of table info, categories, and active sessions
-      const [tabRes, catRes, sessRes] = await Promise.all([
+      const roleMenuType = user?.role === 'AC_MASTER' ? 'AC' : user?.role === 'NON_AC_MASTER' ? 'NON_AC' : null;
+      // Phase 1: Parallel fetch of table info, categories, active sessions, active table order, and menu items (if role-fixed)
+      const [tabRes, catRes, sessRes, ordRes, roleItemRes] = await Promise.all([
         api.get(`/tables/${tableId}`),
         api.get('/menu/categories'),
         api.get('/table-sessions/active'),
+        api.get('/orders', { params: { tableId, status: 'ACTIVE' } }).catch(() => ({ data: [] })),
+        roleMenuType ? api.get('/menu/items', { params: { menuType: roleMenuType } }) : Promise.resolve(null),
       ]);
       const tableData = tabRes.data;
       setTable(tableData);
       setCategories(Array.isArray(catRes.data) ? catRes.data : catRes.data.value || []);
 
-      let menuType = tableData.type;
-      if (user?.role === 'AC_MASTER') {
-        menuType = 'AC';
-      } else if (user?.role === 'NON_AC_MASTER') {
-        menuType = 'NON_AC';
-      }
+      const menuType = roleMenuType || tableData.type;
 
       const sessions = Array.isArray(sessRes.data) ? sessRes.data : sessRes.data.value || [];
       const sess = sessions.find((s) => s.tableId === tableId);
       setSession(sess || null);
 
-      // Phase 2: Parallel fetch of menu items and active order (orders[0] already includes items)
-      const fetchOps = [
-        api.get('/menu/items', { params: { menuType } }),
-      ];
-      if (sess) {
-        fetchOps.push(
-          api.get('/orders', { params: { sessionId: sess.id, status: 'ACTIVE' } })
-            .catch(() => ({ data: [] }))
-        );
-      }
-
-      const [itemRes, ordRes] = await Promise.all(fetchOps);
+      const itemRes = roleItemRes || await api.get('/menu/items', { params: { menuType } });
       setMenuItems(Array.isArray(itemRes.data) ? itemRes.data : itemRes.data.value || []);
 
-      if (ordRes) {
+      if (sess && ordRes) {
         const orders = Array.isArray(ordRes.data) ? ordRes.data : ordRes.data.value || [];
-        if (orders.length > 0) {
-          setOrder(orders[0]);
-        } else {
-          setOrder(null);
-        }
+        const matchedOrder = orders.find((o) => !o.sessionId || o.sessionId === sess.id) || orders[0] || null;
+        setOrder(matchedOrder);
       } else {
         setOrder(null);
       }
@@ -111,12 +95,15 @@ export default function OrderPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const filteredItems = menuItems.filter(item => {
-    if (!item.active) return false;
-    if (selectedCat !== 'ALL' && item.categoryId !== selectedCat) return false;
-    if (searchQ && !item.name.toLowerCase().includes(searchQ.toLowerCase())) return false;
-    return true;
-  });
+  const filteredItems = useMemo(() => {
+    const q = searchQ ? searchQ.toLowerCase() : '';
+    return menuItems.filter(item => {
+      if (!item.active) return false;
+      if (selectedCat !== 'ALL' && item.categoryId !== selectedCat) return false;
+      if (q && !item.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [menuItems, selectedCat, searchQ]);
 
   const addToCart = (item) => {
     if (!canOrder) {

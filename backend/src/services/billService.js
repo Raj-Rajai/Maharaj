@@ -69,9 +69,9 @@ export const preview = async (orderId, discount = 0) => {
     include: {
       items: {
         where: { status: { not: 'CANCELLED' } },
-        include: { menuItem: true },
+        select: { priceSnapshot: true, quantity: true },
       },
-      table: true,
+      table: { select: { type: true } },
     },
   });
   if (!order) throw { status: 404, message: 'Order not found' };
@@ -89,7 +89,7 @@ export const create = async (orderId, discount = 0, customerName = null, custome
     include: {
       items: {
         where: { status: { not: 'CANCELLED' } },
-        include: { menuItem: true },
+        select: { priceSnapshot: true, quantity: true },
       },
       table: true,
       bill: true,
@@ -328,12 +328,12 @@ export const cancel = async (billId) => {
   const updated = await prisma.bill.update({ where: { id: billId }, data: { status: 'CANCELLED' } });
   const formattedUpdated = formatBill(updated);
   emitBillUpdated(formattedUpdated);
+  reportCache.invalidate();
   return formattedUpdated;
 };
 
 export const getBillPrintData = async (billId) => {
-  const bill = await getById(billId);
-  const settings = await getSettings();
+  const [bill, settings] = await Promise.all([getById(billId), getSettings()]);
   const validItems = bill.order.items.filter(i => i.status !== 'CANCELLED');
   return { bill, settings, validItems };
 };
@@ -447,6 +447,7 @@ export const amendBill = async (billId, changes, reason, userId, discount, custo
   });
 
   emitBillUpdated({ id: billId, ...amendment });
+  reportCache.invalidate();
   return amendment;
 };
 
@@ -484,6 +485,7 @@ export const settleAmendment = async (amendmentId, paymentMethod) => {
   });
 
   emitBillUpdated({ id: amendment.billId, amendmentId, settled: true });
+  reportCache.invalidate();
   return result;
 };
 
@@ -568,6 +570,7 @@ export const editDraft = async (billId, changes, discount, userId, customerName 
 
   const formattedUpdatedBill = formatBill(updatedBill);
   emitBillUpdated(formattedUpdatedBill);
+  reportCache.invalidate();
   notifyStockChanged(stockChanged);
   return formattedUpdatedBill;
 };

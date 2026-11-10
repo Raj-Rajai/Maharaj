@@ -97,18 +97,19 @@ export const getAll = async (filters) => {
     ORDER BY k.createdAt DESC
   `;
 
-  const rows = await rawQuery(sql, ...params);
-  if (!rows || rows.length === 0) return [];
-
-  const kotIds = rows.map(r => r.id);
-  const itemsPlaceholders = kotIds.map(() => '?').join(', ');
   const itemsSql = `
-    SELECT id, orderId, menuItemId, itemNameSnapshot, priceSnapshot,
-           quantity, originalQuantity, status, notes, kotId, createdAt
-    FROM \`OrderItem\`
-    WHERE kotId IN (${itemsPlaceholders})
+    SELECT oi.id, oi.orderId, oi.menuItemId, oi.itemNameSnapshot, oi.priceSnapshot,
+           oi.quantity, oi.originalQuantity, oi.status, oi.notes, oi.kotId, oi.createdAt
+    FROM \`OrderItem\` oi
+    INNER JOIN \`KOT\` k ON k.id = oi.kotId
+    ${whereClause}
   `;
-  const items = await rawQuery(itemsSql, ...kotIds);
+
+  const [rows, items] = await Promise.all([
+    rawQuery(sql, ...params),
+    rawQuery(itemsSql, ...params),
+  ]);
+  if (!rows || rows.length === 0) return [];
 
   const itemsByKotId = {};
   for (const item of items) {
@@ -205,7 +206,10 @@ export const updateStatus = async (id, status) => {
 };
 
 export const updateItemStatus = async (itemId, status) => {
-  const orderItem = await prisma.orderItem.findUnique({ where: { id: itemId } });
+  const orderItem = await prisma.orderItem.findUnique({
+    where: { id: itemId },
+    include: { kot: { select: { status: true } } },
+  });
   if (!orderItem) {
     throw { status: 404, message: 'Order item not found' };
   }
@@ -230,25 +234,20 @@ export const updateItemStatus = async (itemId, status) => {
       data: { status },
     });
 
-    // Synchronize parent KOT's status based on all its items
+    // Synchronize parent KOT's status based on all its items (select only status column)
     const allItems = await tx.orderItem.findMany({
-      where: { kotId: orderItem.kotId }
+      where: { kotId: orderItem.kotId },
+      select: { status: true },
     });
 
     let newKotStatus = null;
     const activeItems = allItems.filter(i => i.status !== 'CANCELLED');
     if (activeItems.length > 0) {
-      if (activeItems.every(i => i.status === 'SERVED')) {
-        newKotStatus = 'COMPLETED';
+      newKotStatus = activeItems.every(i => i.status === 'SERVED') ? 'COMPLETED' : 'PREPARING';
+      if (orderItem.kot?.status !== newKotStatus) {
         await tx.kOT.update({
           where: { id: orderItem.kotId },
-          data: { status: 'COMPLETED' }
-        });
-      } else {
-        newKotStatus = 'PREPARING';
-        await tx.kOT.update({
-          where: { id: orderItem.kotId },
-          data: { status: 'PREPARING' }
+          data: { status: newKotStatus }
         });
       }
     }
@@ -339,7 +338,8 @@ export const cancelItem = async (orderItemId, reason, userId) => {
     let newKotStatus = null;
     if (orderItem.kotId) {
       const allItems = await tx.orderItem.findMany({
-        where: { kotId: orderItem.kotId }
+        where: { kotId: orderItem.kotId },
+        select: { status: true },
       });
       const activeItems = allItems.filter(i => i.status !== 'CANCELLED');
       if (activeItems.length === 0 || activeItems.every(i => i.status === 'SERVED')) {

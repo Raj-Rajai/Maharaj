@@ -108,12 +108,14 @@ export const createTakeAwayOrder = async (data, userId) => {
 
   const expectedMenuType = MENU_TYPE_MAP[orderSource];
 
-  // Batch fetch all menu items instead of N+1 queries
+  // Batch fetch all menu items + settings in parallel
   const menuItemIds = items.map(i => i.menuItemId);
-  const dbItemsList = await prisma.menuItem.findMany({
-    where: { id: { in: menuItemIds } },
-    include: { category: true },
-  });
+  const [dbItemsList, settings] = await Promise.all([
+    prisma.menuItem.findMany({
+      where: { id: { in: menuItemIds } },
+    }),
+    getSettings(),
+  ]);
 
   // Build lookup map
   const dbItemMap = new Map(dbItemsList.map(m => [m.id, m]));
@@ -136,8 +138,6 @@ export const createTakeAwayOrder = async (data, userId) => {
     }
     dbItems.push(menuItem);
   }
-
-  const settings = await getSettings();
   const sgstPercent = Number(Number(settings.sgstPercent ?? 2.5).toFixed(3));
   const cgstPercent = Number(Number(settings.cgstPercent ?? 2.5).toFixed(3));
 
@@ -155,13 +155,49 @@ export const createTakeAwayOrder = async (data, userId) => {
 
   const result = await prisma.$transaction(async (tx) => {
 
-    const newOrder = await tx.order.create({
-      data: {
-        orderSource,
-        captainId,
-        status: 'ACTIVE',
-      },
-    });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [newOrder, kotCount] = await Promise.all([
+      tx.order.create({
+        data: {
+          orderSource,
+          captainId,
+          status: 'ACTIVE',
+        },
+      }),
+      generateKot ? tx.kOT.count({ where: { createdAt: { gte: today } } }) : Promise.resolve(0),
+    ]);
+
+    const [createdKot, createdBill] = await Promise.all([
+      generateKot
+        ? tx.kOT.create({
+            data: {
+              kotNumber: kotCount + 1,
+              orderId: newOrder.id,
+              captainId,
+              status: 'PREPARING',
+            },
+          })
+        : Promise.resolve(null),
+      // billNumber is autoincrement — do NOT pass it
+      tx.bill.create({
+        data: {
+          orderId: newOrder.id,
+          customerName: customerName ? String(customerName).trim() : null,
+          customerPhone: customerPhone ? String(customerPhone).trim() : null,
+          subtotal,
+          sgstPercent,
+          cgstPercent,
+          sgstAmount: Number(sgstAmount.toFixed(2)),
+          cgstAmount: Number(cgstAmount.toFixed(2)),
+          discount: 0,
+          total: finalTotal,
+          roundOff,
+          status: 'DRAFT',
+        },
+      }),
+    ]);
 
     const orderItemsData = items.map((item, idx) => ({
       id: crypto.randomUUID(),
@@ -171,60 +207,14 @@ export const createTakeAwayOrder = async (data, userId) => {
       priceSnapshot: dbItems[idx].price, // DB price, not client price
       quantity: item.quantity,
       notes: item.notes || customerNotes || null,
+      kotId: createdKot ? createdKot.id : null,
       status: generateKot ? 'PREPARING' : 'PENDING',
     }));
 
-    await tx.orderItem.createMany({
-      data: orderItemsData,
-    });
-    const stockChanged = await syncStock(tx, stockLinesFor(orderItemsData, dbItemMap), { fresh: true });
-
-    let createdKot = null;
-    if (generateKot) {
-      // KOT number inside transaction to avoid race condition
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const count = await tx.kOT.count({
-        where: { createdAt: { gte: today } },
-      });
-      const kotNumber = count + 1;
-
-      createdKot = await tx.kOT.create({
-        data: {
-          kotNumber,
-          orderId: newOrder.id,
-          captainId,
-          status: 'PREPARING',
-        },
-      });
-
-      await tx.orderItem.updateMany({
-        where: { orderId: newOrder.id },
-        data: {
-          kotId: createdKot.id,
-          status: 'PREPARING',
-        },
-      });
-    }
-
-    // billNumber is autoincrement — do NOT pass it
-    const createdBill = await tx.bill.create({
-      data: {
-        orderId: newOrder.id,
-        customerName: customerName ? String(customerName).trim() : null,
-        customerPhone: customerPhone ? String(customerPhone).trim() : null,
-        subtotal,
-        sgstPercent,
-        cgstPercent,
-        sgstAmount: Number(sgstAmount.toFixed(2)),
-        cgstAmount: Number(cgstAmount.toFixed(2)),
-        discount: 0,
-        total: finalTotal,
-        roundOff,
-        status: 'DRAFT',
-      },
-    });
+    const [, stockChanged] = await Promise.all([
+      tx.orderItem.createMany({ data: orderItemsData }),
+      syncStock(tx, stockLinesFor(orderItemsData, dbItemMap), { fresh: true }),
+    ]);
 
     const fullOrder = await tx.order.findUnique({
       where: { id: newOrder.id },
@@ -319,19 +309,32 @@ export const getAll = async (filters) => {
     ${offsetClause}
   `;
 
-  const orders = await rawQuery(sql, ...params);
-
-  if (!orders || orders.length === 0) return [];
-
-  const orderIds = orders.map(o => o.id);
-  const itemsPlaceholders = orderIds.map(() => '?').join(', ');
-
-  const itemsSql = `
-    SELECT id, orderId, itemNameSnapshot, priceSnapshot, quantity, originalQuantity, status, notes, menuItemId, kotId, createdAt
-    FROM \`OrderItem\`
-    WHERE orderId IN (${itemsPlaceholders})
-  `;
-  const items = await rawQuery(itemsSql, ...orderIds);
+  let orders;
+  let items;
+  if (limitValue === null && offsetValue === 0) {
+    const itemsJoinSql = `
+      SELECT oi.id, oi.orderId, oi.itemNameSnapshot, oi.priceSnapshot, oi.quantity, oi.originalQuantity, oi.status, oi.notes, oi.menuItemId, oi.kotId, oi.createdAt
+      FROM \`OrderItem\` oi
+      INNER JOIN \`Order\` o ON o.id = oi.orderId
+      ${whereClause}
+    `;
+    [orders, items] = await Promise.all([
+      rawQuery(sql, ...params),
+      rawQuery(itemsJoinSql, ...params),
+    ]);
+    if (!orders || orders.length === 0) return [];
+  } else {
+    orders = await rawQuery(sql, ...params);
+    if (!orders || orders.length === 0) return [];
+    const orderIds = orders.map(o => o.id);
+    const itemsPlaceholders = orderIds.map(() => '?').join(', ');
+    const itemsSql = `
+      SELECT id, orderId, itemNameSnapshot, priceSnapshot, quantity, originalQuantity, status, notes, menuItemId, kotId, createdAt
+      FROM \`OrderItem\`
+      WHERE orderId IN (${itemsPlaceholders})
+    `;
+    items = await rawQuery(itemsSql, ...orderIds);
+  }
 
   const itemsByOrderId = {};
   for (const item of items) {
@@ -379,22 +382,22 @@ export const getById = async (id) => {
 };
 
 export const addItems = async (orderId, items, generateKot = true, captainId = null) => {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: { table: { select: { number: true } } },
-  });
+  const menuItemIds = items.map(i => i.menuItemId);
+  const [order, dbMenuItems] = await Promise.all([
+    prisma.order.findUnique({
+      where: { id: orderId },
+      include: { table: { select: { number: true } } },
+    }),
+    prisma.menuItem.findMany({
+      where: { id: { in: menuItemIds } },
+    }),
+  ]);
   if (!order) {
     throw { status: 404, message: 'Order not found' };
   }
   if (order.status !== 'ACTIVE') {
     throw { status: 400, message: 'Can only add items to an active order' };
   }
-
-  // Batch fetch all menu items — eliminates N+1 queries
-  const menuItemIds = items.map(i => i.menuItemId);
-  const dbMenuItems = await prisma.menuItem.findMany({
-    where: { id: { in: menuItemIds } },
-  });
   const menuItemMap = new Map(dbMenuItems.map(m => [m.id, m]));
 
   // Determine expected menu type based on order source
@@ -455,10 +458,10 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
         };
       });
 
-      await tx.orderItem.createMany({
-        data: orderItemsData,
-      });
-      const stockChanged = await syncStock(tx, stockLinesFor(orderItemsData, menuItemMap), { fresh: true });
+      const [, stockChanged] = await Promise.all([
+        tx.orderItem.createMany({ data: orderItemsData }),
+        syncStock(tx, stockLinesFor(orderItemsData, menuItemMap), { fresh: true }),
+      ]);
 
       const fullOrder = await tx.order.findUnique({
         where: { id: orderId },
@@ -503,10 +506,11 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
   });
 
   const stockChanged = await prisma.$transaction(async (tx) => {
-    await tx.orderItem.createMany({
-      data: orderItemsData,
-    });
-    return syncStock(tx, stockLinesFor(orderItemsData, menuItemMap), { fresh: true });
+    const [, changed] = await Promise.all([
+      tx.orderItem.createMany({ data: orderItemsData }),
+      syncStock(tx, stockLinesFor(orderItemsData, menuItemMap), { fresh: true }),
+    ]);
+    return changed;
   });
 
   const updatedOrder = await getById(orderId);
@@ -563,19 +567,21 @@ export const sendKotOrder = async (data, captainId) => {
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    // Resolve session & table
-    let session = null;
-    if (sessionId) {
-      session = await tx.tableSession.findUnique({
-        where: { id: sessionId },
-        include: { table: true },
-      });
-    } else if (tableId) {
-      session = await tx.tableSession.findFirst({
-        where: { tableId, status: 'OPEN' },
-        include: { table: true },
-      });
-    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Resolve session, existing active order (when sessionId is known), and today's KOT count in parallel
+    const [session, existingOrder, kotCount] = await Promise.all([
+      sessionId
+        ? tx.tableSession.findUnique({ where: { id: sessionId }, include: { table: true } })
+        : tx.tableSession.findFirst({ where: { tableId, status: 'OPEN' }, include: { table: true } }),
+      sessionId
+        ? tx.order.findFirst({ where: { sessionId, status: 'ACTIVE' } })
+        : Promise.resolve(null),
+      generateKot
+        ? tx.kOT.count({ where: { createdAt: { gte: today } } })
+        : Promise.resolve(0),
+    ]);
 
     if (!session) throw { status: 404, message: 'Active session not found' };
     if (session.status !== 'OPEN') throw { status: 400, message: 'Session is not open' };
@@ -584,9 +590,9 @@ export const sendKotOrder = async (data, captainId) => {
     const orderSource = session.table?.type === 'AC' ? 'DINE_IN_AC' : 'DINE_IN_NON_AC';
 
     // Find or create active order for this session
-    let order = await tx.order.findFirst({
+    let order = existingOrder || (sessionId ? null : await tx.order.findFirst({
       where: { sessionId: session.id, status: 'ACTIVE' },
-    });
+    }));
 
     if (!order) {
       order = await tx.order.create({
@@ -602,13 +608,7 @@ export const sendKotOrder = async (data, captainId) => {
 
     let newKot = null;
     if (generateKot) {
-      // Calculate kotNumber inside transaction
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const count = await tx.kOT.count({
-        where: { createdAt: { gte: today } },
-      });
-      const kotNumber = count + 1;
+      const kotNumber = kotCount + 1;
 
       newKot = await tx.kOT.create({
         data: {
@@ -642,10 +642,10 @@ export const sendKotOrder = async (data, captainId) => {
       };
     });
 
-    await tx.orderItem.createMany({
-      data: orderItemsData,
-    });
-    const stockChanged = await syncStock(tx, stockLinesFor(orderItemsData, menuItemMap), { fresh: true });
+    const [, stockChanged] = await Promise.all([
+      tx.orderItem.createMany({ data: orderItemsData }),
+      syncStock(tx, stockLinesFor(orderItemsData, menuItemMap), { fresh: true }),
+    ]);
 
     // Return the fresh full order with items, table, captain, and bill
     const fullOrder = await tx.order.findUnique({

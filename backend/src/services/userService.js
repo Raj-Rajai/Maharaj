@@ -13,25 +13,32 @@ export const updatePermissions = async (userId, permissions) => {
       await tx.$queryRawUnsafe('DELETE FROM `UserPermission` WHERE `userId` = ?', userId).catch(() => {});
     }
     if (permissions && permissions.length > 0) {
-      for (const p of permissions) {
-        const id = crypto.randomUUID();
-        const now = new Date();
-        try {
-          await tx.$queryRawUnsafe(
-            'INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (?, ?, ?, ?)',
-            id,
-            userId,
-            p,
-            now
-          );
-        } catch {
-          await tx.$queryRawUnsafe(
-            'INSERT INTO `userpermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (?, ?, ?, ?)',
-            id,
-            userId,
-            p,
-            now
-          ).catch(e => console.error('[User] Insert permission fallback error:', e.message));
+      try {
+        await tx.userPermission.createMany({
+          data: permissions.map((p) => ({ userId, permission: p })),
+          skipDuplicates: true,
+        });
+      } catch {
+        for (const p of permissions) {
+          const id = crypto.randomUUID();
+          const now = new Date();
+          try {
+            await tx.$queryRawUnsafe(
+              'INSERT INTO `UserPermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (?, ?, ?, ?)',
+              id,
+              userId,
+              p,
+              now
+            );
+          } catch {
+            await tx.$queryRawUnsafe(
+              'INSERT INTO `userpermission` (`id`, `userId`, `permission`, `createdAt`) VALUES (?, ?, ?, ?)',
+              id,
+              userId,
+              p,
+              now
+            ).catch(e => console.error('[User] Insert permission fallback error:', e.message));
+          }
         }
       }
     }
@@ -40,36 +47,37 @@ export const updatePermissions = async (userId, permissions) => {
 };
 
 export const getAll = async () => {
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      username: true,
-      name: true,
-      role: true,
-      active: true,
-      createdAt: true
-    },
-    orderBy: {
-      createdAt: 'desc'
+  const loadAllPerms = async () => {
+    try {
+      return await rawQuery('SELECT `userId`, `permission` FROM `UserPermission`');
+    } catch {
+      try {
+        return await rawQuery('SELECT `userId`, `permission` FROM `userpermission`');
+      } catch (e) {
+        console.warn('[User] Could not load permissions table via raw SQL:', e.message);
+        return [];
+      }
     }
-  });
+  };
+
+  const [users, allPerms] = await Promise.all([
+    prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        role: true,
+        active: true,
+        createdAt: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    }),
+    loadAllPerms(),
+  ]);
 
   if (users.length === 0) return [];
-
-  let allPerms = [];
-  try {
-    allPerms = await rawQuery(
-      'SELECT `userId`, `permission` FROM `UserPermission`'
-    );
-  } catch {
-    try {
-      allPerms = await rawQuery(
-        'SELECT `userId`, `permission` FROM `userpermission`'
-      );
-    } catch (e) {
-      console.warn('[User] Could not load permissions table via raw SQL:', e.message);
-    }
-  }
 
   const permsByUserId = {};
   for (const p of (allPerms || [])) {

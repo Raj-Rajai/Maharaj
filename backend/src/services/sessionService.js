@@ -90,44 +90,55 @@ export const close = async (id, options = {}) => {
     );
     const stockLines = [];
 
-    if (activeOrders.length > 0) {
-      if (!cancelOrders) {
-        throw { status: 400, message: 'Cannot close session with incomplete orders' };
-      }
+    if (activeOrders.length > 0 && !cancelOrders) {
+      throw { status: 400, message: 'Cannot close session with incomplete orders' };
+    }
 
-      for (const order of activeOrders) {
-        await tx.order.update({
-          where: { id: order.id },
+    const activeOrderIds = activeOrders.map((o) => o.id);
+    const draftBillIds = activeOrders
+      .filter((o) => o.bill && o.bill.status === 'DRAFT')
+      .map((o) => o.bill.id);
+
+    for (const order of activeOrders) {
+      stockLines.push(...order.items
+        .filter((i) => i.status !== 'SERVED' && i.status !== 'CANCELLED')
+        .map((i) => ({ orderItemId: i.id, quantity: 0, name: i.itemNameSnapshot })));
+    }
+
+    const cancelOps = [
+      tx.kOT.findMany({
+        where: {
+          sessionId: id,
+          status: { in: ['NEW', 'PREPARING', 'READY'] },
+        },
+      }),
+    ];
+    if (activeOrderIds.length > 0) {
+      cancelOps.push(
+        tx.order.updateMany({
+          where: { id: { in: activeOrderIds } },
           data: { status: 'CANCELLED' },
-        });
-
-        await tx.orderItem.updateMany({
+        }),
+        tx.orderItem.updateMany({
           where: {
-            orderId: order.id,
+            orderId: { in: activeOrderIds },
             status: { notIn: ['SERVED', 'CANCELLED'] },
           },
           data: { status: 'CANCELLED' },
-        });
-        stockLines.push(...order.items
-          .filter((i) => i.status !== 'SERVED' && i.status !== 'CANCELLED')
-          .map((i) => ({ orderItemId: i.id, quantity: 0, name: i.itemNameSnapshot })));
-
-        if (order.bill && order.bill.status === 'DRAFT') {
-          await tx.bill.update({
-            where: { id: order.bill.id },
-            data: { status: 'CANCELLED' },
-          });
-        }
-      }
+        })
+      );
+    }
+    if (draftBillIds.length > 0) {
+      cancelOps.push(
+        tx.bill.updateMany({
+          where: { id: { in: draftBillIds } },
+          data: { status: 'CANCELLED' },
+        })
+      );
     }
 
-    // Cancel any active uncompleted KOTs for this session
-    const activeKots = await tx.kOT.findMany({
-      where: {
-        sessionId: id,
-        status: { in: ['NEW', 'PREPARING', 'READY'] },
-      },
-    });
+    // Run order/item/bill cancellations and KOT lookup in parallel
+    const [activeKots] = await Promise.all(cancelOps);
 
     if (activeKots.length > 0) {
       await tx.kOT.updateMany({
