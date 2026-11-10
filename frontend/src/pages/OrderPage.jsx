@@ -8,6 +8,7 @@ import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../context/AuthContext';
 import { acBlue, nonAcBlue, tableBlue } from '../assets';
+import useRealtime from '../hooks/useRealtime';
 
 export default function OrderPage() {
   const { tableId } = useParams();
@@ -94,6 +95,25 @@ export default function OrderPage() {
   }, [tableId, user?.role]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useRealtime({
+    'order:updated': (payload) => {
+      if (!payload?.tableId || payload.tableId === tableId || payload?.id === order?.id) {
+        loadData();
+      }
+    },
+    'kot:created': (payload) => {
+      if (!payload?.order?.tableId || payload.order.tableId === tableId) {
+        loadData();
+      }
+    },
+    'kot:updated': () => {
+      loadData();
+    },
+    'menu:updated': () => {
+      loadData();
+    },
+  }, true, [loadData, tableId, order?.id]);
 
   const filteredItems = useMemo(() => {
     const q = searchQ ? searchQ.toLowerCase() : '';

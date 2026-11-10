@@ -174,6 +174,7 @@ const invalidateForMutation = (url) => {
     api.invalidateCache('/reports');
   } else if (u.includes('/inventory') || u.includes('/purchase') || u.includes('/supplier')) {
     api.invalidateCache('/inventory');
+    api.invalidateCache('/menu');
     api.invalidateCache('/purchases');
     api.invalidateCache('/suppliers');
     api.invalidateCache('/reports');
@@ -212,6 +213,7 @@ if (typeof window !== 'undefined') {
     } else if (event === 'inventory:updated') {
       api.invalidateCache('/inventory');
       api.invalidateCache('/menu');
+      api.invalidateCache('/purchases');
       api.invalidateCache('/reports');
     }
   });
