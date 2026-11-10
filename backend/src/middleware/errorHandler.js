@@ -24,6 +24,24 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   console.error(`[Error] ${req.method} ${req.originalUrl}:`, err);
+  if (err?.code === 'P2003') {
+    return res.status(400).json({
+      message: 'Cannot delete or modify this record because it is referenced by other records (e.g. menu items, orders, or stock history).',
+      error: { message: 'Foreign key constraint violation', code: 'P2003' },
+    });
+  }
+  if (err?.code === 'P2002') {
+    return res.status(400).json({
+      message: 'A record with this value already exists.',
+      error: { message: 'Unique constraint violation', code: 'P2002' },
+    });
+  }
+  if (err?.code === 'P2025') {
+    return res.status(404).json({
+      message: 'The requested record was not found.',
+      error: { message: 'Record not found', code: 'P2025' },
+    });
+  }
   const status = err.status || 500;
   const message = err.message || (typeof err === 'string' ? err : 'Internal server error');
   res.status(status).json({

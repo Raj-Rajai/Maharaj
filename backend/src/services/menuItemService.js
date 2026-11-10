@@ -93,7 +93,7 @@ export const updateAvailability = async (id, active) => {
 };
 
 export const softDelete = async (id) => {
-  const deleted = await prisma.menuItem.update({ where: { id }, data: { active: false } });
+  const deleted = await prisma.menuItem.update({ where: { id }, data: { active: false, inventoryItemId: null } });
   invalidateMenuCaches();
   return deleted;
 };

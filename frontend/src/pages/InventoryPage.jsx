@@ -710,7 +710,17 @@ export default function InventoryPage() {
         {deleteItem && (
           <div className="space-y-4">
             <p className="text-text dark:text-slate-100">Are you sure you want to delete <span className="font-semibold">{deleteItem.name}</span>?</p>
-            <p className="text-sm text-text-secondary dark:text-slate-400">This will permanently remove the item and its history. This action cannot be undone.</p>
+            {deleteItem.menuItems?.length > 0 ? (
+              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                <div className="font-semibold flex items-center gap-1.5">
+                  <AlertTriangle size={14} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>Bound to Menu ({[...new Set(deleteItem.menuItems.map(m => MENU_SHORT[m.menuType] || m.menuType))].join(', ')})</span>
+                </div>
+                <p>This inventory item is currently linked to menu item(s). Please go to <strong>Menu Management → Edit Item → Unlink</strong> before deleting it.</p>
+              </div>
+            ) : (
+              <p className="text-sm text-text-secondary dark:text-slate-400">This will permanently remove the item and its history. This action cannot be undone.</p>
+            )}
             <div className="pt-2 flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 border-t border-border dark:border-slate-800">
               <button onClick={() => setDeleteItem(null)} className="w-full sm:w-auto px-4 py-2.5 text-text-secondary dark:text-slate-400 hover:bg-surface dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors min-h-[42px] flex items-center justify-center cursor-pointer">Cancel</button>
               <button onClick={handleDelete} className="w-full sm:w-auto px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors min-h-[42px] flex items-center justify-center cursor-pointer shadow-xs">Delete</button>

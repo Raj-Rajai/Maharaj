@@ -4,10 +4,12 @@ import { parseDateRange } from '../utils/dateUtils.js';
 import { invalidateMenuCaches } from '../utils/cache.js';
 import { notifyStockChanged } from './stockService.js';
 
+const MENU_LABELS = { AC: 'AC', NON_AC: 'Non-AC', SWIGGY: 'Swiggy', ZOMATO: 'Zomato' };
+
 export const getAll = async () => {
   const items = await prisma.inventoryItem.findMany({
     orderBy: { name: 'asc' },
-    include: { menuItems: { select: { id: true, name: true, menuType: true, active: true } } },
+    include: { menuItems: { where: { active: true }, select: { id: true, name: true, menuType: true, active: true } } },
   });
   return items.map(item => ({
     ...item,
@@ -116,10 +118,39 @@ export const adjust = async (data, userId) => {
 };
 
 export const remove = async (id, userId) => {
-  const item = await prisma.inventoryItem.findUnique({ where: { id } });
+  const item = await prisma.inventoryItem.findUnique({
+    where: { id },
+    include: {
+      menuItems: {
+        where: { active: true },
+        select: { id: true, name: true, menuType: true },
+      },
+    },
+  });
   if (!item) throw { status: 404, message: 'Inventory item not found' };
-  await prisma.inventoryItem.delete({ where: { id } });
-  invalidateMenuCaches(); // linked menu items were unlinked by the delete
+
+  if (item.menuItems && item.menuItems.length > 0) {
+    const linkedMenus = [...new Set(item.menuItems.map((m) => MENU_LABELS[m.menuType] || m.menuType))].join(', ');
+    throw {
+      status: 400,
+      message: `Cannot delete "${item.name}" because it is bound to the ${linkedMenus} menu. Please unlink it from the Menu Page first.`,
+    };
+  }
+
+  await prisma.$transaction([
+    prisma.menuItem.updateMany({
+      where: { inventoryItemId: id },
+      data: { inventoryItemId: null },
+    }),
+    prisma.inventoryTransaction.deleteMany({
+      where: { inventoryItemId: id },
+    }),
+    prisma.inventoryItem.delete({
+      where: { id },
+    }),
+  ]);
+
+  invalidateMenuCaches();
   if (userId) {
     await auditService.log({ userId, action: 'DELETE', entity: 'INVENTORY', entityId: id, before: { name: item.name, stock: Number(item.currentStock) } });
   }
