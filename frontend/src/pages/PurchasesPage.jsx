@@ -72,8 +72,7 @@ export default function PurchasesPage() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await fetchPurchases();
-      await fetchSuppliers();
+      await Promise.all([fetchPurchases(), fetchSuppliers()]);
       setLoading(false);
     };
     loadData();
@@ -304,7 +303,7 @@ export default function PurchasesPage() {
         } else if (columnKey === 'itemsCount') {
           cmp = a.rawItemsCount - b.rawItemsCount;
         } else {
-          cmp = String(a[colKey] || '').localeCompare(String(b[colKey] || ''));
+          cmp = String(a[columnKey] || '').localeCompare(String(b[columnKey] || ''));
         }
         return direction === 'asc' ? cmp : -cmp;
       });

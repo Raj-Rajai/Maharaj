@@ -255,7 +255,7 @@ export default function InventoryPage() {
         } else if (columnKey === 'lowStockThreshold') {
           cmp = a.rawLowStockThreshold - b.rawLowStockThreshold;
         } else {
-          cmp = String(a[colKey] || '').localeCompare(String(b[colKey] || ''));
+          cmp = String(a[columnKey] || '').localeCompare(String(b[columnKey] || ''));
         }
         return direction === 'asc' ? cmp : -cmp;
       });

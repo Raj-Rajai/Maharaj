@@ -1,5 +1,5 @@
 import prisma from '../utils/prisma.js';
-import { settingsCache } from '../utils/cache.js';
+import { settingsCache, reportCache } from '../utils/cache.js';
 
 const formatSettings = (s) => {
   if (!s) return s;
@@ -63,6 +63,7 @@ export const updateSettings = async (data) => {
   }
 
   settingsCache.invalidate();
+  reportCache.invalidate();
   return formatSettings(result);
 };
 

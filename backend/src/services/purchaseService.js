@@ -2,6 +2,7 @@ import prisma from '../utils/prisma.js';
 import * as auditService from './auditService.js';
 import { parseDateRange } from '../utils/dateUtils.js';
 import { reportCache } from '../utils/cache.js';
+import { emitInventoryUpdated } from '../utils/socket.js';
 
 export const getAll = async (filters = {}) => {
   const where = {};
@@ -79,6 +80,7 @@ export const create = async (data, userId) => {
     return purchase;
   }).then((res) => {
     reportCache.invalidate();
+    if (addToInventory) emitInventoryUpdated({ source: 'purchase_created', purchaseId: res.id });
     return res;
   });
 };
@@ -179,6 +181,7 @@ export const update = async (id, data, userId) => {
     return updated;
   }).then((res) => {
     reportCache.invalidate();
+    if (existing.addToInventory || addToInventory) emitInventoryUpdated({ source: 'purchase_updated', purchaseId: id });
     return res;
   });
 };
@@ -220,6 +223,7 @@ export const cancel = async (id, userId) => {
     return cancelled;
   }).then((res) => {
     reportCache.invalidate();
+    if (purchase.addToInventory) emitInventoryUpdated({ source: 'purchase_cancelled', purchaseId: id });
     return res;
   });
 };

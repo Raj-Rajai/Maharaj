@@ -4,6 +4,7 @@ import PDFDocument from 'pdfkit';
 import { ZipArchive } from 'archiver';
 import prisma from '../utils/prisma.js';
 import { parseDateRange } from '../utils/dateUtils.js';
+import { reportCache } from '../utils/cache.js';
 import { emitBillUpdated } from '../utils/socket.js';
 import * as auditService from './auditService.js';
 
@@ -366,6 +367,7 @@ export const confirmDelete = async (token, user) => {
     reason: 'Bills downloaded as ZIP and removed from the database',
   });
 
+  reportCache.invalidate();
   emitBillUpdated({ bulkDeleted: true, count: deletedCount });
   return { deletedCount, deletedTotal: Number(deletedTotal.toFixed(2)) };
 };

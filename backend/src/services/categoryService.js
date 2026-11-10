@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js';
-import { categoryCache, invalidateMenuCaches } from '../utils/cache.js';
+import { categoryCache, invalidateMenuCaches, reportCache } from '../utils/cache.js';
+import { emitMenuUpdated } from '../utils/socket.js';
 
 export const getAll = async () => {
   const cached = categoryCache.get();
@@ -38,6 +39,8 @@ export const create = async (data) => {
     const created = await prisma.category.create({ data });
     categoryCache.invalidate();
     invalidateMenuCaches();
+    reportCache.invalidate();
+    emitMenuUpdated({ action: 'category_created', id: created.id });
     return created;
   } catch (error) {
     if (error.code === 'P2002') throw { status: 400, message: 'Category name already exists' };
@@ -50,6 +53,8 @@ export const update = async (id, data) => {
     const updated = await prisma.category.update({ where: { id }, data });
     categoryCache.invalidate();
     invalidateMenuCaches();
+    reportCache.invalidate();
+    emitMenuUpdated({ action: 'category_updated', id });
     return updated;
   } catch (error) {
     if (error.code === 'P2025') throw { status: 404, message: 'Category not found' };
@@ -62,5 +67,7 @@ export const softDelete = async (id) => {
   const deleted = await prisma.category.update({ where: { id }, data: { active: false } });
   categoryCache.invalidate();
   invalidateMenuCaches();
+  reportCache.invalidate();
+  emitMenuUpdated({ action: 'category_deleted', id });
   return deleted;
 };

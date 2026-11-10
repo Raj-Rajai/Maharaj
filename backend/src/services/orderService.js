@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import prisma, { rawQuery } from '../utils/prisma.js';
-import { settingsCache } from '../utils/cache.js';
-import { emitKotCreated, emitBillCreated, emitOrderUpdated } from '../utils/socket.js';
+import { settingsCache, reportCache } from '../utils/cache.js';
+import { emitKotCreated, emitKotUpdated, emitBillCreated, emitBillUpdated, emitOrderUpdated } from '../utils/socket.js';
 import { parseDateRange } from '../utils/dateUtils.js';
 import { syncStock, notifyStockChanged } from './stockService.js';
 
@@ -81,7 +81,7 @@ export const create = async (sessionOrData, captainId) => {
 
   const orderSource = session.table?.type === 'AC' ? 'DINE_IN_AC' : 'DINE_IN_NON_AC';
 
-  return prisma.order.create({
+  const createdOrder = await prisma.order.create({
     data: {
       sessionId: session.id,
       tableId: session.tableId,
@@ -90,6 +90,8 @@ export const create = async (sessionOrData, captainId) => {
       orderSource,
     },
   });
+  reportCache.invalidate();
+  return createdOrder;
 };
 
 export const createTakeAwayOrder = async (data, userId) => {
@@ -237,6 +239,7 @@ export const createTakeAwayOrder = async (data, userId) => {
   if (result.kot) emitKotCreated(result.kot);
   if (result.bill) emitBillCreated(result.bill);
   if (result.order) emitOrderUpdated(result.order);
+  reportCache.invalidate();
   notifyStockChanged(result.stockChanged);
   delete result.stockChanged;
 
@@ -522,7 +525,11 @@ export const addItems = async (orderId, items, generateKot = true, captainId = n
 export const cancel = async (id) => {
   const order = await prisma.order.findUnique({
     where: { id },
-    include: { bill: true },
+    include: {
+      bill: true,
+      items: true,
+      kots: { where: { status: { in: ['NEW', 'PREPARING', 'READY'] } }, select: { id: true } },
+    },
   });
 
   if (!order) {
@@ -535,13 +542,58 @@ export const cancel = async (id) => {
     throw { status: 400, message: 'Cannot cancel order with a finalized bill' };
   }
 
-  const cancelled = await prisma.order.update({
-    where: { id },
-    data: { status: 'CANCELLED' },
+  const stockLines = (order.items || [])
+    .filter((i) => i.status !== 'SERVED' && i.status !== 'CANCELLED')
+    .map((i) => ({ orderItemId: i.id, quantity: 0, name: i.itemNameSnapshot }));
+
+  const result = await prisma.$transaction(async (tx) => {
+    const ops = [
+      tx.order.update({
+        where: { id },
+        data: { status: 'CANCELLED' },
+      }),
+      tx.orderItem.updateMany({
+        where: { orderId: id, status: { notIn: ['SERVED', 'CANCELLED'] } },
+        data: { status: 'CANCELLED' },
+      }),
+    ];
+
+    if (order.kots.length > 0) {
+      ops.push(
+        tx.kOT.updateMany({
+          where: { id: { in: order.kots.map((k) => k.id) } },
+          data: { status: 'COMPLETED' },
+        })
+      );
+    }
+
+    if (order.bill && order.bill.status === 'DRAFT') {
+      ops.push(
+        tx.bill.update({
+          where: { id: order.bill.id },
+          data: { status: 'CANCELLED' },
+        })
+      );
+    }
+
+    const [[cancelledOrder], stockChanged] = await Promise.all([
+      Promise.all(ops),
+      syncStock(tx, stockLines),
+    ]);
+
+    return { cancelledOrder, stockChanged };
   });
 
-  emitOrderUpdated(cancelled);
-  return cancelled;
+  reportCache.invalidate();
+  notifyStockChanged(result.stockChanged);
+  emitOrderUpdated(result.cancelledOrder);
+  for (const kot of order.kots) {
+    emitKotUpdated({ id: kot.id, kotId: kot.id, kotStatus: 'COMPLETED' });
+  }
+  if (order.bill && order.bill.status === 'DRAFT') {
+    emitBillUpdated({ id: order.bill.id, status: 'CANCELLED' });
+  }
+  return result.cancelledOrder;
 };
 
 export const sendKotOrder = async (data, captainId) => {
@@ -681,6 +733,7 @@ export const sendKotOrder = async (data, captainId) => {
     emitKotCreated(enrichedKot);
   }
   if (result.order) emitOrderUpdated(result.order);
+  reportCache.invalidate();
 
   return result;
 };

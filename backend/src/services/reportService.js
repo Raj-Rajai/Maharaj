@@ -552,7 +552,7 @@ export const purchaseSummary = async (startDate, endDate) => {
             COUNT(*) AS cnt
      FROM \`PurchaseEntry\` pe
      LEFT JOIN \`Supplier\` s ON s.id = pe.supplierId
-     WHERE pe.purchaseDate >= ? AND pe.purchaseDate <= ?
+     WHERE pe.status = 'ACTIVE' AND pe.purchaseDate >= ? AND pe.purchaseDate <= ?
      GROUP BY COALESCE(s.name, 'Unknown')`,
     start,
     end
