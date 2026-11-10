@@ -88,11 +88,13 @@ export async function syncStock(tx, lines, { fresh = false } = {}) {
   if (transactions.length === 0) return [];
 
   const changed = [...new Set(transactions.map((t) => t.inventoryItemId))];
-  await Promise.all(changed.map((id) => tx.inventoryItem.update({
-    where: { id },
-    data: { currentStock: stock.get(id) },
-  })));
-  await tx.inventoryTransaction.createMany({ data: transactions });
+  await Promise.all([
+    ...changed.map((id) => tx.inventoryItem.update({
+      where: { id },
+      data: { currentStock: stock.get(id) },
+    })),
+    tx.inventoryTransaction.createMany({ data: transactions }),
+  ]);
   return changed;
 }
 

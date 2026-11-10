@@ -1,6 +1,7 @@
 import prisma from '../utils/prisma.js';
 import * as auditService from './auditService.js';
 import { parseDateRange } from '../utils/dateUtils.js';
+import { reportCache } from '../utils/cache.js';
 
 export const getAll = async (filters = {}) => {
   const where = {};
@@ -76,6 +77,9 @@ export const create = async (data, userId) => {
     }
 
     return purchase;
+  }).then((res) => {
+    reportCache.invalidate();
+    return res;
   });
 };
 
@@ -173,6 +177,9 @@ export const update = async (id, data, userId) => {
     }
 
     return updated;
+  }).then((res) => {
+    reportCache.invalidate();
+    return res;
   });
 };
 
@@ -211,6 +218,9 @@ export const cancel = async (id, userId) => {
     }
 
     return cancelled;
+  }).then((res) => {
+    reportCache.invalidate();
+    return res;
   });
 };
 

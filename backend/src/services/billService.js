@@ -526,17 +526,25 @@ export const editDraft = async (billId, changes, discount, userId, customerName 
         }
       }
     }
-    if (itemUpdates.length > 0) {
-      await Promise.all(itemUpdates);
+    const [, syncedIds] = await Promise.all([
+      itemUpdates.length > 0 ? Promise.all(itemUpdates) : Promise.resolve(),
+      syncStock(tx, stockLines),
+    ]);
+    stockChanged = syncedIds;
+
+    // Compute updated item quantities in-memory from authoritative bill.order.items + applied changes
+    const changeById = new Map();
+    for (const change of changes) {
+      const target = bill.order.items.find(i => i.itemNameSnapshot === change.itemName && i.status !== 'CANCELLED');
+      if (target) changeById.set(target.id, change.newQty);
     }
-    stockChanged = await syncStock(tx, stockLines);
-
-    // Re-fetch items within the transaction to get updated quantities
-    const updatedItems = await tx.orderItem.findMany({
-      where: { orderId: bill.orderId }
-    });
-
-    const validItems = updatedItems.filter(i => i.status !== 'CANCELLED');
+    const validItems = bill.order.items
+      .map(i => {
+        if (!changeById.has(i.id)) return i;
+        const nextQty = changeById.get(i.id);
+        return nextQty === 0 ? { ...i, status: 'CANCELLED' } : { ...i, quantity: nextQty };
+      })
+      .filter(i => i.status !== 'CANCELLED');
     const newSubtotal = Number(validItems.reduce((sum, item) => sum + (Number(item.priceSnapshot) * item.quantity), 0).toFixed(2));
 
     const discountAmount = discount !== undefined ? Number(Number(discount).toFixed(2)) : Number(Number(bill.discount).toFixed(2));

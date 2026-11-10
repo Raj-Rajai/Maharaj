@@ -340,66 +340,77 @@ export const salesSummary = async (startDate, endDate) => {
 };
 
 export const orderSummary = async (startDate, endDate) => {
-  const dateFilter = getDateRangeFilter(startDate, endDate);
+  const { start, end } = parseDateRange(startDate, endDate);
 
-  const [allOrders, onlineOrders] = await Promise.all([
-    prisma.order.findMany({
-      where: { ...dateFilter },
-      select: {
-        orderSource: true,
-        status: true,
-        sessionId: true,
-      },
-    }),
-    prisma.onlineOrder.findMany({
-      where: { ...dateFilter },
-      select: {
-        platform: true,
-        status: true,
-      },
-    }),
+  const [orderGroups, onlineGroups] = await Promise.all([
+    rawQuery(
+      `SELECT orderSource, status, (sessionId IS NOT NULL) AS hasSession, COUNT(*) AS cnt
+       FROM \`Order\`
+       WHERE createdAt >= ? AND createdAt <= ?
+       GROUP BY orderSource, status, (sessionId IS NOT NULL)`,
+      start,
+      end
+    ),
+    rawQuery(
+      `SELECT platform, status, COUNT(*) AS cnt
+       FROM \`OnlineOrder\`
+       WHERE createdAt >= ? AND createdAt <= ?
+       GROUP BY platform, status`,
+      start,
+      end
+    ),
   ]);
 
-  const dineInOrders = allOrders.filter(
-    o => o.orderSource === 'DINE_IN_AC' || o.orderSource === 'DINE_IN_NON_AC' || (o.sessionId && !['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(o.orderSource))
-  );
+  let dineInTotal = 0;
+  let takeAwayTotal = 0;
+  let onlineTotal = 0;
+  let selfPickupCount = 0;
+  let swiggyCount = 0;
+  let zomatoCount = 0;
+  const dineInByStatus = {};
+  const takeAwayByStatus = {};
 
-  const takeAwayOrders = allOrders.filter(
-    o => ['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(o.orderSource)
-  );
+  for (const row of orderGroups) {
+    const count = Number(row.cnt || 0);
+    const source = row.orderSource;
+    const status = row.status;
+    const hasSession = Boolean(row.hasSession);
 
-  const dineInByStatus = dineInOrders.reduce((acc, order) => {
-    acc[order.status] = (acc[order.status] || 0) + 1;
-    return acc;
-  }, {});
+    if (source === 'DINE_IN_AC' || source === 'DINE_IN_NON_AC' || (hasSession && !['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(source))) {
+      dineInTotal += count;
+      dineInByStatus[status] = (dineInByStatus[status] || 0) + count;
+    }
+    if (['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(source)) {
+      takeAwayTotal += count;
+      takeAwayByStatus[status] = (takeAwayByStatus[status] || 0) + count;
+      if (source === 'SELF_PICKUP') selfPickupCount += count;
+      if (source === 'SWIGGY') swiggyCount += count;
+      if (source === 'ZOMATO') zomatoCount += count;
+    }
+  }
 
-  const takeAwayByStatus = takeAwayOrders.reduce((acc, order) => {
-    acc[order.status] = (acc[order.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  onlineOrders.forEach(order => {
-    takeAwayByStatus[order.status] = (takeAwayByStatus[order.status] || 0) + 1;
-  });
-
-  const selfPickupCount = takeAwayOrders.filter(o => o.orderSource === 'SELF_PICKUP').length;
-  const swiggyCount = takeAwayOrders.filter(o => o.orderSource === 'SWIGGY').length + onlineOrders.filter(o => o.platform === 'SWIGGY').length;
-  const zomatoCount = takeAwayOrders.filter(o => o.orderSource === 'ZOMATO').length + onlineOrders.filter(o => o.platform === 'ZOMATO').length;
+  for (const row of onlineGroups) {
+    const count = Number(row.cnt || 0);
+    onlineTotal += count;
+    takeAwayByStatus[row.status] = (takeAwayByStatus[row.status] || 0) + count;
+    if (row.platform === 'SWIGGY') swiggyCount += count;
+    if (row.platform === 'ZOMATO') zomatoCount += count;
+  }
 
   return {
     dineIn: {
-      total: dineInOrders.length,
+      total: dineInTotal,
       byStatus: dineInByStatus
     },
     takeAway: {
-      total: takeAwayOrders.length + onlineOrders.length,
+      total: takeAwayTotal + onlineTotal,
       byStatus: takeAwayByStatus,
       selfPickup: selfPickupCount,
       swiggy: swiggyCount,
       zomato: zomatoCount,
     },
     online: {
-      total: takeAwayOrders.length + onlineOrders.length,
+      total: takeAwayTotal + onlineTotal,
       byStatus: takeAwayByStatus
     }
   };
@@ -464,26 +475,28 @@ export const tableSummary = async (startDate, endDate) => {
 };
 
 export const onlineOrderSummary = async (startDate, endDate) => {
-  const dateFilter = getDateRangeFilter(startDate, endDate);
+  const { start, end } = parseDateRange(startDate, endDate);
 
-  const [takeAwayBills, onlineOrders] = await Promise.all([
-    prisma.bill.findMany({
-      where: {
-        status: 'FINALIZED',
-        ...dateFilter,
-        order: {
-          orderSource: { in: ['SELF_PICKUP', 'SWIGGY', 'ZOMATO'] },
-        },
-      },
-      select: {
-        total: true,
-        order: { select: { orderSource: true } },
-      },
-    }),
-    prisma.onlineOrder.findMany({
-      where: { status: 'COMPLETED', ...dateFilter },
-      select: { platform: true, total: true },
-    }),
+  const [takeAwayGroups, onlineGroups] = await Promise.all([
+    rawQuery(
+      `SELECT o.orderSource AS source, COUNT(*) AS cnt, COALESCE(SUM(b.total), 0) AS total
+       FROM \`Bill\` b
+       INNER JOIN \`Order\` o ON o.id = b.orderId
+       WHERE b.status = 'FINALIZED'
+         AND b.createdAt >= ? AND b.createdAt <= ?
+         AND o.orderSource IN ('SELF_PICKUP', 'SWIGGY', 'ZOMATO')
+       GROUP BY o.orderSource`,
+      start,
+      end
+    ),
+    rawQuery(
+      `SELECT platform, COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS total
+       FROM \`OnlineOrder\`
+       WHERE status = 'COMPLETED' AND createdAt >= ? AND createdAt <= ?
+       GROUP BY platform`,
+      start,
+      end
+    ),
   ]);
 
   const summary = {
@@ -497,32 +510,34 @@ export const onlineOrderSummary = async (startDate, endDate) => {
     totalOnlineRevenue: 0
   };
 
-  takeAwayBills.forEach(b => {
-    const amount = Number(b.total);
+  for (const row of takeAwayGroups) {
+    const amount = Number(row.total || 0);
+    const cnt = Number(row.cnt || 0);
     summary.totalTakeAwayRevenue += amount;
-    if (b.order?.orderSource === 'SELF_PICKUP') {
-      summary.selfPickupOrders += 1;
+    if (row.source === 'SELF_PICKUP') {
+      summary.selfPickupOrders += cnt;
       summary.selfPickupRevenue += amount;
-    } else if (b.order?.orderSource === 'SWIGGY') {
-      summary.swiggyOrders += 1;
+    } else if (row.source === 'SWIGGY') {
+      summary.swiggyOrders += cnt;
       summary.swiggyRevenue += amount;
-    } else if (b.order?.orderSource === 'ZOMATO') {
-      summary.zomatoOrders += 1;
+    } else if (row.source === 'ZOMATO') {
+      summary.zomatoOrders += cnt;
       summary.zomatoRevenue += amount;
     }
-  });
+  }
 
-  onlineOrders.forEach(order => {
-    const amount = Number(order.total);
+  for (const row of onlineGroups) {
+    const amount = Number(row.total || 0);
+    const cnt = Number(row.cnt || 0);
     summary.totalTakeAwayRevenue += amount;
-    if (order.platform === 'SWIGGY') {
-      summary.swiggyOrders += 1;
+    if (row.platform === 'SWIGGY') {
+      summary.swiggyOrders += cnt;
       summary.swiggyRevenue += amount;
-    } else if (order.platform === 'ZOMATO') {
-      summary.zomatoOrders += 1;
+    } else if (row.platform === 'ZOMATO') {
+      summary.zomatoOrders += cnt;
       summary.zomatoRevenue += amount;
     }
-  });
+  }
 
   summary.totalOnlineRevenue = summary.totalTakeAwayRevenue;
   return summary;
@@ -530,32 +545,30 @@ export const onlineOrderSummary = async (startDate, endDate) => {
 
 export const purchaseSummary = async (startDate, endDate) => {
   const { start, end } = parseDateRange(startDate, endDate);
-  const filter = { purchaseDate: { gte: start, lte: end } };
 
-  const purchases = await prisma.purchaseEntry.findMany({
-    where: filter,
-    select: {
-      totalAmount: true,
-      supplier: { select: { name: true } },
-    },
-  });
+  const rows = await rawQuery(
+    `SELECT COALESCE(s.name, 'Unknown') AS supplierName,
+            COALESCE(SUM(pe.totalAmount), 0) AS amount,
+            COUNT(*) AS cnt
+     FROM \`PurchaseEntry\` pe
+     LEFT JOIN \`Supplier\` s ON s.id = pe.supplierId
+     WHERE pe.purchaseDate >= ? AND pe.purchaseDate <= ?
+     GROUP BY COALESCE(s.name, 'Unknown')`,
+    start,
+    end
+  );
 
   const summary = {
     totalPurchaseAmount: 0,
     bySupplier: {}
   };
 
-  purchases.forEach(purchase => {
-    const amount = Number(purchase.totalAmount);
+  for (const row of rows) {
+    const amount = Number(row.amount || 0);
+    const count = Number(row.cnt || 0);
     summary.totalPurchaseAmount += amount;
-
-    const supplierName = purchase.supplier.name;
-    if (!summary.bySupplier[supplierName]) {
-      summary.bySupplier[supplierName] = { amount: 0, count: 0 };
-    }
-    summary.bySupplier[supplierName].amount += amount;
-    summary.bySupplier[supplierName].count += 1;
-  });
+    summary.bySupplier[row.supplierName] = { amount, count };
+  }
 
   return summary;
 };
@@ -617,27 +630,39 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     ORDER BY b.createdAt ASC
   `;
 
-  // Run all queries (including SQL-grouped order items, categories, and settings) in a SINGLE parallel roundtrip
-  const [bills, onlineOrders, allOrders, purchases, groupedItems, allActiveCategories, settings] = await Promise.all([
+  // Run all queries (including SQL-grouped order items, orders, online orders, purchases, categories, and settings) in a SINGLE parallel roundtrip
+  const [bills, onlineGroups, orderGroups, purchaseGroups, groupedItems, allActiveCategories, settings] = await Promise.all([
     rawQuery(billsQuery, sqlStartDate, sqlEndDate),
 
-    prisma.onlineOrder.findMany({
-      where: { ...dateFilter },
-      select: { id: true, platform: true, total: true, status: true, externalOrderId: true, createdAt: true }
-    }),
+    rawQuery(
+      `SELECT platform, status, COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS total
+       FROM \`OnlineOrder\`
+       WHERE createdAt >= ? AND createdAt <= ?
+       GROUP BY platform, status`,
+      sqlStartDate,
+      sqlEndDate
+    ),
 
-    prisma.order.findMany({
-      where: { ...dateFilter },
-      select: { id: true, orderSource: true, sessionId: true, status: true }
-    }),
+    rawQuery(
+      `SELECT orderSource, status, (sessionId IS NOT NULL) AS hasSession, COUNT(*) AS cnt
+       FROM \`Order\`
+       WHERE createdAt >= ? AND createdAt <= ?
+       GROUP BY orderSource, status, (sessionId IS NOT NULL)`,
+      sqlStartDate,
+      sqlEndDate
+    ),
 
-    prisma.purchaseEntry.findMany({
-      where: { status: 'ACTIVE', ...purchaseDateFilter },
-      select: {
-        totalAmount: true,
-        supplier: { select: { name: true } }
-      }
-    }),
+    rawQuery(
+      `SELECT COALESCE(s.name, 'Unknown') AS supplierName,
+              COALESCE(SUM(pe.totalAmount), 0) AS amount,
+              COUNT(*) AS cnt
+       FROM \`PurchaseEntry\` pe
+       LEFT JOIN \`Supplier\` s ON s.id = pe.supplierId
+       WHERE pe.status = 'ACTIVE' AND pe.purchaseDate >= ? AND pe.purchaseDate <= ?
+       GROUP BY COALESCE(s.name, 'Unknown')`,
+      sqlStartDate,
+      sqlEndDate
+    ),
 
     rawQuery(AGGREGATED_ITEMS_SQL, sqlStartDate, sqlEndDate),
     getCachedCategories(),
@@ -674,20 +699,24 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     }
   });
 
-  const completedOnlineOrders = onlineOrders.filter(o => o.status === 'COMPLETED');
-  completedOnlineOrders.forEach(order => {
-    if (order.platform === 'SWIGGY') swiggyRevenue += Number(order.total);
-    if (order.platform === 'ZOMATO') zomatoRevenue += Number(order.total);
+  let completedOnlineCount = 0;
+  const completedOnlineGroups = onlineGroups.filter(o => o.status === 'COMPLETED');
+  completedOnlineGroups.forEach(row => {
+    const count = Number(row.cnt || 0);
+    const total = Number(row.total || 0);
+    completedOnlineCount += count;
+    if (row.platform === 'SWIGGY') swiggyRevenue += total;
+    if (row.platform === 'ZOMATO') zomatoRevenue += total;
   });
 
   const dineInRevenue = acSales + nonAcSales;
   const takeAwayRevenue = selfPickupSales + swiggyRevenue + zomatoRevenue;
   const totalRevenue = dineInRevenue + takeAwayRevenue;
-  const totalOrders = bills.length + completedOnlineOrders.length;
+  const totalOrders = bills.length + completedOnlineCount;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   const taxCollected = bills.reduce((sum, b) => sum + Number(b.sgstAmount) + Number(b.cgstAmount), 0);
 
-  const purchaseCost = purchases.reduce((sum, p) => sum + Number(p.totalAmount), 0);
+  const purchaseCost = purchaseGroups.reduce((sum, p) => sum + Number(p.amount || 0), 0);
   const netSalesAfterPurchases = totalRevenue - purchaseCost;
 
   const pad = (n) => String(n).padStart(2, '0');
@@ -893,38 +922,53 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
   };
 
   // --- 2. ORDERS SUMMARY ---
-  const dineInOrders = allOrders.filter(
-    o => o.orderSource === 'DINE_IN_AC' || o.orderSource === 'DINE_IN_NON_AC' || (o.sessionId && !['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(o.orderSource))
-  );
-  const takeAwayOrders = allOrders.filter(
-    o => ['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(o.orderSource)
-  );
+  let dineInTotal = 0;
+  let takeAwayTotal = 0;
+  let onlineTotal = 0;
+  let selfPickupOrderCount = 0;
+  let swiggyOrderCount = 0;
+  let zomatoOrderCount = 0;
+  const dineInByStatus = {};
+  const takeAwayByStatus = {};
 
-  const dineInByStatus = dineInOrders.reduce((acc, order) => {
-    acc[order.status] = (acc[order.status] || 0) + 1;
-    return acc;
-  }, {});
+  for (const row of orderGroups) {
+    const count = Number(row.cnt || 0);
+    const source = row.orderSource;
+    const status = row.status;
+    const hasSession = Boolean(row.hasSession);
 
-  const takeAwayByStatus = takeAwayOrders.reduce((acc, order) => {
-    acc[order.status] = (acc[order.status] || 0) + 1;
-    return acc;
-  }, {});
+    if (source === 'DINE_IN_AC' || source === 'DINE_IN_NON_AC' || (hasSession && !['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(source))) {
+      dineInTotal += count;
+      dineInByStatus[status] = (dineInByStatus[status] || 0) + count;
+    }
+    if (['SELF_PICKUP', 'SWIGGY', 'ZOMATO'].includes(source)) {
+      takeAwayTotal += count;
+      takeAwayByStatus[status] = (takeAwayByStatus[status] || 0) + count;
+      if (source === 'SELF_PICKUP') selfPickupOrderCount += count;
+      if (source === 'SWIGGY') swiggyOrderCount += count;
+      if (source === 'ZOMATO') zomatoOrderCount += count;
+    }
+  }
 
-  onlineOrders.forEach(order => {
-    takeAwayByStatus[order.status] = (takeAwayByStatus[order.status] || 0) + 1;
-  });
+  for (const row of onlineGroups) {
+    const count = Number(row.cnt || 0);
+    onlineTotal += count;
+    takeAwayByStatus[row.status] = (takeAwayByStatus[row.status] || 0) + count;
+    if (row.platform === 'SWIGGY') swiggyOrderCount += count;
+    if (row.platform === 'ZOMATO') zomatoOrderCount += count;
+  }
 
   const orders = {
-    dineIn: { total: dineInOrders.length, byStatus: dineInByStatus },
+    dineIn: { total: dineInTotal, byStatus: dineInByStatus },
     takeAway: {
-      total: takeAwayOrders.length + onlineOrders.length,
+      total: takeAwayTotal + onlineTotal,
       byStatus: takeAwayByStatus,
-      selfPickup: takeAwayOrders.filter(o => o.orderSource === 'SELF_PICKUP').length,
-      swiggy: takeAwayOrders.filter(o => o.orderSource === 'SWIGGY').length + onlineOrders.filter(o => o.platform === 'SWIGGY').length,
-      zomato: takeAwayOrders.filter(o => o.orderSource === 'ZOMATO').length + onlineOrders.filter(o => o.platform === 'ZOMATO').length,
+      selfPickup: selfPickupOrderCount,
+      swiggy: swiggyOrderCount,
+      zomato: zomatoOrderCount,
     },
     online: {
-      total: takeAwayOrders.length + onlineOrders.length,
+      total: takeAwayTotal + onlineTotal,
       byStatus: takeAwayByStatus
     }
   };
@@ -968,14 +1012,15 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     }
   });
 
-  completedOnlineOrders.forEach(order => {
-    const amount = Number(order.total);
+  completedOnlineGroups.forEach(row => {
+    const amount = Number(row.total || 0);
+    const count = Number(row.cnt || 0);
     onlineOrderReport.totalTakeAwayRevenue += amount;
-    if (order.platform === 'SWIGGY') {
-      onlineOrderReport.swiggyOrders += 1;
+    if (row.platform === 'SWIGGY') {
+      onlineOrderReport.swiggyOrders += count;
       onlineOrderReport.swiggyRevenue += amount;
-    } else if (order.platform === 'ZOMATO') {
-      onlineOrderReport.zomatoOrders += 1;
+    } else if (row.platform === 'ZOMATO') {
+      onlineOrderReport.zomatoOrders += count;
       onlineOrderReport.zomatoRevenue += amount;
     }
   });
@@ -986,15 +1031,13 @@ export const getUnifiedDashboardMetrics = async (startDate, endDate) => {
     totalPurchaseAmount: purchaseCost,
     bySupplier: {}
   };
-  purchases.forEach(purchase => {
-    const amount = Number(purchase.totalAmount);
-    const supplierName = purchase.supplier?.name || 'Unknown';
-    if (!purchaseReport.bySupplier[supplierName]) {
-      purchaseReport.bySupplier[supplierName] = { amount: 0, count: 0 };
-    }
-    purchaseReport.bySupplier[supplierName].amount += amount;
-    purchaseReport.bySupplier[supplierName].count += 1;
-  });
+  for (const row of purchaseGroups) {
+    const supplierName = row.supplierName || 'Unknown';
+    purchaseReport.bySupplier[supplierName] = {
+      amount: Number(row.amount || 0),
+      count: Number(row.cnt || 0),
+    };
+  }
 
   // --- 6. TABLES SUMMARY ---
   const tableSummaryMap = bills.reduce((acc, bill) => {

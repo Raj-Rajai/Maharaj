@@ -185,14 +185,17 @@ export const updateStatus = async (id, status) => {
   let updated;
   if (status === 'SERVED' || status === 'COMPLETED') {
     updated = await prisma.$transaction(async (tx) => {
-      await tx.orderItem.updateMany({
-        where: { kotId: id, status: { notIn: ['CANCELLED', 'SERVED'] } },
-        data: { status: 'SERVED' }
-      });
-      return tx.kOT.update({
-        where: { id },
-        data: { status },
-      });
+      const [, updatedKot] = await Promise.all([
+        tx.orderItem.updateMany({
+          where: { kotId: id, status: { notIn: ['CANCELLED', 'SERVED'] } },
+          data: { status: 'SERVED' }
+        }),
+        tx.kOT.update({
+          where: { id },
+          data: { status },
+        }),
+      ]);
+      return updatedKot;
     });
   } else {
     updated = await prisma.kOT.update({
@@ -273,31 +276,31 @@ export const editItemQuantity = async (orderItemId, newQuantity, reason, userId)
   if (oldQuantity === newQuantity) return orderItem;
 
   const result = await prisma.$transaction(async (tx) => {
-    await tx.orderItemHistory.create({
-      data: {
+    const [, updated, stockChanged] = await Promise.all([
+      tx.orderItemHistory.create({
+        data: {
+          orderItemId,
+          changeType: 'EDITED',
+          oldQuantity,
+          newQuantity,
+          reason: reason || `Quantity changed from ${oldQuantity} to ${newQuantity}`,
+          changedBy: userId,
+        },
+      }),
+      tx.orderItem.update({
+        where: { id: orderItemId },
+        data: {
+          quantity: newQuantity,
+          originalQuantity: orderItem.originalQuantity || oldQuantity,
+        },
+      }),
+      syncStock(tx, [{
         orderItemId,
-        changeType: 'EDITED',
-        oldQuantity,
-        newQuantity,
-        reason: reason || `Quantity changed from ${oldQuantity} to ${newQuantity}`,
-        changedBy: userId,
-      },
-    });
-
-    const updated = await tx.orderItem.update({
-      where: { id: orderItemId },
-      data: {
+        inventoryItemId: orderItem.menuItem?.inventoryItemId,
         quantity: newQuantity,
-        originalQuantity: orderItem.originalQuantity || oldQuantity,
-      },
-    });
-
-    const stockChanged = await syncStock(tx, [{
-      orderItemId,
-      inventoryItemId: orderItem.menuItem?.inventoryItemId,
-      quantity: newQuantity,
-      name: orderItem.itemNameSnapshot,
-    }]);
+        name: orderItem.itemNameSnapshot,
+      }]),
+    ]);
 
     return { updated, stockChanged };
   });
@@ -317,23 +320,23 @@ export const cancelItem = async (orderItemId, reason, userId) => {
   if (orderItem.status === 'SERVED') throw { status: 400, message: 'Cannot cancel served item' };
 
   const result = await prisma.$transaction(async (tx) => {
-
-    await tx.orderItemHistory.create({
-      data: {
-        orderItemId,
-        changeType: 'CANCELLED',
-        oldQuantity: orderItem.quantity,
-        newQuantity: 0,
-        reason: reason || 'Item cancelled',
-        changedBy: userId,
-      },
-    });
-
-    const updated = await tx.orderItem.update({
-      where: { id: orderItemId },
-      data: { status: 'CANCELLED', originalQuantity: orderItem.originalQuantity || orderItem.quantity },
-    });
-    const stockChanged = await syncStock(tx, [{ orderItemId, quantity: 0, name: orderItem.itemNameSnapshot }]);
+    const [, updated, stockChanged] = await Promise.all([
+      tx.orderItemHistory.create({
+        data: {
+          orderItemId,
+          changeType: 'CANCELLED',
+          oldQuantity: orderItem.quantity,
+          newQuantity: 0,
+          reason: reason || 'Item cancelled',
+          changedBy: userId,
+        },
+      }),
+      tx.orderItem.update({
+        where: { id: orderItemId },
+        data: { status: 'CANCELLED', originalQuantity: orderItem.originalQuantity || orderItem.quantity },
+      }),
+      syncStock(tx, [{ orderItemId, quantity: 0, name: orderItem.itemNameSnapshot }]),
+    ]);
 
     let newKotStatus = null;
     if (orderItem.kotId) {

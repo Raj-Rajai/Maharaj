@@ -35,19 +35,18 @@ export const login = async (username, password) => {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
 
-  try {
-    await prisma.refreshToken.create({
+  const [, permissionsList] = await Promise.all([
+    prisma.refreshToken.create({
       data: {
         token: refreshToken,
         userId: user.id,
         expiresAt
       }
-    });
-  } catch (tokenErr) {
-    console.warn('[Auth] Could not persist refresh token:', tokenErr.message);
-  }
-
-  const permissionsList = await fetchUserPermissions(user.id, user.role);
+    }).catch((tokenErr) => {
+      console.warn('[Auth] Could not persist refresh token:', tokenErr.message);
+    }),
+    fetchUserPermissions(user.id, user.role),
+  ]);
 
   userAuthCache.set(user.id, {
     id: user.id,
@@ -138,7 +137,8 @@ export const getProfile = async (userId) => {
     throw { status: 404, message: 'User not found' };
   }
 
-  const permissionsList = await fetchUserPermissions(userId, user.role);
+  const cachedAuth = userAuthCache.get(userId);
+  const permissionsList = cachedAuth?.permissions || await fetchUserPermissions(userId, user.role);
 
   const profile = {
     ...user,

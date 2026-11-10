@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { parseDateRange } from '../utils/dateUtils.js';
+import { reportCache } from '../utils/cache.js';
 
 export const getAll = async (filters = {}) => {
   const { platform, status, startDate, endDate, from, to, limit, take, page, all } = filters || {};
@@ -95,7 +96,7 @@ export const create = async (data) => {
   const charges = Number(data.charges || 0);
   const total = subtotal - discount + charges;
 
-  return prisma.onlineOrder.create({
+  const created = await prisma.onlineOrder.create({
     data: {
       platform,
       externalOrderId: externalOrderId || `${platform}-${Date.now()}`,
@@ -110,6 +111,8 @@ export const create = async (data) => {
       notes: notes || null,
     },
   });
+  reportCache.invalidate();
+  return created;
 };
 
 export const update = async (id, data) => {
@@ -121,7 +124,9 @@ export const update = async (id, data) => {
   if (status !== undefined) updateData.status = status;
   if (paymentStatus !== undefined) updateData.paymentStatus = paymentStatus;
   try {
-    return await prisma.onlineOrder.update({ where: { id }, data: updateData });
+    const updated = await prisma.onlineOrder.update({ where: { id }, data: updateData });
+    reportCache.invalidate();
+    return updated;
   } catch (error) {
     if (error.code === 'P2025') throw { status: 404, message: 'Online order not found' };
     throw error;
@@ -130,7 +135,9 @@ export const update = async (id, data) => {
 
 export const updateStatus = async (id, status) => {
   try {
-    return await prisma.onlineOrder.update({ where: { id }, data: { status } });
+    const updated = await prisma.onlineOrder.update({ where: { id }, data: { status } });
+    reportCache.invalidate();
+    return updated;
   } catch (error) {
     if (error.code === 'P2025') throw { status: 404, message: 'Online order not found' };
     throw error;
