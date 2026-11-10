@@ -1,67 +1,145 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 
+// Schedule work for when the main thread is idle (falls back to a short timeout on
+// browsers without requestIdleCallback, e.g. older Safari / Fire OS Silk).
+const scheduleIdle = (cb, timeout = 200) => {
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    const id = window.requestIdleCallback(cb, { timeout });
+    return () => window.cancelIdleCallback(id);
+  }
+  const id = setTimeout(cb, 32);
+  return () => clearTimeout(id);
+};
+
+// A node inside a hidden RouteKeepAlive page (display:none) has no layout box.
+// getBoundingClientRect() then returns all zeros, which used to look "in viewport"
+// and mounted every section of every cached page in the background.
+const hasLayout = (node) => node.offsetParent !== null || node.getClientRects().length > 0;
+
+/**
+ * Super-lazy section loader.
+ *
+ * Stage 1 — prefetch: when the section is within `prefetchMargin` of the viewport,
+ *           `preload()` is called so the code chunk (e.g. recharts) starts downloading.
+ * Stage 2 — mount: when within `rootMargin`, children are mounted on the next idle
+ *           frame so fast scrolling never drops frames.
+ * While a lazy chunk is still downloading, the same skeleton is shown via Suspense,
+ * so there is no layout jump.
+ */
 export default function LazyScrollSection({
   children,
   minHeight = '240px',
   className = '',
   rootMargin = '140px 0px',
+  prefetchMargin = '600px 0px',
+  preload,
   placeholderType = 'default',
   title = '',
 }) {
   const [hasLoaded, setHasLoaded] = useState(false);
   const containerRef = useRef(null);
+  const preloadedRef = useRef(false);
+  const preloadRef = useRef(preload);
+  preloadRef.current = preload;
+
+  const runPreload = () => {
+    if (preloadedRef.current || !preloadRef.current) return;
+    preloadedRef.current = true;
+    try {
+      const p = preloadRef.current();
+      if (p && typeof p.catch === 'function') p.catch(() => { preloadedRef.current = false; });
+    } catch {
+      preloadedRef.current = false;
+    }
+  };
 
   useEffect(() => {
     if (hasLoaded) return;
     const node = containerRef.current;
     if (!node) return;
 
-    // Check if element is already within viewport on initial render
-    const checkVisibility = () => {
-      const rect = node.getBoundingClientRect();
-      const windowHeight = window.innerHeight || document.documentElement.clientHeight;
-      if (rect.top <= windowHeight + 160 && rect.bottom >= -160) {
-        setHasLoaded(true);
-        return true;
-      }
-      return false;
+    let cancelIdle = null;
+    let rafId = null;
+    let cleanedUp = false;
+
+    const reveal = () => {
+      if (cancelIdle || cleanedUp) return;
+      runPreload();
+      cancelIdle = scheduleIdle(() => {
+        if (!cleanedUp) setHasLoaded(true);
+      });
     };
 
-    if (checkVisibility()) return;
+    const isNear = (extra) => {
+      if (!hasLayout(node)) return false;
+      const rect = node.getBoundingClientRect();
+      const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+      return rect.top <= windowHeight + extra && rect.bottom >= -extra;
+    };
 
-    if (!('IntersectionObserver' in window)) {
-      setHasLoaded(true);
-      return;
+    // Already on screen at first render (e.g. tall tablet viewport)
+    if (isNear(160)) {
+      reveal();
+      return () => { cleanedUp = true; cancelIdle?.(); };
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
+    if (!('IntersectionObserver' in window)) {
+      reveal();
+      return () => { cleanedUp = true; cancelIdle?.(); };
+    }
+
+    const mountObserver = new IntersectionObserver(
+      ([entry]) => {
         if (entry.isIntersecting) {
-          setHasLoaded(true);
-          observer.disconnect();
+          mountObserver.disconnect();
+          reveal();
         }
       },
-      { rootMargin, threshold: 0.05 }
+      { rootMargin, threshold: 0.01 }
     );
+    mountObserver.observe(node);
 
-    observer.observe(node);
+    let prefetchObserver = null;
+    if (preloadRef.current) {
+      prefetchObserver = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            prefetchObserver.disconnect();
+            runPreload();
+          }
+        },
+        { rootMargin: prefetchMargin, threshold: 0 }
+      );
+      prefetchObserver.observe(node);
+    }
 
-    // Fallback scroll listener on the closest scrollable container (e.g. main)
+    // Fallback for scroll containers where IntersectionObserver misfires (KeepAlive <main>).
+    // rAF-throttled so it never runs more than once per frame.
     const scrollParent = node.closest('main') || window;
     const handleScroll = () => {
-      if (checkVisibility()) {
-        observer.disconnect();
-        scrollParent.removeEventListener('scroll', handleScroll);
-      }
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        if (isNear(160)) {
+          scrollParent.removeEventListener('scroll', handleScroll);
+          mountObserver.disconnect();
+          reveal();
+        }
+      });
     };
     scrollParent.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
-      observer.disconnect();
+      cleanedUp = true;
+      mountObserver.disconnect();
+      prefetchObserver?.disconnect();
       scrollParent.removeEventListener('scroll', handleScroll);
+      if (rafId) cancelAnimationFrame(rafId);
+      cancelIdle?.();
     };
-  }, [hasLoaded, rootMargin]);
+  }, [hasLoaded, rootMargin, prefetchMargin]);
+
+  const skeleton = <SectionSkeleton minHeight={minHeight} type={placeholderType} title={title} />;
 
   return (
     <div
@@ -69,11 +147,7 @@ export default function LazyScrollSection({
       className={`lazy-scroll-section ${hasLoaded ? 'scroll-reveal-active' : ''} ${className}`}
       style={!hasLoaded ? { minHeight } : undefined}
     >
-      {hasLoaded ? (
-        children
-      ) : (
-        <SectionSkeleton minHeight={minHeight} type={placeholderType} title={title} />
-      )}
+      {hasLoaded ? <Suspense fallback={skeleton}>{children}</Suspense> : skeleton}
     </div>
   );
 }

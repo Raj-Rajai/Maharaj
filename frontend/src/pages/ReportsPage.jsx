@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -15,13 +15,21 @@ import {
   acBlue, nonAcBlue, takeAwayBlue, swiggyIcon, zomatoIcon,
   reportsBlue, tableBlue
 } from '../assets';
-import {
-  RevenueTrendChart,
-  ChannelDonutChart,
-  PaymentMethodChart,
-  TopItemsChart,
-  TablePerformanceChart,
-} from '../components/reports';
+// Charts are code-split: recharts is only downloaded when a chart section nears the viewport
+const loadTrendCharts = () => Promise.all([
+  import('../components/reports/RevenueTrendChart'),
+  import('../components/reports/ChannelDonutChart'),
+]);
+const loadDetailCharts = () => Promise.all([
+  import('../components/reports/TopItemsChart'),
+  import('../components/reports/PaymentMethodChart'),
+  import('../components/reports/TablePerformanceChart'),
+]);
+const RevenueTrendChart = lazy(() => import('../components/reports/RevenueTrendChart'));
+const ChannelDonutChart = lazy(() => import('../components/reports/ChannelDonutChart'));
+const TopItemsChart = lazy(() => import('../components/reports/TopItemsChart'));
+const PaymentMethodChart = lazy(() => import('../components/reports/PaymentMethodChart'));
+const TablePerformanceChart = lazy(() => import('../components/reports/TablePerformanceChart'));
 import LazyScrollSection from '../components/common/LazyScrollSection';
 
 export default function ReportsPage() {
@@ -1032,7 +1040,7 @@ export default function ReportsPage() {
           </div>
 
           {/* Charts Row 1: Interactive Revenue Trend & Channel Donut */}
-          <LazyScrollSection minHeight="420px" title="Revenue Trend & Channel Distribution">
+          <LazyScrollSection minHeight="420px" title="Revenue Trend & Channel Distribution" preload={loadTrendCharts}>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-8">
                 <RevenueTrendChart
@@ -1047,7 +1055,7 @@ export default function ReportsPage() {
           </LazyScrollSection>
 
           {/* Charts Row 2: Top Selling Items, Payment Methods, Dine-In Tables */}
-          <LazyScrollSection minHeight="360px" title="Top Dishes, Payments & Table Performance">
+          <LazyScrollSection minHeight="360px" title="Top Dishes, Payments & Table Performance" preload={loadDetailCharts}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 min-w-0">
               <div className="min-w-0 md:col-span-2 lg:col-span-1">
                 <TopItemsChart

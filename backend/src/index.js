@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import './utils/timezone.js'; // must stay before anything that creates Dates
 import http from 'http';
 import express from 'express';
 import cors from 'cors';

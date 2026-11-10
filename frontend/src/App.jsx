@@ -6,7 +6,7 @@ import Spinner from './components/ui/Spinner';
 import RouteKeepAlive from './components/common/RouteKeepAlive';
 import { NotificationProvider } from './context/NotificationContext';
 
-// Stable permission arrays u{2014} avoids new array object on every render
+// Stable permission arrays — avoids new array object on every render
 const TAKE_AWAY_PERMS = ['ONLINE_ORDER_VIEW', 'ORDER_CREATE'];
 const MENU_PERMS = ['MENU_AC_VIEW', 'MENU_NON_AC_VIEW', 'MENU_SWIGGY_VIEW', 'MENU_ZOMATO_VIEW'];
 

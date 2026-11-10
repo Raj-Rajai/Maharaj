@@ -138,6 +138,7 @@ export const create = async (orderId, discount = 0, customerName = null, custome
     table: order.table ? { id: order.table.id, number: order.table.number, type: order.table.type } : null,
   });
   emitBillCreated(formatted);
+  reportCache.invalidate();
   return formatted;
 };
 
@@ -316,6 +317,7 @@ export const finalize = async (billId, paymentMethod, customerName = null, custo
 
   const formattedResult = formatBill(result);
   emitBillFinalized(formattedResult);
+  reportCache.invalidate();
   return formattedResult;
 };
 
@@ -359,7 +361,7 @@ export const amendBill = async (billId, changes, reason, userId, discount, custo
     const change = changes.find(c => c.itemName === item.itemNameSnapshot);
     if (change) {
       const qty = change.newQty !== undefined ? change.newQty : item.quantity;
-      // Always use the stored priceSnapshot â€” never trust client newPrice
+      // Always use the stored priceSnapshot — never trust client newPrice
       const price = Number(item.priceSnapshot);
       if (qty > 0) newSubtotal += qty * price;
     } else {
