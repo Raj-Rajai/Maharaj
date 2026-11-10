@@ -6,6 +6,10 @@ import Spinner from './components/ui/Spinner';
 import RouteKeepAlive from './components/common/RouteKeepAlive';
 import { NotificationProvider } from './context/NotificationContext';
 
+// Stable permission arrays u{2014} avoids new array object on every render
+const TAKE_AWAY_PERMS = ['ONLINE_ORDER_VIEW', 'ORDER_CREATE'];
+const MENU_PERMS = ['MENU_AC_VIEW', 'MENU_NON_AC_VIEW', 'MENU_SWIGGY_VIEW', 'MENU_ZOMATO_VIEW'];
+
 // Route-level code-splitting with React.lazy()
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -91,7 +95,7 @@ export default function App() {
               
               <Route path="bills" element={<BillsPage />} />
               
-              <Route element={<ProtectedRoute requiredAnyPermission={['ONLINE_ORDER_VIEW', 'ORDER_CREATE']} />}>
+              <Route element={<ProtectedRoute requiredAnyPermission={TAKE_AWAY_PERMS} />}>
                 <Route path="take-away" element={<TakeAwayPage />} />
               </Route>
               <Route path="online-orders" element={<Navigate to="/take-away" replace />} />
@@ -104,7 +108,7 @@ export default function App() {
                 <Route path="users" element={<UsersPage />} />
               </Route>
               
-              <Route element={<ProtectedRoute requiredAnyPermission={['MENU_AC_VIEW', 'MENU_NON_AC_VIEW', 'MENU_SWIGGY_VIEW', 'MENU_ZOMATO_VIEW']} />}>
+              <Route element={<ProtectedRoute requiredAnyPermission={MENU_PERMS} />}>
                 <Route path="menu" element={<MenuPage />} />
               </Route>
               

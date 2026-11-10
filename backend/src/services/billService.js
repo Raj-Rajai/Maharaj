@@ -1,6 +1,6 @@
 import prisma, { rawQuery } from '../utils/prisma.js';
 import * as auditService from './auditService.js';
-import { settingsCache, tableCache } from '../utils/cache.js';
+import { settingsCache, tableCache, reportCache } from '../utils/cache.js';
 import { emitBillCreated, emitBillUpdated, emitBillFinalized } from '../utils/socket.js';
 import { parseDateRange } from '../utils/dateUtils.js';
 import { syncStock, notifyStockChanged } from './stockService.js';
@@ -359,7 +359,7 @@ export const amendBill = async (billId, changes, reason, userId, discount, custo
     const change = changes.find(c => c.itemName === item.itemNameSnapshot);
     if (change) {
       const qty = change.newQty !== undefined ? change.newQty : item.quantity;
-      // Always use the stored priceSnapshot — never trust client newPrice
+      // Always use the stored priceSnapshot â€” never trust client newPrice
       const price = Number(item.priceSnapshot);
       if (qty > 0) newSubtotal += qty * price;
     } else {

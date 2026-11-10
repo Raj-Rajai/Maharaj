@@ -120,3 +120,29 @@ export function invalidateMenuCaches() {
   }
   categoryCache.invalidate();
 }
+
+// Report caches — keyed by date range, 30s TTL (read-heavy, data changes only on bill/payment writes)
+const _reportMap = new Map();
+const REPORT_TTL = 30_000; // 30 seconds
+
+export const reportCache = {
+  get(key) {
+    const entry = _reportMap.get(key);
+    if (entry && Date.now() < entry.expiresAt) {
+      return entry.data;
+    }
+    _reportMap.delete(key);
+    return null;
+  },
+  set(key, data) {
+    _reportMap.set(key, { data, expiresAt: Date.now() + REPORT_TTL });
+    // Cap at 20 entries to prevent unbounded growth
+    if (_reportMap.size > 20) {
+      const oldest = _reportMap.keys().next().value;
+      _reportMap.delete(oldest);
+    }
+  },
+  invalidate() {
+    _reportMap.clear();
+  },
+};

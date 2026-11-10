@@ -1,4 +1,6 @@
-export default function Card({ children, className = '', hover = false, onClick, padding = 'p-3.5 sm:p-5 md:p-6' }) {
+import { memo } from 'react';
+
+function Card({ children, className = '', hover = false, onClick, padding = 'p-3.5 sm:p-5 md:p-6' }) {
   return (
     <div
       className={`
@@ -13,3 +15,5 @@ export default function Card({ children, className = '', hover = false, onClick,
     </div>
   );
 }
+
+export default memo(Card);

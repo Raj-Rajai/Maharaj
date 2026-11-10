@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
-export default function Pagination({
+function Pagination({
   currentPage = 1,
   totalItems = 0,
   pageSize = 10,
@@ -153,3 +153,6 @@ export default function Pagination({
     </div>
   );
 }
+
+
+export default memo(Pagination);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -85,12 +85,14 @@ export default function DashboardPage() {
       const pad = (n) => String(n).padStart(2, '0');
       const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
       
-      // Sequential calls to avoid Supabase connection pool exhaustion
-      const salesRes = await api.get(`/reports/sales?startDate=${todayStr}&endDate=${todayStr}`).catch(() => ({ data: {} }));
-      const tablesRes = await api.get('/tables').catch(() => ({ data: [] }));
-      const kotsRes = await api.get('/kots').catch(() => ({ data: [] }));
-      const paymentsRes = await api.get(`/reports/payments?startDate=${todayStr}&endDate=${todayStr}`).catch(() => ({ data: {} }));
-      const inventoryRes = await api.get('/inventory').catch(() => api.get('/reports/inventory')).catch(() => ({ data: [] }));
+      // Parallel calls u{2014} MySQL handles 5 concurrent connections fine
+      const [salesRes, tablesRes, kotsRes, paymentsRes, inventoryRes] = await Promise.allSettled([
+        api.get(`/reports/sales?startDate=${todayStr}&endDate=${todayStr}`),
+        api.get('/tables'),
+        api.get('/kots'),
+        api.get(`/reports/payments?startDate=${todayStr}&endDate=${todayStr}`),
+        api.get('/inventory').catch(() => api.get('/reports/inventory')),
+      ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : { data: {} }));
 
       const s = salesRes.data || {};
       setSalesData({
@@ -219,15 +221,22 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [isActive]);
 
-  const totalPayments = paymentsData.cash + paymentsData.upi + paymentsData.card;
-  const cashPct = totalPayments > 0 ? (paymentsData.cash / totalPayments) * 100 : 0;
-  const upiPct = totalPayments > 0 ? (paymentsData.upi / totalPayments) * 100 : 0;
-  const cardPct = totalPayments > 0 ? (paymentsData.card / totalPayments) * 100 : 0;
+  const { totalPayments, cashPct, upiPct, cardPct } = useMemo(() => {
+    const total = paymentsData.cash + paymentsData.upi + paymentsData.card;
+    return {
+      totalPayments: total,
+      cashPct: total > 0 ? (paymentsData.cash / total) * 100 : 0,
+      upiPct: total > 0 ? (paymentsData.upi / total) * 100 : 0,
+      cardPct: total > 0 ? (paymentsData.card / total) * 100 : 0,
+    };
+  }, [paymentsData]);
 
-  const totalRev = salesData.totalSales;
-  const totalOccupiedPct = tablesData.total > 0 ? Math.round((tablesData.occupied / tablesData.total) * 100) : 0;
-  const acOccupiedPct = tablesData.acTotal > 0 ? Math.round((tablesData.acOccupied / tablesData.acTotal) * 100) : 0;
-  const nonAcOccupiedPct = tablesData.nonAcTotal > 0 ? Math.round((tablesData.nonAcOccupied / tablesData.nonAcTotal) * 100) : 0;
+  const { totalRev, totalOccupiedPct, acOccupiedPct, nonAcOccupiedPct } = useMemo(() => ({
+    totalRev: salesData.totalSales,
+    totalOccupiedPct: tablesData.total > 0 ? Math.round((tablesData.occupied / tablesData.total) * 100) : 0,
+    acOccupiedPct: tablesData.acTotal > 0 ? Math.round((tablesData.acOccupied / tablesData.acTotal) * 100) : 0,
+    nonAcOccupiedPct: tablesData.nonAcTotal > 0 ? Math.round((tablesData.nonAcOccupied / tablesData.nonAcTotal) * 100) : 0,
+  }), [salesData.totalSales, tablesData]);
 
   if (loading) {
     return (
@@ -303,12 +312,12 @@ export default function DashboardPage() {
             <div>
               <span className="text-[11px] font-bold text-text-secondary dark:text-slate-400 uppercase tracking-wider block">Today's Revenue</span>
               <div className="text-2xl font-black text-text dark:text-slate-100 font-mono mt-1.5 flex items-baseline gap-0.5">
-                <span className="text-primary dark:text-blue-400 font-bold">₹</span>
+                <span className="text-primary dark:text-blue-400 font-bold">Ã¢â€šÂ¹</span>
                 <AnimatedNumber value={salesData.totalSales} decimals={2} />
               </div>
               <div className="flex items-center gap-1 text-[11px] text-text-secondary dark:text-slate-400 mt-1">
                 <span>Avg Order:</span>
-                <span className="font-mono font-semibold text-text dark:text-slate-200">₹{salesData.avgOrderValue.toFixed(2)}</span>
+                <span className="font-mono font-semibold text-text dark:text-slate-200">Ã¢â€šÂ¹{salesData.avgOrderValue.toFixed(2)}</span>
               </div>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-primary dark:text-blue-400 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-xs">
@@ -317,8 +326,8 @@ export default function DashboardPage() {
           </div>
           {/* Mini Channel Pills */}
           <div className="mt-3 pt-3 border-t border-border/60 dark:border-slate-800 flex items-center justify-between text-[10px] text-text-secondary dark:text-slate-400">
-            <span>AC: <strong className="text-blue-700 dark:text-blue-400 font-mono">₹{salesData.acSales.toLocaleString('en-IN')}</strong></span>
-            <span>Non-AC: <strong className="text-emerald-700 dark:text-emerald-400 font-mono">₹{salesData.nonAcSales.toLocaleString('en-IN')}</strong></span>
+            <span>AC: <strong className="text-blue-700 dark:text-blue-400 font-mono">Ã¢â€šÂ¹{salesData.acSales.toLocaleString('en-IN')}</strong></span>
+            <span>Non-AC: <strong className="text-emerald-700 dark:text-emerald-400 font-mono">Ã¢â€šÂ¹{salesData.nonAcSales.toLocaleString('en-IN')}</strong></span>
           </div>
         </div>
 
@@ -350,7 +359,7 @@ export default function DashboardPage() {
             <div>
               <span className="text-[11px] font-bold text-text-secondary dark:text-slate-400 uppercase tracking-wider block">Dine-In Revenue</span>
               <div className="text-2xl font-black text-text dark:text-slate-100 font-mono mt-1.5 flex items-baseline gap-0.5">
-                <span className="text-indigo-600 dark:text-indigo-400 font-bold">₹</span>
+                <span className="text-indigo-600 dark:text-indigo-400 font-bold">Ã¢â€šÂ¹</span>
                 <AnimatedNumber value={salesData.dineInRevenue} decimals={2} />
               </div>
               <div className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">
@@ -372,7 +381,7 @@ export default function DashboardPage() {
             <div>
               <span className="text-[11px] font-bold text-text-secondary dark:text-slate-400 uppercase tracking-wider block">Take Away & Online</span>
               <div className="text-2xl font-black text-text dark:text-slate-100 font-mono mt-1.5 flex items-baseline gap-0.5">
-                <span className="text-amber-600 dark:text-amber-400 font-bold">₹</span>
+                <span className="text-amber-600 dark:text-amber-400 font-bold">Ã¢â€šÂ¹</span>
                 <AnimatedNumber value={salesData.onlineRevenue} decimals={2} />
               </div>
               <div className="text-[11px] text-text-secondary dark:text-slate-400 mt-1">
@@ -384,8 +393,8 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-border/60 dark:border-slate-800 flex items-center justify-between text-[10px] text-text-secondary dark:text-slate-400">
-            <span>Swiggy: <strong className="font-mono text-orange-600 dark:text-orange-400">₹{salesData.swiggyRevenue.toLocaleString('en-IN')}</strong></span>
-            <span>Zomato: <strong className="font-mono text-red-600 dark:text-red-400">₹{salesData.zomatoRevenue.toLocaleString('en-IN')}</strong></span>
+            <span>Swiggy: <strong className="font-mono text-orange-600 dark:text-orange-400">Ã¢â€šÂ¹{salesData.swiggyRevenue.toLocaleString('en-IN')}</strong></span>
+            <span>Zomato: <strong className="font-mono text-red-600 dark:text-red-400">Ã¢â€šÂ¹{salesData.zomatoRevenue.toLocaleString('en-IN')}</strong></span>
           </div>
         </div>
       </div>
@@ -412,7 +421,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <span className="text-xs font-mono font-bold text-primary dark:text-blue-400 bg-primary/10 dark:bg-primary/20 px-2 py-0.5 rounded-md">
-                  ₹{totalRev.toLocaleString('en-IN')}
+                  Ã¢â€šÂ¹{totalRev.toLocaleString('en-IN')}
                 </span>
               </div>
 
@@ -423,27 +432,27 @@ export default function DashboardPage() {
                     <div
                       style={{ width: `${(salesData.acSales / totalRev) * 100}%` }}
                       className="bg-blue-700 h-full transition-all duration-1000 ease-out"
-                      title={`AC: ₹${salesData.acSales}`}
+                      title={`AC: Ã¢â€šÂ¹${salesData.acSales}`}
                     />
                     <div
                       style={{ width: `${(salesData.nonAcSales / totalRev) * 100}%` }}
                       className="bg-blue-400 h-full transition-all duration-1000 ease-out"
-                      title={`Non-AC: ₹${salesData.nonAcSales}`}
+                      title={`Non-AC: Ã¢â€šÂ¹${salesData.nonAcSales}`}
                     />
                     <div
                       style={{ width: `${(salesData.selfPickupSales / totalRev) * 100}%` }}
                       className="bg-emerald-500 h-full transition-all duration-1000 ease-out"
-                      title={`Self Pickup: ₹${salesData.selfPickupSales}`}
+                      title={`Self Pickup: Ã¢â€šÂ¹${salesData.selfPickupSales}`}
                     />
                     <div
                       style={{ width: `${(salesData.swiggyRevenue / totalRev) * 100}%` }}
                       className="bg-orange-500 h-full transition-all duration-1000 ease-out"
-                      title={`Swiggy: ₹${salesData.swiggyRevenue}`}
+                      title={`Swiggy: Ã¢â€šÂ¹${salesData.swiggyRevenue}`}
                     />
                     <div
                       style={{ width: `${(salesData.zomatoRevenue / totalRev) * 100}%` }}
                       className="bg-red-500 h-full transition-all duration-1000 ease-out"
-                      title={`Zomato: ₹${salesData.zomatoRevenue}`}
+                      title={`Zomato: Ã¢â€šÂ¹${salesData.zomatoRevenue}`}
                     />
                   </>
                 ) : (
@@ -474,7 +483,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-3">
                         <span className="text-[11px] text-text-secondary dark:text-slate-400 font-mono">{pct}%</span>
                         <span className="font-mono font-bold text-text dark:text-slate-100 w-20 text-right">
-                          ₹{ch.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          Ã¢â€šÂ¹{ch.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                     </div>
@@ -736,7 +745,7 @@ export default function DashboardPage() {
                 <h3 className="text-sm font-bold text-text dark:text-slate-100">Payment Collections</h3>
               </div>
               <span className="text-xs font-mono font-bold text-text dark:text-slate-100">
-                ₹{totalPayments.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                Ã¢â€šÂ¹{totalPayments.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </span>
             </div>
 
@@ -750,7 +759,7 @@ export default function DashboardPage() {
                     Cash:
                   </span>
                   <span className="font-mono font-bold text-text dark:text-slate-100">
-                    ₹<AnimatedNumber value={paymentsData.cash} decimals={2} />
+                    Ã¢â€šÂ¹<AnimatedNumber value={paymentsData.cash} decimals={2} />
                     <span className="text-[10px] text-text-secondary dark:text-slate-400 font-normal ml-1">({cashPct.toFixed(0)}%)</span>
                   </span>
                 </div>
@@ -770,7 +779,7 @@ export default function DashboardPage() {
                     UPI / QR:
                   </span>
                   <span className="font-mono font-bold text-text dark:text-slate-100">
-                    ₹<AnimatedNumber value={paymentsData.upi} decimals={2} />
+                    Ã¢â€šÂ¹<AnimatedNumber value={paymentsData.upi} decimals={2} />
                     <span className="text-[10px] text-text-secondary dark:text-slate-400 font-normal ml-1">({upiPct.toFixed(0)}%)</span>
                   </span>
                 </div>
@@ -790,7 +799,7 @@ export default function DashboardPage() {
                     Cards / POS:
                   </span>
                   <span className="font-mono font-bold text-text dark:text-slate-100">
-                    ₹<AnimatedNumber value={paymentsData.card} decimals={2} />
+                    Ã¢â€šÂ¹<AnimatedNumber value={paymentsData.card} decimals={2} />
                     <span className="text-[10px] text-text-secondary dark:text-slate-400 font-normal ml-1">({cardPct.toFixed(0)}%)</span>
                   </span>
                 </div>
